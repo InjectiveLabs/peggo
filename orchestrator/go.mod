@@ -13,6 +13,7 @@ require (
 	github.com/jawher/mow.cli v1.2.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/common v0.14.0
 	github.com/shopspring/decimal v1.2.0
 	github.com/tendermint/tendermint v0.34.0-rc6
 	github.com/xlab/closer v0.0.0-20190328110542-03326addb7c2

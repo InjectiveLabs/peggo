@@ -9,19 +9,23 @@ import (
 )
 
 var (
-	envName              *string
-	appLogLevel          *string
-	svcWaitTimeout       *string
-	evmNodeHTTP          *string
-	injectiveProtoAddr   *string
-	fetchIntervalSeconds *string
-	priceFeederFromPK    *string
-	yfiVaultAddress      *string
-	statsdPrefix         *string
-	statsdAddr           *string
-	statsdStuckDur       *string
-	statsdMocking        *string
-	statsdDisabled       *string
+	envName         *string
+	appLogLevel     *string
+	svcWaitTimeout  *string
+	cosmosPrivkey   *string
+	cosmosGRPC      *string
+	tendermintRPC   *string
+	feeDenom        *string
+	ethPrivkeyInput *string
+	chainId         *string
+	ethNodeRPC      *string
+	ethPrivkey      *string
+	contractAddrHex *string
+	statsdPrefix    *string
+	statsdAddr      *string
+	statsdStuckDur  *string
+	statsdMocking   *string
+	statsdDisabled  *string
 )
 
 func initFlags() {
@@ -46,38 +50,58 @@ func initFlags() {
 		Value:  "1m",
 	})
 
-	evmNodeHTTP = app.String(cli.StringOpt{
-		Name:   "evm-node-http",
-		Desc:   "Specify HTTP endpoint for an EVM node.",
-		EnvVar: "EVM_RPC_HTTP",
-		Value:  "http://localhost:1317",
+	cosmosPrivkey = app.String(cli.StringOpt{
+		Name:   "cosmos-privkey",
+		Desc:   "The Cosmos private key of the validator.",
+		EnvVar: "PEGGY_COSMOS_PRIVKEY",
 	})
 
-	injectiveProtoAddr = app.String(cli.StringOpt{
-		Name:   "injectived-grpc-addr",
-		Desc:   "Specify GRPC address of the injectived service.",
-		EnvVar: "INJECTIVED_GRPC_ADDR",
+	cosmosGRPC = app.String(cli.StringOpt{
+		Name:   "cosmos-grpc",
+		Desc:   "Cosmos GRPC querying endpoint",
+		EnvVar: "PEGGY_COSMOS_GRPC",
 		Value:  "tcp://localhost:9900",
 	})
 
-	fetchIntervalSeconds = app.String(cli.StringOpt{
-		Name:   "F fetch-interval",
-		Desc:   "Specify price update interval (example: 60s)",
-		EnvVar: "PRICE_FETCH_INTERVAL",
-		Value:  "60s",
+	tendermintRPC = app.String(cli.StringOpt{
+		Name:   "tendermint-rpc",
+		Desc:   "Tednermint RPC endpoint",
+		EnvVar: "PEGGY_TENDERMINT_RPC",
+		Value:  "http://localhost:26657",
 	})
 
-	yfiVaultAddress = app.String(cli.StringOpt{
-		Name:   "yfi-vault-address",
-		Desc:   "Address for Yfi Vault index amount",
-		EnvVar: "YFI_VAULT_ADDRESS",
-		Value:  "0x07A8fA2531aab1eA8D6a50E8a81069b370ed24BE",
+	feeDenom = app.String(cli.StringOpt{
+		Name:   "fees",
+		Desc:   "The Cosmos Denom in which to pay Cosmos chain fees",
+		EnvVar: "PEGGY_FEE_DENOM",
+		Value:  "inj",
 	})
 
-	priceFeederFromPK = app.String(cli.StringOpt{
-		Name:   "from-pk",
-		Desc:   "Sender private key (Ex: 5D862464FE95...)",
-		EnvVar: "PRICE_FEEDER_PRIVATE_KEY",
+	chainId = app.String(cli.StringOpt{
+		Name:   "chain-id",
+		Desc:   "Specify Chain ID of the injectived service.",
+		EnvVar: "INJECTIVED_CHAIN_ID",
+		Value:  "888",
+	})
+
+	ethNodeRPC = app.String(cli.StringOpt{
+		Name:   "eth-node-http",
+		Desc:   "Specify HTTP endpoint for an Ethereum node.",
+		EnvVar: "PEGGY_ETH_RPC",
+		Value:  "http://localhost:1317",
+	})
+
+	ethPrivkey = app.String(cli.StringOpt{
+		Name:   "eth-privkey",
+		Desc:   "The Ethereum private key of the validator(Ex: 5D862464FE95...)",
+		EnvVar: "PEGGY_ETH_PRIVATE_KEY",
+		Value:  "",
+	})
+
+	contractAddrHex = app.String(cli.StringOpt{
+		Name:   "contract-address",
+		Desc:   "The Ethereum contract address of Peggy",
+		EnvVar: "PEGGY_CONTRACT_ADDRESS",
 		Value:  "",
 	})
 
@@ -87,24 +111,28 @@ func initFlags() {
 		EnvVar: "STATSD_PREFIX",
 		Value:  "relayer_api",
 	})
+
 	statsdAddr = app.String(cli.StringOpt{
 		Name:   "statsd-addr",
 		Desc:   "UDP address of a StatsD compatible metrics aggregator.",
 		EnvVar: "STATSD_ADDR",
 		Value:  "localhost:8125",
 	})
+
 	statsdStuckDur = app.String(cli.StringOpt{
 		Name:   "statsd-stuck-func",
 		Desc:   "Sets a duration to consider a function to be stuck (e.g. in deadlock).",
 		EnvVar: "STATSD_STUCK_DUR",
 		Value:  "5m",
 	})
+
 	statsdMocking = app.String(cli.StringOpt{
 		Name:   "statsd-mocking",
 		Desc:   "If enabled replaces statsd client with a mock one that simply logs values.",
 		EnvVar: "STATSD_MOCKING",
 		Value:  "false",
 	})
+
 	statsdDisabled = app.String(cli.StringOpt{
 		Name:   "statsd-disabled",
 		Desc:   "Force disabling statsd reporting completely.",

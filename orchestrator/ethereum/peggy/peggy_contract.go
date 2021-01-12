@@ -22,6 +22,8 @@ import (
 type PeggyContract interface {
 	committer.EVMCommitter
 
+	Address() common.Address
+
 	SendToCosmos(
 		ctx context.Context,
 		erc20 common.Address,
@@ -42,7 +44,6 @@ type PeggyContract interface {
 		oldValset *types.Valset,
 		newValset *types.Valset,
 		confirms []*types.MsgValsetConfirm,
-		senderAddress common.Address,
 	) (*common.Hash, error)
 
 	GetTxBatchNonce(
@@ -99,6 +100,10 @@ type peggyContract struct {
 	ethPeggy     *wrappers.Peggy
 
 	svcTags metrics.Tags
+}
+
+func (s *peggyContract) Address() common.Address {
+	return s.peggyAddress
 }
 
 // maxUintAllowance is uint constant MAX_UINT = 2**256 - 1

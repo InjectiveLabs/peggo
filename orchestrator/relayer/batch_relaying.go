@@ -10,9 +10,9 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
 )
 
-// RelayBatches checks the last validator set on Ethereum, if it's lower than our latest valida
+// relayBatches checks the last validator set on Ethereum, if it's lower than our latest valida
 // set then we should package and submit the update as an Ethereum transaction
-func (s *peggyRelayer) RelayBatches(ctx context.Context) error {
+func (s *peggyRelayer) relayBatches(ctx context.Context) error {
 	latestBatches, err := s.cosmosQueryClient.LatestTransactionBatches(ctx)
 	if err != nil {
 		return err
@@ -44,13 +44,22 @@ func (s *peggyRelayer) RelayBatches(ctx context.Context) error {
 		return err
 	}
 
+	currentValset, err := s.findLatestValset(ctx)
+	if err != nil {
+		return errors.New("failed to find latest valset")
+	} else if currentValset == nil {
+		return errors.New("latest valset not found")
+	}
+
 	if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
 		log.Infof("We have detected latest batch %d but latest on Ethereum is %d sending an update!", oldestSignedBatch.BatchNonce, latestEthereumBatch)
 
-		s.peggyContract.SendTransactionBatch(ctx, nil, oldestSignedBatch, oldestSigs)
+		txHash, err := s.peggyContract.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)
 		if err != nil {
 			return err
 		}
+
+		log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (TransactionBatch)")
 	}
 
 	return nil

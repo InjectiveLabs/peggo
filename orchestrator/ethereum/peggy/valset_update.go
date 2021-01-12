@@ -16,7 +16,6 @@ func (s *peggyContract) SendEthValsetUpdate(
 	oldValset *types.Valset,
 	newValset *types.Valset,
 	confirms []*types.MsgValsetConfirm,
-	senderAddress common.Address,
 ) (*common.Hash, error) {
 	if newValset.Nonce <= oldValset.Nonce {
 		err := errors.New("new valset nonce should be greater than old valset nonce")

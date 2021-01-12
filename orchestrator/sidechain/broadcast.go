@@ -19,6 +19,8 @@ import (
 )
 
 type PeggyBroadcastClient interface {
+	FromAddress() sdk.AccAddress
+
 	// UpdatePeggyEthAddress broadcasts a transaction updating the ETH address for the sending
 	// Cosmos address. The sending Cosmos address should be a validator.
 	UpdatePeggyEthAddress(
@@ -36,7 +38,7 @@ type PeggyBroadcastClient interface {
 	SendValsetConfirm(
 		ctx context.Context,
 		ethPrivateKey *ecdsa.PrivateKey,
-		peggyID string,
+		peggyID common.Hash,
 		valset *types.Valset,
 	) error
 
@@ -45,7 +47,7 @@ type PeggyBroadcastClient interface {
 	SendBatchConfirm(
 		ctx context.Context,
 		ethPrivateKey *ecdsa.PrivateKey,
-		peggyID string,
+		peggyID common.Hash,
 		batch *types.OutgoingTxBatch,
 	) error
 
@@ -82,6 +84,10 @@ func NewPeggyBroadcastClient(
 			"svc": "peggy_broadcast",
 		},
 	}
+}
+
+func (s *peggyBroadcastClient) FromAddress() sdk.AccAddress {
+	return s.broadcastClient.FromAddress()
 }
 
 type peggyBroadcastClient struct {
@@ -161,7 +167,7 @@ func (s *peggyBroadcastClient) SendValsetRequest(
 func (s *peggyBroadcastClient) SendValsetConfirm(
 	ctx context.Context,
 	ethPrivateKey *ecdsa.PrivateKey,
-	peggyID string,
+	peggyID common.Hash,
 	valset *types.Valset,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
@@ -169,7 +175,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	defer doneFn()
 
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
-	confirmHash := peggy.EncodeValsetConfirm(common.HexToHash(peggyID), valset)
+	confirmHash := peggy.EncodeValsetConfirm(peggyID, valset)
 	signature, err := util.NewEthereumSignature(confirmHash.Bytes(), ethPrivateKey)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
@@ -210,7 +216,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 func (s *peggyBroadcastClient) SendBatchConfirm(
 	ctx context.Context,
 	ethPrivateKey *ecdsa.PrivateKey,
-	peggyID string,
+	peggyID common.Hash,
 	batch *types.OutgoingTxBatch,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
@@ -218,7 +224,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	defer doneFn()
 
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
-	confirmHash := peggy.EncodeTxBatchConfirm(common.HexToHash(peggyID), batch)
+	confirmHash := peggy.EncodeTxBatchConfirm(peggyID, batch)
 	signature, err := util.NewEthereumSignature(confirmHash.Bytes(), ethPrivateKey)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
