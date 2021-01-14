@@ -32,7 +32,6 @@ func (s *peggyOrchestrator) RunLoop(ctx context.Context) {
 // TODO this loop requires a method to bootstrap back to the correct event nonce when restarted
 func (s *peggyOrchestrator) ethOracleMainLoop(wg *sync.WaitGroup) {
 	defer wg.Done()
-
 	ctx := context.Background()
 
 	var err error
@@ -98,10 +97,13 @@ func (s *peggyOrchestrator) ethSignerMainLoop(wg *sync.WaitGroup) {
 	for {
 		peggyID, err = s.peggyContract.GetPeggyID(ctx, s.peggyContract.FromAddress())
 		if err != nil {
+
 			log.WithError(err).Errorln("failed to get PeggyID from Ethereum contract, retry in", defaultRetryDur)
 			time.Sleep(defaultRetryDur)
 			continue
 		}
+		log.Debugf("[ethSignerMainLoop] peggyID %s", peggyID.Hex())
+		break
 	}
 
 	t := time.NewTimer(0)
