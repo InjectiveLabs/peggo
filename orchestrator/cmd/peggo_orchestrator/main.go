@@ -140,7 +140,7 @@ func runApp() {
 	if err != nil {
 		log.WithError(err).Fatalln("failed to initialize sidechain client context")
 	}
-	clientCtx = clientCtx.WithNodeURI(*cosmosGRPC)
+	clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
 
 	daemonClient, err := chainclient.NewCosmosClient(clientCtx, *cosmosGRPC)
 	if err != nil {
