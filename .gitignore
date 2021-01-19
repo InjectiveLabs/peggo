@@ -14,4 +14,21 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+
+# OS
 .DS_Store
+*.swp
+*.swo
+.vscode
+.idea
+
+# Build
+build
+
+# IDE
+.idea/
+*.iml
+.root/
+
+dist/
+.env
