@@ -137,7 +137,7 @@ func bindPeggy(address common.Address, caller bind.ContractCaller, transactor bi
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Peggy *PeggyRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Peggy *PeggyRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Peggy.Contract.PeggyCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -156,7 +156,7 @@ func (_Peggy *PeggyRaw) Transact(opts *bind.TransactOpts, method string, params 
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_Peggy *PeggyCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_Peggy *PeggyCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _Peggy.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -175,12 +175,17 @@ func (_Peggy *PeggyTransactorRaw) Transact(opts *bind.TransactOpts, method strin
 //
 // Solidity: function lastBatchNonce(address _erc20Address) view returns(uint256)
 func (_Peggy *PeggyCaller) LastBatchNonce(opts *bind.CallOpts, _erc20Address common.Address) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "lastBatchNonce", _erc20Address)
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "lastBatchNonce", _erc20Address)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // LastBatchNonce is a free data retrieval call binding the contract method 0x011b2174.
@@ -201,12 +206,17 @@ func (_Peggy *PeggyCallerSession) LastBatchNonce(_erc20Address common.Address) (
 //
 // Solidity: function state_lastBatchNonces(address ) view returns(uint256)
 func (_Peggy *PeggyCaller) StateLastBatchNonces(opts *bind.CallOpts, arg0 common.Address) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_lastBatchNonces", arg0)
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_lastBatchNonces", arg0)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // StateLastBatchNonces is a free data retrieval call binding the contract method 0xdf97174b.
@@ -227,12 +237,17 @@ func (_Peggy *PeggyCallerSession) StateLastBatchNonces(arg0 common.Address) (*bi
 //
 // Solidity: function state_lastEventNonce() view returns(uint256)
 func (_Peggy *PeggyCaller) StateLastEventNonce(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_lastEventNonce")
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_lastEventNonce")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // StateLastEventNonce is a free data retrieval call binding the contract method 0x73b20547.
@@ -253,12 +268,17 @@ func (_Peggy *PeggyCallerSession) StateLastEventNonce() (*big.Int, error) {
 //
 // Solidity: function state_lastValsetCheckpoint() view returns(bytes32)
 func (_Peggy *PeggyCaller) StateLastValsetCheckpoint(opts *bind.CallOpts) ([32]byte, error) {
-	var (
-		ret0 = new([32]byte)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_lastValsetCheckpoint")
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_lastValsetCheckpoint")
+
+	if err != nil {
+		return *new([32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+
+	return out0, err
+
 }
 
 // StateLastValsetCheckpoint is a free data retrieval call binding the contract method 0xf2b53307.
@@ -279,12 +299,17 @@ func (_Peggy *PeggyCallerSession) StateLastValsetCheckpoint() ([32]byte, error) 
 //
 // Solidity: function state_lastValsetNonce() view returns(uint256)
 func (_Peggy *PeggyCaller) StateLastValsetNonce(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_lastValsetNonce")
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_lastValsetNonce")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // StateLastValsetNonce is a free data retrieval call binding the contract method 0xb56561fe.
@@ -305,12 +330,17 @@ func (_Peggy *PeggyCallerSession) StateLastValsetNonce() (*big.Int, error) {
 //
 // Solidity: function state_peggyId() view returns(bytes32)
 func (_Peggy *PeggyCaller) StatePeggyId(opts *bind.CallOpts) ([32]byte, error) {
-	var (
-		ret0 = new([32]byte)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_peggyId")
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_peggyId")
+
+	if err != nil {
+		return *new([32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+
+	return out0, err
+
 }
 
 // StatePeggyId is a free data retrieval call binding the contract method 0x69dd3908.
@@ -331,12 +361,17 @@ func (_Peggy *PeggyCallerSession) StatePeggyId() ([32]byte, error) {
 //
 // Solidity: function state_powerThreshold() view returns(uint256)
 func (_Peggy *PeggyCaller) StatePowerThreshold(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _Peggy.contract.Call(opts, out, "state_powerThreshold")
-	return *ret0, err
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "state_powerThreshold")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // StatePowerThreshold is a free data retrieval call binding the contract method 0xe5a2b5d2.
@@ -357,10 +392,15 @@ func (_Peggy *PeggyCallerSession) StatePowerThreshold() (*big.Int, error) {
 //
 // Solidity: function testCheckValidatorSignatures(address[] _currentValidators, uint256[] _currentPowers, uint8[] _v, bytes32[] _r, bytes32[] _s, bytes32 _theHash, uint256 _powerThreshold) pure returns()
 func (_Peggy *PeggyCaller) TestCheckValidatorSignatures(opts *bind.CallOpts, _currentValidators []common.Address, _currentPowers []*big.Int, _v []uint8, _r [][32]byte, _s [][32]byte, _theHash [32]byte, _powerThreshold *big.Int) error {
-	var ()
-	out := &[]interface{}{}
-	err := _Peggy.contract.Call(opts, out, "testCheckValidatorSignatures", _currentValidators, _currentPowers, _v, _r, _s, _theHash, _powerThreshold)
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "testCheckValidatorSignatures", _currentValidators, _currentPowers, _v, _r, _s, _theHash, _powerThreshold)
+
+	if err != nil {
+		return err
+	}
+
 	return err
+
 }
 
 // TestCheckValidatorSignatures is a free data retrieval call binding the contract method 0xdb7c4e57.
@@ -381,10 +421,15 @@ func (_Peggy *PeggyCallerSession) TestCheckValidatorSignatures(_currentValidator
 //
 // Solidity: function testMakeCheckpoint(address[] _validators, uint256[] _powers, uint256 _valsetNonce, bytes32 _peggyId) pure returns()
 func (_Peggy *PeggyCaller) TestMakeCheckpoint(opts *bind.CallOpts, _validators []common.Address, _powers []*big.Int, _valsetNonce *big.Int, _peggyId [32]byte) error {
-	var ()
-	out := &[]interface{}{}
-	err := _Peggy.contract.Call(opts, out, "testMakeCheckpoint", _validators, _powers, _valsetNonce, _peggyId)
+	var out []interface{}
+	err := _Peggy.contract.Call(opts, &out, "testMakeCheckpoint", _validators, _powers, _valsetNonce, _peggyId)
+
+	if err != nil {
+		return err
+	}
+
 	return err
+
 }
 
 // TestMakeCheckpoint is a free data retrieval call binding the contract method 0xc227c30b.
@@ -624,6 +669,7 @@ func (_Peggy *PeggyFilterer) ParseSendToCosmosEvent(log types.Log) (*PeggySendTo
 	if err := _Peggy.contract.UnpackLog(event, "SendToCosmosEvent", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -777,6 +823,7 @@ func (_Peggy *PeggyFilterer) ParseTransactionBatchExecutedEvent(log types.Log) (
 	if err := _Peggy.contract.UnpackLog(event, "TransactionBatchExecutedEvent", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }
 
@@ -922,5 +969,6 @@ func (_Peggy *PeggyFilterer) ParseValsetUpdatedEvent(log types.Log) (*PeggyValse
 	if err := _Peggy.contract.UnpackLog(event, "ValsetUpdatedEvent", log); err != nil {
 		return nil, err
 	}
+	event.Raw = log
 	return event, nil
 }

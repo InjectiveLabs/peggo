@@ -117,7 +117,7 @@ func TransactFn(p EVMProviderWithRet, contractAddress common.Address, txHashOut 
 		if opts.Signer == nil {
 			return nil, errors.New("no signer to authorize the transaction with")
 		}
-		signedTx, err := opts.Signer(types.HomesteadSigner{}, opts.From, rawTx)
+		signedTx, err := opts.Signer(opts.From, rawTx)
 		if err != nil {
 			return nil, err
 		}

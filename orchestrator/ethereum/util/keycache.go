@@ -121,10 +121,11 @@ func (k *keyCache) SignerFn(account common.Address, password string) bind.Signer
 		return nil
 	}
 	keyAddr := crypto.PubkeyToAddress(key.PublicKey)
-	return func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	return func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 		if address != keyAddr {
 			return nil, errors.New("not authorized to sign this account")
 		}
+		signer := types.HomesteadSigner{}
 		signature, err := crypto.Sign(signer.Hash(tx).Bytes(), key)
 		if err != nil {
 			return nil, err
@@ -135,10 +136,11 @@ func (k *keyCache) SignerFn(account common.Address, password string) bind.Signer
 
 func SignerFnForPk(privKey *ecdsa.PrivateKey) bind.SignerFn {
 	keyAddr := crypto.PubkeyToAddress(privKey.PublicKey)
-	return func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	return func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 		if address != keyAddr {
 			return nil, errors.New("not authorized to sign this account")
 		}
+		signer := types.HomesteadSigner{}
 		signature, err := crypto.Sign(signer.Hash(tx).Bytes(), privKey)
 		if err != nil {
 			return nil, err

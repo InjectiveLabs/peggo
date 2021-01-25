@@ -98,7 +98,7 @@ func (e *ethCommitter) SendTx(
 			opts.Context, _ = context.WithTimeout(context.Background(), 20*time.Second)
 
 			tx := types.NewTransaction(opts.Nonce.Uint64(), recipient, nil, opts.GasLimit, opts.GasPrice, txData)
-			signedTx, err := opts.Signer(types.HomesteadSigner{}, opts.From, tx)
+			signedTx, err := opts.Signer(opts.From, tx)
 			if err != nil {
 				e.nonceCache.Decr(e.fromAddress)
 
