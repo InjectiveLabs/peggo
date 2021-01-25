@@ -107,7 +107,8 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
 	valAddr := s.broadcastClient.FromAddress()
-	signature, err := util.NewEthereumSignature(valAddr.Bytes(), ethPrivateKey)
+	// signature, err := util.NewEthereumSignature(valAddr.Bytes(), ethPrivateKey)
+	signature, err := util.NewEthereumSignature(crypto.Keccak256(valAddr.Bytes()), ethPrivateKey)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.New("failed to sign validator address")
@@ -126,7 +127,7 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 		Validator: valAddr.String(),
 		Signature: common.Bytes2Hex(signature),
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+	if _, err = s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "broadcasting MsgSetEthAddress failed")
 		return err
@@ -244,7 +245,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 		Validator:     s.broadcastClient.FromAddress().String(),
 		Nonce:         batch.BatchNonce,
 		Signature:     common.Bytes2Hex(signature),
-		EthSigner:     ethAddress.Hex(),
+		EthSigner:     ethAddress.String(),
 		TokenContract: batch.TokenContract,
 	}
 	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {

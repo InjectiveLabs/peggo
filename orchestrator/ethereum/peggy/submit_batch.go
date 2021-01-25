@@ -166,9 +166,11 @@ func checkBatchSigsAndRepack(
 	}
 
 	powerOfGoodSigs := new(big.Int)
+	totalValsetPower := new(big.Int)
 	for _, m := range valset.Members {
+		mPower := big.NewInt(0).SetUint64(m.Power)
+		totalValsetPower.Add(totalValsetPower, mPower)
 		if sig, ok := signerToSig[m.EthereumAddress]; ok && sig.EthSigner == m.EthereumAddress {
-			mPower := big.NewInt(0).SetUint64(m.Power)
 			powerOfGoodSigs.Add(powerOfGoodSigs, mPower)
 
 			validators = append(validators, common.HexToAddress(m.EthereumAddress))
@@ -181,7 +183,7 @@ func checkBatchSigsAndRepack(
 		}
 	}
 
-	if peggyPowerToPercent(powerOfGoodSigs) < 66 {
+	if peggyPowerToPercent(powerOfGoodSigs, totalValsetPower) < 66 {
 		err = ErrInsufficientVotingPowerToPass
 		return
 	}

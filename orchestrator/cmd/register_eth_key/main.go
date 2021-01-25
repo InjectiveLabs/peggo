@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -16,9 +14,9 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/crypto/ethsecp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	cli "github.com/jawher/mow.cli"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc/connectivity"
@@ -79,7 +77,6 @@ func runApp() {
 		}
 
 		ethPrivkey = pk
-		fmt.Println(strings.ToUpper(hex.EncodeToString(crypto.FromECDSA(pk))))
 		log.Infoln("Generate privkey with address", ethPrivkeyAddress(ethPrivkey))
 	} else {
 		ethPrivkey, err = ethcrypto.HexToECDSA(*ethPrivkeyInput)
@@ -98,7 +95,13 @@ func runApp() {
 	if err != nil {
 		log.WithError(err).Fatalln("failed to initialize sidechain client context")
 	}
-	clientCtx = clientCtx.WithNodeURI(*cosmosGRPC)
+	clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
+
+	tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
+	if err != nil {
+		log.WithError(err)
+	}
+	clientCtx = clientCtx.WithClient(tmRPC)
 
 	daemonClient, err := chainclient.NewCosmosClient(clientCtx, *cosmosGRPC)
 	if err != nil {

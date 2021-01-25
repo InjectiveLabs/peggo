@@ -7,6 +7,7 @@ import (
 var (
 	cosmosPrivkey   *string
 	cosmosGRPC      *string
+	tendermintRPC   *string
 	feeDenom        *string
 	ethPrivkeyInput *string
 	chainId         *string
@@ -24,6 +25,13 @@ func initFlags() {
 		Desc:   "Cosmos GRPC querying endpoint",
 		EnvVar: "PEGGY_COSMOS_GRPC",
 		Value:  "tcp://localhost:9900",
+	})
+
+	tendermintRPC = app.String(cli.StringOpt{
+		Name:   "tendermint-rpc",
+		Desc:   "Tednermint RPC endpoint",
+		EnvVar: "PEGGY_TENDERMINT_RPC",
+		Value:  "http://localhost:26657",
 	})
 
 	feeDenom = app.String(cli.StringOpt{
