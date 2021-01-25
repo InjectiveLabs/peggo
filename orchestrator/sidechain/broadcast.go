@@ -124,7 +124,7 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 	msg := &types.MsgSetEthAddress{
 		Address:   ethAddress.Hex(),
 		Validator: valAddr.String(),
-		Signature: common.ToHex(signature),
+		Signature: common.Bytes2Hex(signature),
 	}
 	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
@@ -202,7 +202,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 		Validator:  s.broadcastClient.FromAddress().String(),
 		EthAddress: ethAddress.Hex(),
 		Nonce:      valset.Nonce,
-		Signature:  common.ToHex(signature),
+		Signature:  common.Bytes2Hex(signature),
 	}
 	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
@@ -243,7 +243,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	msg := &types.MsgConfirmBatch{
 		Validator:     s.broadcastClient.FromAddress().String(),
 		Nonce:         batch.BatchNonce,
-		Signature:     common.ToHex(signature),
+		Signature:     common.Bytes2Hex(signature),
 		EthSigner:     ethAddress.Hex(),
 		TokenContract: batch.TokenContract,
 	}

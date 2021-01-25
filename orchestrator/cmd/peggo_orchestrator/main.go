@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -141,6 +142,11 @@ func runApp() {
 		log.WithError(err).Fatalln("failed to initialize sidechain client context")
 	}
 	clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
+	tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
+	if err != nil {
+		log.WithError(err)
+	}
+	clientCtx = clientCtx.WithClient(tmRPC)
 
 	daemonClient, err := chainclient.NewCosmosClient(clientCtx, *cosmosGRPC)
 	if err != nil {
