@@ -2,11 +2,11 @@ package peggy
 
 import (
 	"context"
-	"math/big"
-
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
+	"math/big"
 )
 
 // Gets the latest transaction batch nonce
@@ -86,6 +86,7 @@ func (s *peggyContract) GetERC20Symbol(
 		return "", err
 	}
 
+	symbol = *abi.ConvertType(out[0], new(string)).(*string)
 
 	return symbol, nil
 }
