@@ -21,6 +21,7 @@ func (s *peggyOrchestrator) RunLoop(ctx context.Context) {
 	defer wg.Wait()
 	wg.Add(1)
 	go s.ethOracleMainLoop(wg)
+	go s.batchRequesterLoop(wg)
 	go s.ethSignerMainLoop(wg)
 	go s.relayerMainLoop(wg)
 	go s.valsetRequesterLoop(wg)
@@ -223,6 +224,30 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 		// 	//     let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
 		// 	// }
 		// }
+
+		t.Reset(defaultLoopDur)
+	}
+}
+
+func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	ctx := context.Background()
+
+	t := time.NewTimer(0)
+	for range t.C {
+
+		// batchReqMsg := peggyTypes.MsgRequestBatch{Requester: senderAccAddr.String(), Denom: "inj"}
+		// _, err = c.CosmosClient.SyncBroadcastMsg(&batchReqMsg)
+		// assert.Nil(t, err, "Error broadcasting batchReqMsg to sidechain")
+
+		// get All the denominations
+		// check if threshold is met
+		// broadcast Request batch
+
+		if err := s.peggyBroadcastClient.SendRequestBatch(ctx, "inj"); err != nil {
+			log.WithError(err).Warningln("valset request failed")
+		}
 
 		t.Reset(defaultLoopDur)
 	}
