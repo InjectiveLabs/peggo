@@ -14,9 +14,9 @@ import (
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/wrappers"
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/wrappers"
 )
 
 type PeggyContract interface {
