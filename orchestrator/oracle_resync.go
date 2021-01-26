@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/wrappers"
+	"github.com/InjectiveLabs/sdk-go/wrappers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
