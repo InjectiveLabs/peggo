@@ -4,13 +4,12 @@ import (
 	"context"
 	"sort"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
+	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/wrappers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
-
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/wrappers"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
 )
 
 const defaultBlocksToSearch = 50000

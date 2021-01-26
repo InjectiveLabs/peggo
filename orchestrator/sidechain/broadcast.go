@@ -13,9 +13,9 @@ import (
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/wrappers"
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/wrappers"
 )
 
 type PeggyBroadcastClient interface {
