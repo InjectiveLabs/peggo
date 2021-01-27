@@ -2,7 +2,6 @@ package peggy
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"math/big"
 	"strings"
@@ -142,7 +141,6 @@ func peggyPowerToPercent(powerOfGoodSigs *big.Int, totalValsetPower *big.Int) fl
 	peggyPowerPercent := new(big.Int)
 	powerOfGoodSigs = powerOfGoodSigs.Mul(powerOfGoodSigs, big.NewInt(100))
 	peggyPowerPercent = peggyPowerPercent.Div(powerOfGoodSigs, totalValsetPower)
-	fmt.Println("powerOfGoodSigs", powerOfGoodSigs, "taotalvalsetPower", totalValsetPower, "peggyPowerPercent", peggyPowerPercent)
 	return float32(peggyPowerPercent.Int64())
 }
 
