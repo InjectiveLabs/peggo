@@ -280,6 +280,7 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 			CosmosReceiver: sdk.AccAddress(deposit.Destination[:]).String(),
 			Orchestrator:   s.broadcastClient.FromAddress().String(),
 		}
+
 		if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
 			metrics.ReportFuncError(s.svcTags)
 			log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")

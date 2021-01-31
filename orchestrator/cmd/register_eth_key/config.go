@@ -5,12 +5,12 @@ import (
 )
 
 var (
-	cosmosPrivkey   *string
-	cosmosGRPC      *string
-	tendermintRPC   *string
-	feeDenom        *string
-	ethPrivkeyInput *string
-	chainId         *string
+	cosmosPrivkey *string
+	cosmosGRPC    *string
+	tendermintRPC *string
+	feeDenom      *string
+	ethPrivKey    *string
+	chainId       *string
 )
 
 func initFlags() {
@@ -41,10 +41,17 @@ func initFlags() {
 		Value:  "inj",
 	})
 
+	ethPrivKey = app.String(cli.StringOpt{
+		Name:   "eth-privkey",
+		Desc:   "The Ethereum private key of the validator(Ex: 5D862464FE95...)",
+		EnvVar: "PEGGY_ETH_PRIVATE_KEY",
+	})
+
 	chainId = app.String(cli.StringOpt{
 		Name:   "chain-id",
 		Desc:   "Specify Chain ID of the injectived service.",
 		EnvVar: "INJECTIVED_CHAIN_ID",
 		Value:  "888",
 	})
+
 }

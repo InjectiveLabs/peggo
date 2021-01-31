@@ -6,11 +6,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
+
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 
 	_ "net/http/pprof"
 
@@ -39,9 +40,9 @@ import (
 var app = cli.App("peggo_orchestrator", "The Validator companion binary for Peggy.")
 
 func main() {
+
 	readEnv()
 	initFlags()
-
 	app.Before = prepareApp
 	app.Action = runApp
 
@@ -58,7 +59,6 @@ func readEnv() {
 			if len(parts) != 2 {
 				continue
 			}
-
 			if err := os.Setenv(parts[0], parts[1]); err != nil {
 				log.WithField("name", parts[0]).WithError(err).Warningln("failed to override ENV variable")
 			}
@@ -110,8 +110,8 @@ func runApp() {
 
 	var err error
 	var ethSignerPk *ecdsa.PrivateKey
-	if len(*ethPrivkey) > 0 {
-		ethSignerPk, err = ethcrypto.HexToECDSA(*ethPrivkey)
+	if len(*ethPrivKey) > 0 {
+		ethSignerPk, err = ethcrypto.HexToECDSA(*ethPrivKey)
 		orShutdown(err)
 
 		fromAddr := ethcrypto.PubkeyToAddress(ethSignerPk.PublicKey)
