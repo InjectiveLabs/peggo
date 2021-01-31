@@ -2,8 +2,7 @@ module github.com/InjectiveLabs/peggo/orchestrator
 
 go 1.15
 
-require (
-	github.com/InjectiveLabs/injective-core v0.0.0-20210130135548-61e5de4d6f46
+require (	
 	github.com/InjectiveLabs/sdk-go v1.13.0
 	github.com/alexcesaro/statsd v2.0.0+incompatible
 	github.com/bugsnag/panicwrap v1.3.0 // indirect
