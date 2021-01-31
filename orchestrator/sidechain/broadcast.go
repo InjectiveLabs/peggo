@@ -3,6 +3,7 @@ package sidechain
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 
 	chainclient "github.com/InjectiveLabs/sdk-go/chain/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,7 +15,7 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/wrappers"
 )
 
@@ -127,12 +128,16 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 		Validator: valAddr.String(),
 		Signature: common.Bytes2Hex(signature),
 	}
-	if _, err = s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	log.Infoln(s.broadcastClient)
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "broadcasting MsgSetEthAddress failed")
 		return err
 	}
 
+	v, _ := json.Marshal(resp)
+	log.Infoln("SyncBroadcastMsg resp:", string(v))
 	return nil
 }
 

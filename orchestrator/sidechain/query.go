@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type PeggyQueryClient interface {

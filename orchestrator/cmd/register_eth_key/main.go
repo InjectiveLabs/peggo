@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 var app = cli.App("register_eth_key", "Special purpose binary for bootstrapping Peggy chains.")
@@ -101,6 +101,7 @@ func runApp() {
 	clientCtx = clientCtx.WithClient(tmRPC)
 
 	daemonClient, err := chainclient.NewCosmosClient(clientCtx, *cosmosGRPC)
+
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"endpoint": *cosmosGRPC,

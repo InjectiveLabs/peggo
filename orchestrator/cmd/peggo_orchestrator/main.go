@@ -32,9 +32,9 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/tmclient"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 var app = cli.App("peggo_orchestrator", "The Validator companion binary for Peggy.")
