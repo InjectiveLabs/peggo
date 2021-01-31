@@ -4,6 +4,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
 // ModuleCdc is the codec for the module
@@ -32,6 +33,8 @@ func RegisterInterfaces(registry types.InterfaceRegistry) {
 		&MsgDepositClaim{},
 		&MsgWithdrawClaim{},
 	)
+
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
 // RegisterCodec registers concrete types on the Amino codec

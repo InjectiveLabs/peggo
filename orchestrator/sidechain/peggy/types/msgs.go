@@ -4,12 +4,11 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 )
 
 var (
@@ -118,6 +117,7 @@ func (msg MsgSetEthAddress) Type() string { return "set_eth_address" }
 // Checks if the Eth address is valid, and whether the Eth address has signed the validator address
 // (proving control of the Eth address)
 func (msg MsgSetEthAddress) ValidateBasic() error {
+	fmt.Println("ValidateBasic start")
 	val, err := sdk.AccAddressFromBech32(msg.Validator)
 	if err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Validator)
@@ -133,6 +133,7 @@ func (msg MsgSetEthAddress) ValidateBasic() error {
 	if err != nil {
 		return sdkerrors.Wrapf(err, "digest: %x\nsig: %x\naddress %s\nerror: %s\n", crypto.Keccak256(val.Bytes()), msg.Signature, msg.Address, err.Error())
 	}
+	fmt.Println("ValidateBasic end")
 	return nil
 }
 
@@ -172,18 +173,24 @@ func (msg MsgSendToEth) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Sender); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Sender)
 	}
-	aCoin, err := util.ERC20FromPeggyCoin(msg.Amount)
-	if err != nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("amount %#v is not a voucher type", msg))
+
+	// validate if denom of Amount and BridgeFee are same.
+	if msg.Amount.GetDenom() != msg.BridgeFee.GetDenom() {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("fee and amount must be the same type %s != %s", msg.Amount.GetDenom(), msg.BridgeFee.GetDenom()))
 	}
-	fCoin, err := util.ERC20FromPeggyCoin(msg.BridgeFee)
-	if err != nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("fee %#vs is not a voucher type", msg))
-	}
-	// fee and send must be of the same denom
-	if aCoin.Contract != fCoin.Contract {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("fee and amount must be the same type %s != %s", aCoin.Contract, fCoin.Contract))
-	}
+	// aCoin, err := ERC20FromPeggyCoin(msg.Amount)
+	// if err != nil {
+	// 	return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("amount %#v is not a voucher type", msg))
+	// }
+	// fCoin, err := ERC20FromPeggyCoin(msg.BridgeFee)
+	// if err != nil {
+	// 	return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("fee %#vs is not a voucher type", msg))
+	// }
+	// // fee and send must be of the same denom
+	// if aCoin.Contract != fCoin.Contract {
+	// 	return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, fmt.Sprintf("fee and amount must be the same type %s != %s", aCoin.Contract, fCoin.Contract))
+	// }
+
 	if !msg.Amount.IsValid() || msg.Amount.IsZero() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, "amount")
 	}
