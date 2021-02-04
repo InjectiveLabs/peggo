@@ -32,3 +32,7 @@ build
 
 dist/
 .env
+
+solidity/artifacts/
+solidity/node_modules/
+solidity/typechain/
