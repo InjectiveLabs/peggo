@@ -22,4 +22,4 @@ VOLUME /apps/data
 WORKDIR /apps/data
 
 #default command
-CMD peggo_orchestrator
+CMD cd /root/.injectived/peggo/ && peggo_orchestrator
