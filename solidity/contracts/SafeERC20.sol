@@ -3,8 +3,8 @@
 pragma solidity >=0.6.0 <0.8.0;
 
 import "./IERC20.sol";
-import "math/SafeMath.sol";
-import "utils/Address.sol";
+import "./math/SafeMath.sol";
+import "./utils/Address.sol";
 
 /**
  * @title SafeERC20
