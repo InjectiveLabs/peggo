@@ -126,7 +126,7 @@ func runApp() {
 		return
 	}
 
-	log.Infoln("Registered Ethereum address %s for validator address %s",
+	log.Infof("Registered Ethereum address %s for validator address %s",
 		ethPrivkeyAddress(ethPrivkeyVar), cryptotypes.PrivKey(cosmosPk).PubKey().Address().String())
 }
 

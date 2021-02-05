@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "abigen": "sh ./scripts/abigen.sh",
+    "deploy": "sh ./scripts/contract-deployer.sh",
     "evm": "yarn hardhat node",
     "postinstall": "yarn test-build",
     "test": "yarn hardhat test --network localhost",

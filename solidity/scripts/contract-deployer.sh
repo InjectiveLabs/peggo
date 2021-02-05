@@ -3,8 +3,6 @@ yarn ts-node \
 contract-deployer.ts \
 --cosmos-node="http://localhost:26657" \
 --eth-node="http://localhost:8545" \
---eth-privkey="0xb1bab011e03a9862664706fc3bbaa1b16651528e5f0e7fbfcbfdd8be302a13e7" \
---peggy-id="defaultpeggyid" \
---contract=artifacts/Peggy.json \
---erc20-contract=artifacts/SafeERC20.json \
+--eth-privkey="0xd49743deccbccc5dc7baa8e69e5be03298da8688a15dd202e20f15d5e0e9a9fb" \
+--contract=artifacts/contracts/Peggy.sol/Peggy.json \
 --test-mode=true
