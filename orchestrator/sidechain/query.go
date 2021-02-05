@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type PeggyQueryClient interface {
@@ -173,7 +173,7 @@ func (s *peggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	daemonResp, err := s.daemonQueryClient.BatchConfirms(ctx, &types.QueryBatchConfirmsRequest{})
+	daemonResp, err := s.daemonQueryClient.BatchConfirms(ctx, &types.QueryBatchConfirmsRequest{Nonce: nonce, ContractAddress: tokenContract.Hex()})
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "failed to query BatchConfirms from daemon")

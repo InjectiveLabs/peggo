@@ -32,7 +32,7 @@ contract Peggy {
 	event SendToCosmosEvent(
 		address indexed _tokenContract,
 		address indexed _sender,
-		bytes32 indexed _destination,
+		address indexed _destination,
 		uint256 _amount,
 		uint256 _eventNonce
 	);
@@ -345,7 +345,7 @@ contract Peggy {
 
 	function sendToCosmos(
 		address _tokenContract,
-		bytes32 _destination,
+		address _destination,
 		uint256 _amount
 	) public {
 		IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);

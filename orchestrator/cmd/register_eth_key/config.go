@@ -5,11 +5,12 @@ import (
 )
 
 var (
-	cosmosPrivkey   *string
-	cosmosGRPC      *string
-	feeDenom        *string
-	ethPrivkeyInput *string
-	chainId         *string
+	cosmosPrivkey *string
+	cosmosGRPC    *string
+	tendermintRPC *string
+	feeDenom      *string
+	ethPrivKey    *string
+	chainId       *string
 )
 
 func initFlags() {
@@ -26,11 +27,24 @@ func initFlags() {
 		Value:  "tcp://localhost:9900",
 	})
 
+	tendermintRPC = app.String(cli.StringOpt{
+		Name:   "tendermint-rpc",
+		Desc:   "Tednermint RPC endpoint",
+		EnvVar: "PEGGY_TENDERMINT_RPC",
+		Value:  "http://localhost:26657",
+	})
+
 	feeDenom = app.String(cli.StringOpt{
 		Name:   "fees",
 		Desc:   "The Cosmos Denom in which to pay Cosmos chain fees",
 		EnvVar: "PEGGY_FEE_DENOM",
 		Value:  "inj",
+	})
+
+	ethPrivKey = app.String(cli.StringOpt{
+		Name:   "eth-privkey",
+		Desc:   "The Ethereum private key of the validator(Ex: 5D862464FE95...)",
+		EnvVar: "PEGGY_ETH_PRIVATE_KEY",
 	})
 
 	chainId = app.String(cli.StringOpt{
@@ -39,4 +53,5 @@ func initFlags() {
 		EnvVar: "INJECTIVED_CHAIN_ID",
 		Value:  "888",
 	})
+
 }

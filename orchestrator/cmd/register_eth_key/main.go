@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -16,15 +14,15 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/crypto/ethsecp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	cli "github.com/jawher/mow.cli"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc/connectivity"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 var app = cli.App("register_eth_key", "Special purpose binary for bootstrapping Peggy chains.")
@@ -32,7 +30,6 @@ var app = cli.App("register_eth_key", "Special purpose binary for bootstrapping 
 func main() {
 	readEnv()
 	initFlags()
-
 	app.Before = prepareApp
 	app.Action = runApp
 
@@ -58,8 +55,6 @@ func readEnv() {
 func prepareApp() {
 	app.Spec = "[OPTIONS] [ETH_PRIVKEY]"
 
-	ethPrivkeyInput = app.StringArg("ETH_PRIVKEY", "", "(Optional) The Ethereum private key to register, will be generated if not provided")
-
 	app.LongDesc = `Special purpose binary for bootstrapping Peggy chains. This will submit and optionally
             generate an Ethereum key that will be used to sign messages on behalf of your Validator
             on the Cosmos blockchain running the Peggy module. Be aware this Ethereum key must be kept
@@ -70,24 +65,23 @@ func runApp() {
 	defer closer.Close()
 
 	var err error
-	var ethPrivkey *ecdsa.PrivateKey
-	if len(*ethPrivkeyInput) == 0 {
+	var ethPrivkeyVar *ecdsa.PrivateKey
+	if len(*ethPrivKey) == 0 {
 		log.Infoln("Generatig new Ethereum privkey, please save it")
 		pk, err := ethcrypto.GenerateKey()
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		ethPrivkey = pk
-		fmt.Println(strings.ToUpper(hex.EncodeToString(crypto.FromECDSA(pk))))
-		log.Infoln("Generate privkey with address", ethPrivkeyAddress(ethPrivkey))
+		ethPrivkeyVar = pk
+		log.Infoln("Generate privkey with address", ethPrivkeyAddress(ethPrivkeyVar))
 	} else {
-		ethPrivkey, err = ethcrypto.HexToECDSA(*ethPrivkeyInput)
+		ethPrivkeyVar, err = ethcrypto.HexToECDSA(*ethPrivKey)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		log.Infoln("Loaded provided privkey for address", ethPrivkeyAddress(ethPrivkey))
+		log.Infoln("Loaded provided privkey for address", ethPrivkeyAddress(ethPrivkeyVar))
 	}
 
 	cosmosPk := &ethsecp256k1.PrivKey{
@@ -98,9 +92,16 @@ func runApp() {
 	if err != nil {
 		log.WithError(err).Fatalln("failed to initialize sidechain client context")
 	}
-	clientCtx = clientCtx.WithNodeURI(*cosmosGRPC)
+	clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
+
+	tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
+	if err != nil {
+		log.WithError(err)
+	}
+	clientCtx = clientCtx.WithClient(tmRPC)
 
 	daemonClient, err := chainclient.NewCosmosClient(clientCtx, *cosmosGRPC)
+
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
 			"endpoint": *cosmosGRPC,
@@ -119,14 +120,14 @@ func runApp() {
 	broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelFn()
 
-	if err = peggyBroadcaster.UpdatePeggyEthAddress(broadcastCtx, ethPrivkey); err != nil {
+	if err = peggyBroadcaster.UpdatePeggyEthAddress(broadcastCtx, ethPrivkeyVar); err != nil {
 		log.WithError(err).Errorln("failed to broadcast Tx")
 		time.Sleep(time.Second)
 		return
 	}
 
 	log.Infoln("Registered Ethereum address %s for validator address %s",
-		ethPrivkeyAddress(ethPrivkey), cryptotypes.PrivKey(cosmosPk).PubKey().Address().String())
+		ethPrivkeyAddress(ethPrivkeyVar), cryptotypes.PrivKey(cosmosPk).PubKey().Address().String())
 }
 
 func ethPrivkeyAddress(ethPrivkey *ecdsa.PrivateKey) string {

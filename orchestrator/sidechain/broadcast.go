@@ -3,6 +3,7 @@ package sidechain
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 
 	chainclient "github.com/InjectiveLabs/sdk-go/chain/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,7 +15,7 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/sidechain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/wrappers"
 )
 
@@ -107,7 +108,8 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
 	valAddr := s.broadcastClient.FromAddress()
-	signature, err := util.NewEthereumSignature(valAddr.Bytes(), ethPrivateKey)
+	// signature, err := util.NewEthereumSignature(valAddr.Bytes(), ethPrivateKey)
+	signature, err := util.NewEthereumSignature(crypto.Keccak256(valAddr.Bytes()), ethPrivateKey)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.New("failed to sign validator address")
@@ -126,12 +128,16 @@ func (s *peggyBroadcastClient) UpdatePeggyEthAddress(
 		Validator: valAddr.String(),
 		Signature: common.Bytes2Hex(signature),
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+	log.Infoln(s.broadcastClient)
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "broadcasting MsgSetEthAddress failed")
 		return err
 	}
 
+	v, _ := json.Marshal(resp)
+	log.Infoln("SyncBroadcastMsg resp:", string(v))
 	return nil
 }
 
@@ -244,7 +250,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 		Validator:     s.broadcastClient.FromAddress().String(),
 		Nonce:         batch.BatchNonce,
 		Signature:     common.Bytes2Hex(signature),
-		EthSigner:     ethAddress.Hex(),
+		EthSigner:     ethAddress.String(),
 		TokenContract: batch.TokenContract,
 	}
 	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
@@ -279,6 +285,7 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 			CosmosReceiver: sdk.AccAddress(deposit.Destination[:]).String(),
 			Orchestrator:   s.broadcastClient.FromAddress().String(),
 		}
+
 		if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
 			metrics.ReportFuncError(s.svcTags)
 			log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")

@@ -3,10 +3,10 @@ module github.com/InjectiveLabs/peggo/orchestrator
 go 1.15
 
 require (
-	github.com/InjectiveLabs/sdk-go v1.12.15
+	github.com/InjectiveLabs/sdk-go v1.13.5
 	github.com/alexcesaro/statsd v2.0.0+incompatible
 	github.com/bugsnag/panicwrap v1.3.0 // indirect
-	github.com/cosmos/cosmos-sdk v0.40.1
+	github.com/cosmos/cosmos-sdk v0.41.0
 	github.com/ethereum/go-ethereum v1.9.25
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.3

@@ -16,10 +16,9 @@ var (
 	cosmosGRPC      *string
 	tendermintRPC   *string
 	feeDenom        *string
-	ethPrivkeyInput *string
 	chainId         *string
 	ethNodeRPC      *string
-	ethPrivkey      *string
+	ethPrivKey      *string
 	contractAddrHex *string
 	statsdPrefix    *string
 	statsdAddr      *string
@@ -91,18 +90,16 @@ func initFlags() {
 		Value:  "http://localhost:1317",
 	})
 
-	ethPrivkey = app.String(cli.StringOpt{
+	ethPrivKey = app.String(cli.StringOpt{
 		Name:   "eth-privkey",
 		Desc:   "The Ethereum private key of the validator(Ex: 5D862464FE95...)",
 		EnvVar: "PEGGY_ETH_PRIVATE_KEY",
-		Value:  "",
 	})
 
 	contractAddrHex = app.String(cli.StringOpt{
 		Name:   "contract-address",
 		Desc:   "The Ethereum contract address of Peggy",
 		EnvVar: "PEGGY_CONTRACT_ADDRESS",
-		Value:  "",
 	})
 
 	statsdPrefix = app.String(cli.StringOpt{

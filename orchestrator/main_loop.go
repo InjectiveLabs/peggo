@@ -19,11 +19,12 @@ const defaultLoopDur = 10 * time.Second
 func (s *peggyOrchestrator) RunLoop(ctx context.Context) {
 	wg := new(sync.WaitGroup)
 	defer wg.Wait()
-
+	wg.Add(5)
 	go s.ethOracleMainLoop(wg)
-	go s.ethSignerMainLoop(wg)
-	go s.relayerMainLoop(wg)
-	go s.valsetRequesterLoop(wg)
+	// go s.batchRequesterLoop(wg)
+	// go s.ethSignerMainLoop(wg)
+	// go s.relayerMainLoop(wg)
+	// go s.valsetRequesterLoop(wg)
 }
 
 // ethOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -134,6 +135,9 @@ func (s *peggyOrchestrator) ethSignerMainLoop(wg *sync.WaitGroup) {
 			log.WithError(err).Errorln("failed to get unsigned Valset for signing, retry in", defaultRetryDur)
 			t.Reset(defaultRetryDur)
 			continue
+		} else if valset == nil {
+			log.Debugf("no valset")
+			t.Reset(defaultRetryDur)
 		} else {
 			log.Infoln("sending Valset confirm for %d", valset.Nonce)
 
@@ -152,6 +156,9 @@ func (s *peggyOrchestrator) ethSignerMainLoop(wg *sync.WaitGroup) {
 			log.WithError(err).Errorln("failed to get unsigned TransactionBatch for signing, retry in", defaultRetryDur)
 			t.Reset(defaultRetryDur)
 			continue
+		} else if txBatch == nil {
+			log.Debugln("no TransactionBatch")
+			t.Reset(defaultRetryDur)
 		} else {
 			log.Infoln("sending TransactionBatch confirm for %d", txBatch.BatchNonce)
 
@@ -217,6 +224,30 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 		// 	//     let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
 		// 	// }
 		// }
+
+		t.Reset(defaultLoopDur)
+	}
+}
+
+func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	ctx := context.Background()
+
+	t := time.NewTimer(0)
+	for range t.C {
+
+		// batchReqMsg := peggyTypes.MsgRequestBatch{Requester: senderAccAddr.String(), Denom: "inj"}
+		// _, err = c.CosmosClient.SyncBroadcastMsg(&batchReqMsg)
+		// assert.Nil(t, err, "Error broadcasting batchReqMsg to sidechain")
+
+		// get All the denominations
+		// check if threshold is met
+		// broadcast Request batch
+
+		if err := s.peggyBroadcastClient.SendRequestBatch(ctx, "inj"); err != nil {
+			log.WithError(err).Warningln("valset request failed")
+		}
 
 		t.Reset(defaultLoopDur)
 	}
