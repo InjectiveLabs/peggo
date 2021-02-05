@@ -6,6 +6,7 @@
   "scripts": {
     "abigen": "sh ./scripts/abigen.sh",
     "deploy": "sh ./scripts/contract-deployer.sh",
+    "deposit": "sh ./scripts/deposit.sh",
     "evm": "yarn hardhat node",
     "postinstall": "yarn test-build",
     "propose": "cd scripts; sh ./gov_propose_bridge.sh",

@@ -91,6 +91,7 @@ async function deploy() {
   const provider = await new ethers.providers.JsonRpcProvider(args["eth-node"]);
   let wallet = new ethers.Wallet(args["eth-privkey"], provider);
 
+  let tokenAddresses = {}
   if (args["test-mode"] == "True" || args["test-mode"] == "true") {
     console.log("Test mode, deploying ERC20 contracts");
     const { abi, bytecode } = getContractArtifacts("./artifacts/contracts/TestERC20A.sol/TestERC20A.json");
@@ -111,6 +112,8 @@ async function deploy() {
     await testERC202.deployed();
     const erc20TestAddress2 = testERC202.address;
     console.log("ERC20 deployed at Address - ", erc20TestAddress2);
+
+    tokenAddresses = {erc20TestAddress, erc20TestAddress1, erc20TestAddress2};
   }
   const peggyIdString = await getPeggyId();
   const peggyId = ethers.utils.formatBytes32String(peggyIdString);
@@ -160,12 +163,16 @@ async function deploy() {
   )) as Peggy;
 
   await peggy.deployed();
+
+  // @ts-ignore
+  tokenAddresses['peggy'] = peggy.address.toString();
+  fs.writeFileSync("./scripts/ERC20Tokens.json",JSON.stringify(tokenAddresses, null, 4),{encoding:'utf8',flag:'w'})
   await submitPeggyAddress(peggy.address);
   await airdropEthAddresses(eth_addresses, wallet);
 }
 
 function getContractArtifacts(path: string): { bytecode: string; abi: string } {
-  var { bytecode, abi } = JSON.parse(fs.readFileSync(path, "utf8").toString());
+  const {bytecode, abi} = JSON.parse(fs.readFileSync(path, "utf8").toString());
   return { bytecode, abi };
 }
 const decode = (str: string):string => Buffer.from(str, 'base64').toString('binary');
