@@ -284,6 +284,9 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 			EthereumSender: deposit.Sender.Hex(),
 			CosmosReceiver: sdk.AccAddress(deposit.Destination[:]).String(),
 			Orchestrator:   s.broadcastClient.FromAddress().String(),
+			TokenName:      deposit.Name,
+			TokenSymbol:    deposit.Symbol,
+			TokenDecimals:  uint64(deposit.Decimals),
 		}
 
 		if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {

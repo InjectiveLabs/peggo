@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/IERC20.sol": {
-      "lastModificationDate": 1612483653589,
-      "contentHash": "3fb8559be07f832812f3d986dd383bfa",
+      "lastModificationDate": 1612532712809,
+      "contentHash": "24372e284a004b3817ebc1b2c3799568",
       "sourceName": "contracts/IERC20.sol",
       "solcConfig": {
         "version": "0.6.6",
@@ -142,8 +142,8 @@
       ]
     },
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/Peggy.sol": {
-      "lastModificationDate": 1612483653589,
-      "contentHash": "ff19328dc919eadb4c5b6d2173e11b5f",
+      "lastModificationDate": 1612532712810,
+      "contentHash": "0f1428d43903420aa108f2223f4b3b9e",
       "sourceName": "contracts/Peggy.sol",
       "solcConfig": {
         "version": "0.6.6",

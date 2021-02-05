@@ -6,6 +6,17 @@ pragma solidity >=0.6.2 <0.8.0;
  * @dev Interface of the ERC20 standard as defined in the EIP.
  */
 interface IERC20 {
+
+    function name() external view returns (string memory);
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() external view returns (string memory);
+
+    function decimals() external view returns (uint8);
+
     /**
      * @dev Returns the amount of tokens in existence.
      */
