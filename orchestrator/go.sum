@@ -35,11 +35,10 @@ github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3
 github.com/DataDog/zstd v1.4.1/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/InjectiveLabs/peggo v0.0.0-20210126012457-91c987c78994 h1:6f9jP+v46gfi+8TLqVneg7wOHA2sbCbHB/ps4ShYtjE=
-github.com/InjectiveLabs/sdk-go v1.13.4 h1:WhecnU2/QK9R8netMYPyF5JxHYxMlUOwuJlvyI+G7iY=
-github.com/InjectiveLabs/sdk-go v1.13.4/go.mod h1:lSkWfle29Rqmuq/0KlLeAOUOk2Z0x75wl+4dOCZbNyY=
-github.com/InjectiveLabs/sdk-go v1.13.5 h1:5bSk4xAliZyehhhr8COnOJEQh7Q/cIzfPsI/gEOELo0=
-github.com/InjectiveLabs/sdk-go v1.13.5/go.mod h1:hPGNLD5ZjPZxp8Dzha6zWT+dEavc61AHrQa35Iv3iAc=
+github.com/InjectiveLabs/sdk-go v1.13.16 h1:TrEr9pTXkK6e+nG3sgJGZRC0t+Rm7AcS2AfQEGmTX/k=
+github.com/InjectiveLabs/sdk-go v1.13.16/go.mod h1:yDSZZhIvuXPLKc/aB0hOIiZchfeMaFOPFHaz+lCj+Xw=
+github.com/InjectiveLabs/sdk-go v1.13.17 h1:dpJRO+S/C/YQe3oZ3deyip7/HqkKav6QSfKQSHAAVaM=
+github.com/InjectiveLabs/sdk-go v1.13.17/go.mod h1:yDSZZhIvuXPLKc/aB0hOIiZchfeMaFOPFHaz+lCj+Xw=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
@@ -723,6 +722,8 @@ github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208/go.mod h1:IotVbo4F+m
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xlab/closer v0.0.0-20190328110542-03326addb7c2 h1:LPYwXwwHigHHFX3SFa9W9zBIa5reyaLJos2e95eHh68=
 github.com/xlab/closer v0.0.0-20190328110542-03326addb7c2/go.mod h1:Y8IYP9aVODN3Vnw1FCqygCG5IWyYBeBlZqQ5aX+fHFw=
+github.com/xlab/structwalk v1.1.1 h1:Ae3tBCPJ6WVtntBcUl03U0GTjC971imvbEtJHNhUSdE=
+github.com/xlab/structwalk v1.1.1/go.mod h1:AN8y8SxKnVdeWYK83PkmjrsUxsmGLatYSlcKkMWsAns=
 github.com/xlab/suplog v1.0.0/go.mod h1:dCFSSLRDeIlY5jsrcfzKj5Nq/8Cc1MAjQMK9APCccBo=
 github.com/xlab/suplog v1.1.0 h1:RLXFq2N3j97y8PuI5n2D7reWGVC1dGk8mGHQMBqZa6g=
 github.com/xlab/suplog v1.1.0/go.mod h1:dCFSSLRDeIlY5jsrcfzKj5Nq/8Cc1MAjQMK9APCccBo=

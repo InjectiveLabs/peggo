@@ -34,7 +34,10 @@ contract Peggy {
 		address indexed _sender,
 		address indexed _destination,
 		uint256 _amount,
-		uint256 _eventNonce
+		uint256 _eventNonce,
+		string _name,
+		string _symbol,
+		uint8 _decimals
 	);
 	event ValsetUpdatedEvent(
 		uint256 indexed _newValsetNonce,
@@ -343,19 +346,37 @@ contract Peggy {
 		}
 	}
 
+
+	mapping(address => bool) public seenTokens;
+	mapping(address => string) public tokenSymbols;
+	mapping(address => string) public tokenNames;
+	mapping(address => uint8) public tokenDecimals;
+
 	function sendToCosmos(
 		address _tokenContract,
 		address _destination,
 		uint256 _amount
 	) public {
 		IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
+
+        // store values if first time
+        if (!seenTokens[_tokenContract]) {
+            seenTokens[_tokenContract] = true;
+            tokenNames[_tokenContract] = IERC20(_tokenContract).name();
+            tokenSymbols[_tokenContract] = IERC20(_tokenContract).symbol();
+            tokenDecimals[_tokenContract] = IERC20(_tokenContract).decimals();
+        }
+
 		state_lastEventNonce = state_lastEventNonce.add(1);
 		emit SendToCosmosEvent(
 			_tokenContract,
 			msg.sender,
 			_destination,
 			_amount,
-			state_lastEventNonce
+			state_lastEventNonce,
+            tokenSymbols[_tokenContract],
+            tokenSymbols[_tokenContract],
+            tokenDecimals[_tokenContract]
 		);
 	}
 
