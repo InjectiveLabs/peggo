@@ -7,6 +7,7 @@ import fs from "fs";
 import commandLineArgs from "command-line-args";
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { exit } from "process";
+import { execSync } from 'child_process';  // replace ^ if using ES modules
 
 const args = commandLineArgs([
   // the ethernum node used to deploy the contract
@@ -160,6 +161,7 @@ async function deploy() {
 
   await peggy.deployed();
   await submitPeggyAddress(peggy.address);
+  await airdropEthAddresses(eth_addresses, wallet);
 }
 
 function getContractArtifacts(path: string): { bytecode: string; abi: string } {
@@ -217,6 +219,23 @@ async function submitPeggyAddress(address: string) {
   console.log("Preparing Proposal to set the BridgeContractAddress");
   console.log(proposal)
   fs.writeFileSync(proposalPath,JSON.stringify(proposal, null, 4),{encoding:'utf8',flag:'w'})
+
+
+  const output = execSync('cd scripts; sh ./gov_propose_bridge.sh', { encoding: 'utf-8' });  // the default is 'buffer'
+  console.log('Governance output:\n', output);
+}
+
+async function airdropEthAddresses(ethAddresses: string[], wallet: ethers.Wallet) {
+  for (let i = 0; i < ethAddresses.length; i++) {
+    console.log(`Airdropping 1 ETH to ${ethAddresses[i]}`)
+
+    let tx = {
+      to: ethAddresses[i],
+      value: ethers.utils.parseEther("1.0")
+    }
+    await wallet.signTransaction(tx)
+    await wallet.sendTransaction(tx)
+  }
 }
 
 async function main() {
