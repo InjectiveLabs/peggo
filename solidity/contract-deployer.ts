@@ -159,7 +159,6 @@ async function deploy() {
   )) as Peggy;
 
   await peggy.deployed();
-  console.log("Peggy deployed at Address - ", peggy.address);
   await submitPeggyAddress(peggy.address);
 }
 
@@ -210,7 +209,15 @@ async function getPeggyId(): Promise<string> {
 
 }
 
-async function submitPeggyAddress(address: string) {}
+async function submitPeggyAddress(address: string) {
+  console.log("Peggy deployed at Address - ", address);
+  let proposalPath = 'scripts/bridgeParamProposal.json'
+  let proposal = JSON.parse(fs.readFileSync(proposalPath, "utf8"));
+  proposal['changes'][0]['value'] = address;
+  console.log("Preparing Proposal to set the BridgeContractAddress");
+  console.log(proposal)
+  fs.writeFileSync(proposalPath,JSON.stringify(proposal, null, 4),{encoding:'utf8',flag:'w'})
+}
 
 async function main() {
   await deploy();

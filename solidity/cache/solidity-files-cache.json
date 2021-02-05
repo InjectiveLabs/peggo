@@ -2,7 +2,7 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/IERC20.sol": {
-      "lastModificationDate": 1612474765618,
+      "lastModificationDate": 1612483653589,
       "contentHash": "3fb8559be07f832812f3d986dd383bfa",
       "sourceName": "contracts/IERC20.sol",
       "solcConfig": {
@@ -36,7 +36,7 @@
       ]
     },
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/SafeERC20.sol": {
-      "lastModificationDate": 1612475241297,
+      "lastModificationDate": 1612483653588,
       "contentHash": "a66b35020a5a3832d9ae3da7950192bc",
       "sourceName": "contracts/SafeERC20.sol",
       "solcConfig": {
@@ -74,7 +74,7 @@
       ]
     },
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/math/SafeMath.sol": {
-      "lastModificationDate": 1611624327145,
+      "lastModificationDate": 1612483653588,
       "contentHash": "c96d6e754672607e68a2880622116e51",
       "sourceName": "contracts/math/SafeMath.sol",
       "solcConfig": {
@@ -108,7 +108,7 @@
       ]
     },
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/utils/Address.sol": {
-      "lastModificationDate": 1611624327145,
+      "lastModificationDate": 1612483653588,
       "contentHash": "dbb0d5e2c6f789dc2a549924090752aa",
       "sourceName": "contracts/utils/Address.sol",
       "solcConfig": {
@@ -142,8 +142,8 @@
       ]
     },
     "/Users/achon/go/src/github.com/InjectiveLabs/peggo/solidity/contracts/Peggy.sol": {
-      "lastModificationDate": 1612475222863,
-      "contentHash": "0f6c69c3530e45d0702813e313707b37",
+      "lastModificationDate": 1612483653589,
+      "contentHash": "ff19328dc919eadb4c5b6d2173e11b5f",
       "sourceName": "contracts/Peggy.sol",
       "solcConfig": {
         "version": "0.6.6",

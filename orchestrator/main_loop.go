@@ -21,10 +21,10 @@ func (s *peggyOrchestrator) RunLoop(ctx context.Context) {
 	defer wg.Wait()
 	wg.Add(5)
 	go s.ethOracleMainLoop(wg)
-	// go s.batchRequesterLoop(wg)
-	// go s.ethSignerMainLoop(wg)
-	// go s.relayerMainLoop(wg)
-	// go s.valsetRequesterLoop(wg)
+	go s.batchRequesterLoop(wg)
+	go s.ethSignerMainLoop(wg)
+	go s.relayerMainLoop(wg)
+	go s.valsetRequesterLoop(wg)
 }
 
 // ethOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain

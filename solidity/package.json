@@ -8,6 +8,7 @@
     "deploy": "sh ./scripts/contract-deployer.sh",
     "evm": "yarn hardhat node",
     "postinstall": "yarn test-build",
+    "propose": "cd scripts; sh ./gov_propose_bridge.sh",
     "test": "yarn hardhat test --network localhost",
     "test-build": "rm -rf typechain && yarn hardhat compile && yarn hardhat typechain",
     "typechain": "yarn hardhat typechain"

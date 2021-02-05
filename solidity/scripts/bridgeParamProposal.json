@@ -1,0 +1,12 @@
+{
+    "title": "Peggy Param Change",
+    "description": "Set the Peggy Contract",
+    "changes": [
+        {
+            "subspace": "peggy",
+            "key": "BridgeContractAddress",
+            "value": "0x5FECCE7Baf2Aae24Fc666844Fd600b1b291f956E"
+        }
+    ],
+    "deposit": "10000000inj"
+}
