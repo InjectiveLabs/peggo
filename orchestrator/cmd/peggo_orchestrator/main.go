@@ -178,6 +178,7 @@ func runApp() {
 		tmclient.NewRPCClient(*tendermintRPC),
 		peggyContract,
 		ethSignerPk,
+		*injContractAddrHex,
 	)
 
 	ctx, cancelFn := context.WithCancel(context.Background())

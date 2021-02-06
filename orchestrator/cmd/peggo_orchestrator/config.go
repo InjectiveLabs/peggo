@@ -9,22 +9,23 @@ import (
 )
 
 var (
-	envName         *string
-	appLogLevel     *string
-	svcWaitTimeout  *string
-	cosmosPrivkey   *string
-	cosmosGRPC      *string
-	tendermintRPC   *string
-	feeDenom        *string
-	chainId         *string
-	ethNodeRPC      *string
-	ethPrivKey      *string
-	contractAddrHex *string
-	statsdPrefix    *string
-	statsdAddr      *string
-	statsdStuckDur  *string
-	statsdMocking   *string
-	statsdDisabled  *string
+	envName            *string
+	appLogLevel        *string
+	svcWaitTimeout     *string
+	cosmosPrivkey      *string
+	cosmosGRPC         *string
+	tendermintRPC      *string
+	feeDenom           *string
+	chainId            *string
+	ethNodeRPC         *string
+	ethPrivKey         *string
+	contractAddrHex    *string
+	injContractAddrHex *string
+	statsdPrefix       *string
+	statsdAddr         *string
+	statsdStuckDur     *string
+	statsdMocking      *string
+	statsdDisabled     *string
 )
 
 func initFlags() {
@@ -100,6 +101,12 @@ func initFlags() {
 		Name:   "contract-address",
 		Desc:   "The Ethereum contract address of Peggy",
 		EnvVar: "PEGGY_CONTRACT_ADDRESS",
+	})
+
+	injContractAddrHex = app.String(cli.StringOpt{
+		Name:   "inj-contract-address",
+		Desc:   "The Ethereum contract address of INJ Erc20",
+		EnvVar: "INJ_CONTRACT_ADDRESS",
 	})
 
 	statsdPrefix = app.String(cli.StringOpt{

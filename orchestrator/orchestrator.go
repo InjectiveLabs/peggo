@@ -24,6 +24,7 @@ type peggyOrchestrator struct {
 	peggyContract        peggy.PeggyContract
 	ethProvider          provider.EVMProvider
 	ethPrivateKey        *ecdsa.PrivateKey
+	injContractAddress   string
 }
 
 func NewPeggyOrchestrator(
@@ -32,6 +33,7 @@ func NewPeggyOrchestrator(
 	tmClient tmclient.TendermintClient,
 	peggyContract peggy.PeggyContract,
 	ethPrivateKey *ecdsa.PrivateKey,
+	injContractAddress string,
 ) PeggyOrchestrator {
 	return &peggyOrchestrator{
 		tmClient:             tmClient,
@@ -40,6 +42,7 @@ func NewPeggyOrchestrator(
 		peggyContract:        peggyContract,
 		ethProvider:          peggyContract.Provider(),
 		ethPrivateKey:        ethPrivateKey,
+		injContractAddress:   injContractAddress,
 
 		svcTags: metrics.Tags{
 			"svc": "peggy_orchestrator",

@@ -19,6 +19,7 @@ type PeggyQueryClient interface {
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*types.MsgValsetConfirm, error)
 	OldestUnsignedTransactionBatch(ctx context.Context, address sdk.AccAddress) (*types.OutgoingTxBatch, error)
 	LatestTransactionBatches(ctx context.Context) ([]*types.OutgoingTxBatch, error)
+	LatestUnbatchOutgoingTx(ctx context.Context, contractAddr string) ([]*types.OutgoingTx, error)
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract common.Address) ([]*types.MsgConfirmBatch, error)
 	LastEventNonce(ctx context.Context, address sdk.AccAddress) (uint64, error)
 }
@@ -166,6 +167,23 @@ func (s *peggyQueryClient) LatestTransactionBatches(ctx context.Context) ([]*typ
 	}
 
 	return daemonResp.Batches, nil
+}
+
+func (s *peggyQueryClient) LatestUnbatchOutgoingTx(ctx context.Context, contractAddr string) ([]*types.OutgoingTx, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	daemonResp, err := s.daemonQueryClient.UnbatchedTxPool(ctx, &types.QueryUnbatchedTxPoolByAddrRequest{Address: contractAddr})
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		err = errors.Wrap(err, "failed to query UnbatchedTxPool from daemon")
+		return nil, err
+	} else if daemonResp == nil {
+		return nil, ErrNotFound
+	}
+
+	return daemonResp.OutgoingTxs, nil
 }
 
 func (s *peggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract common.Address) ([]*types.MsgConfirmBatch, error) {

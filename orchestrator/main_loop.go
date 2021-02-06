@@ -244,9 +244,13 @@ func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {
 		// get All the denominations
 		// check if threshold is met
 		// broadcast Request batch
-
-		if err := s.peggyBroadcastClient.SendRequestBatch(ctx, "inj"); err != nil {
-			log.WithError(err).Warningln("valset request failed")
+		unbatchTxs, err := s.cosmosQueryClient.LatestUnbatchOutgoingTx(ctx, s.injContractAddress)
+		if err != nil && unbatchTxs != nil && len(unbatchTxs) != 0 {
+			if err := s.peggyBroadcastClient.SendRequestBatch(ctx, "inj"); err != nil {
+				log.WithError(err).Warningln("valset request failed")
+			}
+		} else {
+			log.Debugln("unbatchTxs:", unbatchTxs, "error", err)
 		}
 
 		t.Reset(defaultLoopDur)
