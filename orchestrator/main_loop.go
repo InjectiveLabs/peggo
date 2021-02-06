@@ -245,12 +245,13 @@ func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {
 		// check if threshold is met
 		// broadcast Request batch
 		unbatchTxs, err := s.cosmosQueryClient.LatestUnbatchOutgoingTx(ctx, s.injContractAddress)
-		if err != nil && unbatchTxs != nil && len(unbatchTxs) != 0 {
+		if err == nil && unbatchTxs != nil && len(unbatchTxs) != 0 {
+			log.Debugln("unbatchTxs:", unbatchTxs)
 			if err := s.peggyBroadcastClient.SendRequestBatch(ctx, "inj"); err != nil {
 				log.WithError(err).Warningln("valset request failed")
 			}
 		} else {
-			log.Debugln("unbatchTxs:", unbatchTxs, "error", err)
+			log.Debugln("error fetching latest unbatch tx", err)
 		}
 
 		t.Reset(defaultLoopDur)
