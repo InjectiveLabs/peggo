@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"math/big"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
 	"github.com/InjectiveLabs/peggo/orchestrator/sidechain"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 const defaultLoopDur = 10 * time.Second
@@ -190,40 +192,48 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 
 	t := time.NewTimer(0)
 	for range t.C {
-		if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
-			log.WithError(err).Warningln("valset request failed")
+		// if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
+		// 	log.WithError(err).Warningln("valset request failed")
+		// }
+
+		// this needed for gas saving optimizations:
+		//
+		//
+		latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
+		if err != nil {
+			log.WithError(err).Errorln("unable to get latest valsets from Cosmos chain, retry in", defaultRetryDur)
+			t.Reset(defaultRetryDur)
+			continue
 		}
 
-		// TODO: this needed for gas saving optimizations:
-		//
-		//
-		// latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
-		// if err != nil {
-		// 	log.WithError(err).Errorln("unable to get latest valsets from Cosmos chain, retry in", defaultRetryDur)
-		// 	t.Reset(defaultRetryDur)
-		// 	continue
-		// }
-		//
-		// currentValset, err := s.cosmosQueryClient.CurrentValset(ctx)
-		// if err != nil {
-		// 	log.WithError(err).Errorln("unable to get current valset from Cosmos chain, retry in", defaultRetryDur)
-		// 	t.Reset(defaultRetryDur)
-		// 	continue
-		// }
-		//
-		// if len(latestValsets) == 0 {
-		// 	if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
-		// 		log.WithError(err).Warningln("valset request failed")
-		// 	}
-		// } else {
-		// 	// TODO(xlab): gas saving?
-		// 	//
-		// 	// let power_diff = current_valset.power_diff(&latest_valsets[0]);
-		// 	// if the power difference is more than 1% different than the last valset
-		// 	// if power_diff > 0.01f32 {
-		// 	//     let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
-		// 	// }
-		// }
+		currentValset, err := s.cosmosQueryClient.CurrentValset(ctx)
+		if err != nil {
+			log.WithError(err).Errorln("unable to get current valset from Cosmos chain, retry in", defaultRetryDur)
+			t.Reset(defaultRetryDur)
+			continue
+		}
+
+		if len(latestValsets) == 0 {
+			if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
+				log.WithError(err).Warningln("valset request failed")
+			}
+		} else {
+			// TODO(xlab): gas saving?
+			//
+			currentValsetPower := calculateTotalValsetPower(currentValset)
+			latestValsetPower := calculateTotalValsetPower(latestValsets[0])
+
+			log.Debugln("currentValsetPower", currentValsetPower, "latestValsetPower", latestValsetPower)
+			// power_diff := currentValsetPower.Sub(currentValsetPower, latestValsetPower);
+
+			// if the power difference is more than 1% different than the last valset
+			if currentValsetPower.Cmp(latestValsetPower) > 0 {
+				// let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
+				if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
+					log.WithError(err).Warningln("valset request failed")
+				}
+			}
+		}
 
 		t.Reset(defaultLoopDur)
 	}
@@ -263,4 +273,13 @@ func (s *peggyOrchestrator) relayerMainLoop(wg *sync.WaitGroup) {
 
 	r := relayer.NewPeggyRelayer(s.cosmosQueryClient, s.peggyContract)
 	r.RunLoop()
+}
+
+func calculateTotalValsetPower(valset *types.Valset) *big.Int {
+	totalValsetPower := new(big.Int)
+	for _, m := range valset.Members {
+		mPower := big.NewInt(0).SetUint64(m.Power)
+		totalValsetPower.Add(totalValsetPower, mPower)
+	}
+	return totalValsetPower
 }
