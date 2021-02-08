@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
@@ -136,12 +137,10 @@ func sigToVRS(sigHex string) (v uint8, r, s common.Hash) {
 const totalPeggyPower int64 = math.MaxUint32
 
 // peggyPowerToPercent takes in an amount of power in the peggy bridge, returns a percentage of total
-func peggyPowerToPercent(powerOfGoodSigs *big.Int, totalValsetPower *big.Int) float32 {
-	// d := decimal.NewFromBigInt(total, 0)
-	peggyPowerPercent := new(big.Int)
-	powerOfGoodSigs = powerOfGoodSigs.Mul(powerOfGoodSigs, big.NewInt(100))
-	peggyPowerPercent = peggyPowerPercent.Div(powerOfGoodSigs, totalValsetPower)
-	return float32(peggyPowerPercent.Int64())
+func peggyPowerToPercent(total *big.Int) float32 {
+	d := decimal.NewFromBigInt(total, 0)
+	f, _ := d.Div(decimal.NewFromInt(totalPeggyPower)).Shift(2).Float64()
+	return float32(f)
 }
 
 var ErrInsufficientVotingPowerToPass = errors.New("insufficient voting power")

@@ -32,7 +32,8 @@ func (s *peggyRelayer) relayBatches(ctx context.Context) error {
 		oldestSigs = sigs
 	}
 	if oldestSignedBatch == nil {
-		return errors.New("could not find batch with signatures")
+		log.Warningln("could not find batch with signatures, nothing to relay")
+		return nil
 	}
 
 	latestEthereumBatch, err := s.peggyContract.GetTxBatchNonce(

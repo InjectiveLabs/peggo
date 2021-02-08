@@ -251,7 +251,7 @@ func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {
 				log.WithError(err).Warningln("valset request failed")
 			}
 		} else {
-			log.Debugln("error fetching latest unbatch tx", err)
+			log.Debugln("latest unbatch tx", "unbatchTxs:", unbatchTxs, "error", err)
 		}
 
 		t.Reset(defaultLoopDur)
