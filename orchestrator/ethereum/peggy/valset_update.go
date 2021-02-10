@@ -56,6 +56,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 	// 		bytes32[] memory _r,
 	// 		bytes32[] memory _s
 	// )
+	log.Debugln("Sending updateValset Ethereum tx", "currentValidators", currentValidators, "currentPowers", currentPowers, "currentValsetNonce", currentValsetNonce)
 	txData, err := peggyABI.Pack("updateValset",
 		newValidators,
 		newPowers,
@@ -161,8 +162,8 @@ func checkValsetSigsAndRepack(
 
 	powerOfGoodSigs := new(big.Int)
 	for _, m := range valset.Members {
+		mPower := big.NewInt(0).SetUint64(m.Power)
 		if sig, ok := signerToSig[m.EthereumAddress]; ok && sig.EthAddress == m.EthereumAddress {
-			mPower := big.NewInt(0).SetUint64(m.Power)
 			powerOfGoodSigs.Add(powerOfGoodSigs, mPower)
 
 			validators = append(validators, common.HexToAddress(m.EthereumAddress))
@@ -172,6 +173,12 @@ func checkValsetSigsAndRepack(
 			v = append(v, sigV)
 			r = append(r, sigR)
 			s = append(s, sigS)
+		} else {
+			validators = append(validators, common.HexToAddress(m.EthereumAddress))
+			powers = append(powers, mPower)
+			v = append(v, 0)
+			r = append(r, [32]byte{})
+			s = append(s, [32]byte{})
 		}
 	}
 

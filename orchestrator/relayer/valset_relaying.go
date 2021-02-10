@@ -46,6 +46,7 @@ func (s *peggyRelayer) relayValsets(ctx context.Context) error {
 		err = errors.Wrap(err, "couldn't find latest confirmed valset on Ethereum")
 		return err
 	}
+	log.Debugln("Found Latest valset", "currentEthValset", currentEthValset)
 
 	if latestCosmosConfirmed.Nonce > currentEthValset.Nonce {
 		log.Infoln("Detected latest cosmos valset nonce %d, but latest on Ehtereum is %d. Sending update",
