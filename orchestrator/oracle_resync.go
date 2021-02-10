@@ -10,7 +10,7 @@ import (
 	log "github.com/xlab/suplog"
 )
 
-const defaultBlocksToSearch = 50000
+const defaultBlocksToSearch = 2000
 
 // getLastCheckedBlock retrieves the last event nonce this oracle has relayed to Cosmos
 // it then uses the Ethereum indexes to determine what block the last entry

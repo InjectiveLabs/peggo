@@ -206,6 +206,7 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 			continue
 		}
 
+		// This request gives normalized powers. so calculation wont work
 		currentValset, err := s.cosmosQueryClient.CurrentValset(ctx)
 		if err != nil {
 			log.WithError(err).Errorln("unable to get current valset from Cosmos chain, retry in", defaultRetryDur)
@@ -227,7 +228,7 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 			// power_diff := currentValsetPower.Sub(currentValsetPower, latestValsetPower);
 
 			// if the power difference is more than 1% different than the last valset
-			if currentValsetPower.Cmp(latestValsetPower) > 0 {
+			if currentValsetPower.Cmp(latestValsetPower) != 0 {
 				// let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
 				if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
 					log.WithError(err).Warningln("valset request failed")

@@ -12,7 +12,7 @@ import (
 	log "github.com/xlab/suplog"
 )
 
-const defaultBlocksToSearch = 50000
+const defaultBlocksToSearch = 2000
 
 // This function finds the latest valset on the Peggy contract by looking back through the event
 // history and finding the most recent ValsetUpdatedEvent. Most of the time this will be very fast
