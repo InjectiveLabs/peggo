@@ -262,6 +262,51 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
+func (s *peggyBroadcastClient) sendDepositClaims(deposit *wrappers.PeggySendToCosmosEvent) error {
+	// EthereumBridgeDepositClaim
+	// When more than 66% of the active validator set has
+	// claimed to have seen the deposit enter the ethereum blockchain coins are
+	// issued to the Cosmos address in question
+	// -------------
+
+	msg := &types.MsgDepositClaim{
+		EventNonce:     deposit.EventNonce.Uint64(),
+		TokenContract:  deposit.TokenContract.Hex(),
+		Amount:         sdk.NewIntFromBigInt(deposit.Amount),
+		EthereumSender: deposit.Sender.Hex(),
+		CosmosReceiver: sdk.AccAddress(deposit.Destination[:]).String(),
+		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		TokenName:      deposit.Name,
+		TokenSymbol:    deposit.Symbol,
+		TokenDecimals:  uint64(deposit.Decimals),
+	}
+
+	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+		return err
+	}
+
+	return nil
+}
+
+func (s *peggyBroadcastClient) sendWithdrawClaims(withdraw *wrappers.PeggyTransactionBatchExecutedEvent) error {
+	// WithdrawClaim claims that a batch of withdrawal
+	// operations on the bridge contract was executed.
+	msg := &types.MsgWithdrawClaim{
+		EventNonce:    withdraw.EventNonce.Uint64(),
+		BatchNonce:    withdraw.BatchNonce.Uint64(),
+		TokenContract: withdraw.Token.Hex(),
+		Orchestrator:  s.broadcastClient.FromAddress().String(),
+	}
+	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
+		return err
+	}
+	return nil
+}
+
 func (s *peggyBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
 	deposits []*wrappers.PeggySendToCosmosEvent,
@@ -271,47 +316,43 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	for _, deposit := range deposits {
-		// EthereumBridgeDepositClaim
-		// When more than 66% of the active validator set has
-		// claimed to have seen the deposit enter the ethereum blockchain coins are
-		// issued to the Cosmos address in question
-		// -------------
-		msg := &types.MsgDepositClaim{
-			EventNonce:     deposit.EventNonce.Uint64(),
-			TokenContract:  deposit.TokenContract.Hex(),
-			Amount:         sdk.NewIntFromBigInt(deposit.Amount),
-			EthereumSender: deposit.Sender.Hex(),
-			CosmosReceiver: sdk.AccAddress(deposit.Destination[:]).String(),
-			Orchestrator:   s.broadcastClient.FromAddress().String(),
-			TokenName:      deposit.Name,
-			TokenSymbol:    deposit.Symbol,
-			TokenDecimals:  uint64(deposit.Decimals),
+	// Merge sort deposits, withdraws by nonce
+	i, j := 0, 0
+	for i < len(deposits) && j < len(withdraws) {
+		if deposits[i].EventNonce.Uint64() < withdraws[j].EventNonce.Uint64() {
+			if err := s.sendDepositClaims(deposits[i]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			i++
+		} else {
+			if err := s.sendWithdrawClaims(withdraws[j]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			j++
 		}
+	}
 
-		if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+	for i < len(deposits) {
+		if err := s.sendDepositClaims(deposits[i]); err != nil {
 			metrics.ReportFuncError(s.svcTags)
 			log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
 			return err
 		}
+		i++
 	}
 
-	for _, withdraw := range withdraws {
-		// WithdrawClaim claims that a batch of withdrawal
-		// operations on the bridge contract was executed.
-		msg := &types.MsgWithdrawClaim{
-			EventNonce:    withdraw.EventNonce.Uint64(),
-			BatchNonce:    withdraw.BatchNonce.Uint64(),
-			TokenContract: withdraw.Token.Hex(),
-			Orchestrator:  s.broadcastClient.FromAddress().String(),
-		}
-		if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+	for j < len(withdraws) {
+		if err := s.sendWithdrawClaims(withdraws[j]); err != nil {
 			metrics.ReportFuncError(s.svcTags)
-			log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
+			log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
 			return err
 		}
+		j++
 	}
-
 	return nil
 }
 
