@@ -38,6 +38,7 @@ func (s *peggyOrchestrator) checkForEvents(
 			End:   &currentBlock,
 		}, nil, nil, nil)
 		if err != nil {
+			log.Debugln("failed to filter past SendToCosmos events from Ethereum Start %d End %d", startingBlock, currentBlock)
 			err = errors.Wrap(err, "failed to filter past SendToCosmos events from Ethereum")
 			return 0, err
 		} else {
