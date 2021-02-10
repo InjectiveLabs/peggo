@@ -25,6 +25,10 @@ func (s *peggyOrchestrator) checkForEvents(
 
 	currentBlock = latestHeader.Number.Uint64()
 
+	if (currentBlock - startingBlock) > defaultBlocksToSearch {
+		currentBlock = startingBlock + defaultBlocksToSearch
+	}
+
 	peggyFilterer, err := wrappers.NewPeggyFilterer(s.peggyContract.Address(), s.ethProvider)
 	if err != nil {
 		err = errors.Wrap(err, "failed to init Peggy events filterer")
