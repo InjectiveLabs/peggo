@@ -216,6 +216,7 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 		} else {
 			// if the power difference is more than 1% different than the last valset
 			if PowerDiff(latestValsets[0], currentValset) > 0.01 {
+				log.Debugln("power difference is more than 1% different than the last valset. Sending valset request")
 				if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
 					log.WithError(err).Warningln("valset request failed")
 				}
