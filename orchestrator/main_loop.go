@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -192,13 +193,7 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 
 	t := time.NewTimer(0)
 	for range t.C {
-		// if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
-		// 	log.WithError(err).Warningln("valset request failed")
-		// }
 
-		// this needed for gas saving optimizations:
-		//
-		//
 		latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
 		if err != nil {
 			log.WithError(err).Errorln("unable to get latest valsets from Cosmos chain, retry in", defaultRetryDur)
@@ -219,17 +214,8 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 				log.WithError(err).Warningln("valset request failed")
 			}
 		} else {
-			// TODO(xlab): gas saving?
-			//
-			currentValsetPower := calculateTotalValsetPower(currentValset)
-			latestValsetPower := calculateTotalValsetPower(latestValsets[0])
-
-			log.Debugln("currentValsetPower", currentValsetPower, "latestValsetPower", latestValsetPower)
-			// power_diff := currentValsetPower.Sub(currentValsetPower, latestValsetPower);
-
 			// if the power difference is more than 1% different than the last valset
-			if currentValsetPower.Cmp(latestValsetPower) != 0 {
-				// let _ = send_valset_request(&contact, cosmos_key, fee.clone()).await;
+			if PowerDiff(latestValsets[0], currentValset) > 0.01 {
 				if err := s.peggyBroadcastClient.SendValsetRequest(ctx); err != nil {
 					log.WithError(err).Warningln("valset request failed")
 				}
@@ -238,6 +224,36 @@ func (s *peggyOrchestrator) valsetRequesterLoop(wg *sync.WaitGroup) {
 
 		t.Reset(defaultLoopDur)
 	}
+}
+
+// PowerDiff returns the difference in power between two bridge validator sets
+// TODO: this needs to be potentially refactored
+func PowerDiff(old *types.Valset, new *types.Valset) float64 {
+	powers := map[string]int64{}
+	var totalB int64
+	// loop over b and initialize the map with their powers
+	for _, bv := range old.GetMembers() {
+		powers[bv.EthereumAddress] = int64(bv.Power)
+		totalB += int64(bv.Power)
+	}
+
+	// subtract c powers from powers in the map, initializing
+	// uninitialized keys with negative numbers
+	for _, bv := range new.GetMembers() {
+		if val, ok := powers[bv.EthereumAddress]; ok {
+			powers[bv.EthereumAddress] = val - int64(bv.Power)
+		} else {
+			powers[bv.EthereumAddress] = -int64(bv.Power)
+		}
+	}
+
+	var delta float64
+	for _, v := range powers {
+		// NOTE: we care about the absolute value of the changes
+		delta += math.Abs(float64(v))
+	}
+
+	return math.Abs(delta / float64(totalB))
 }
 
 func (s *peggyOrchestrator) batchRequesterLoop(wg *sync.WaitGroup) {

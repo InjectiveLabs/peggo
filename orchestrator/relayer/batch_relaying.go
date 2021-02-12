@@ -52,6 +52,7 @@ func (s *peggyRelayer) relayBatches(ctx context.Context) error {
 		return errors.New("latest valset not found")
 	}
 
+	log.Debugln("Found Latest valset", "currentValset", currentValset)
 	if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
 		log.Infof("We have detected latest batch %d but latest on Ethereum is %d sending an update!", oldestSignedBatch.BatchNonce, latestEthereumBatch)
 
