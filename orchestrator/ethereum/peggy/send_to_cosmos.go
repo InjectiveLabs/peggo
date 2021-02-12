@@ -40,7 +40,7 @@ func (s *peggyContract) SendToCosmos(
 			return nil, err
 		}
 
-		txHash, err := s.ethCommitter.SendTx(erc20, txData)
+		txHash, err := s.EVMCommitter.SendTx(erc20, txData)
 		if err != nil {
 			log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (ERC20 approve) to EVM")
 			return nil, err
@@ -64,7 +64,7 @@ func (s *peggyContract) SendToCosmos(
 		return nil, err
 	}
 
-	txHash, err := s.ethCommitter.SendTx(s.peggyAddress, txData)
+	txHash, err := s.EVMCommitter.SendTx(s.peggyAddress, txData)
 	if err != nil {
 		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (Peggy sendToCosmos) to EVM")
 		return nil, err

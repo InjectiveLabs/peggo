@@ -68,7 +68,7 @@ func (s *peggyContract) SendTransactionBatch(
 		return nil, err
 	}
 
-	txHash, err := s.ethCommitter.SendTx(s.peggyAddress, txData)
+	txHash, err := s.EVMCommitter.SendTx(s.peggyAddress, txData)
 	if err != nil {
 		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (Peggy submitBatch) to EVM")
 		return nil, err

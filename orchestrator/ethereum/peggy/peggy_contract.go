@@ -80,7 +80,6 @@ func NewPeggyContract(
 
 	svc := &peggyContract{
 		EVMCommitter: ethCommitter,
-		ethCommitter: ethCommitter,
 		peggyAddress: peggyAddress,
 		ethPeggy:     ethPeggy,
 
@@ -96,7 +95,6 @@ type peggyContract struct {
 	committer.EVMCommitter
 
 	ethProvider  provider.EVMProvider
-	ethCommitter committer.EVMCommitter
 	peggyAddress common.Address
 	ethPeggy     *wrappers.Peggy
 
