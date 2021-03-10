@@ -22,7 +22,7 @@ type PeggyBroadcastClient interface {
 
 	/// Send a transaction updating the eth address for the sending
 	/// Cosmos address. The sending Cosmos address should be a validator
-	UpdatePeggyDelegateAddresses(
+	UpdatePeggyOrchestratorAddresses(
 		ctx context.Context,
 		ethFrom ethcmn.Address,
 		orchAddr sdk.AccAddress,
@@ -97,7 +97,7 @@ type peggyBroadcastClient struct {
 	svcTags metrics.Tags
 }
 
-func (s *peggyBroadcastClient) UpdatePeggyDelegateAddresses(
+func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
 	orchAddr sdk.AccAddress,
@@ -105,9 +105,6 @@ func (s *peggyBroadcastClient) UpdatePeggyDelegateAddresses(
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
-
-	valAddr := s.ValFromAddress()
-
 	// SetOrchestratorAddress
 
 	// This message allows validators to delegate their voting responsibilities
@@ -120,9 +117,9 @@ func (s *peggyBroadcastClient) UpdatePeggyDelegateAddresses(
 	// sets submissions carry any weight.
 
 	// -------------
-	msg := &types.MsgSetOrchestratorAddress{
+	msg := &types.MsgSetOrchestratorAddresses{
+		Sender:       s.ValFromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
-		Validator:    valAddr.String(),
 		Orchestrator: orchAddr.String(),
 	}
 

@@ -14,28 +14,28 @@ var (
 	_ sdk.Msg = &MsgSendToEth{}
 	_ sdk.Msg = &MsgRequestBatch{}
 	_ sdk.Msg = &MsgConfirmBatch{}
-	_ sdk.Msg = &MsgSetOrchestratorAddress{}
+	_ sdk.Msg = &MsgSetOrchestratorAddresses{}
 )
 
-// NewMsgSetOrchestratorAddress returns a new msgSetOrchestratorAddress
-func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth string) *MsgSetOrchestratorAddress {
-	return &MsgSetOrchestratorAddress{
-		Validator:    val.String(),
+// NewMsgSetOrchestratorAddress returns a new MsgSetOrchestratorAddresses
+func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth string) *MsgSetOrchestratorAddresses {
+	return &MsgSetOrchestratorAddresses{
+		Sender:       val.String(),
 		Orchestrator: oper.String(),
 		EthAddress:   eth,
 	}
 }
 
 // Route should return the name of the module
-func (msg *MsgSetOrchestratorAddress) Route() string { return RouterKey }
+func (msg *MsgSetOrchestratorAddresses) Route() string { return RouterKey }
 
 // Type should return the action
-func (msg *MsgSetOrchestratorAddress) Type() string { return "set_operator_address" }
+func (msg *MsgSetOrchestratorAddresses) Type() string { return "set_operator_address" }
 
 // ValidateBasic performs stateless checks
-func (msg *MsgSetOrchestratorAddress) ValidateBasic() (err error) {
-	if _, err = sdk.ValAddressFromBech32(msg.Validator); err != nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Validator)
+func (msg *MsgSetOrchestratorAddresses) ValidateBasic() (err error) {
+	if _, err = sdk.ValAddressFromBech32(msg.Sender); err != nil {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Sender)
 	}
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
@@ -47,13 +47,13 @@ func (msg *MsgSetOrchestratorAddress) ValidateBasic() (err error) {
 }
 
 // GetSignBytes encodes the message for signing
-func (msg *MsgSetOrchestratorAddress) GetSignBytes() []byte {
+func (msg *MsgSetOrchestratorAddresses) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
 // GetSigners defines whose signature is required
-func (msg *MsgSetOrchestratorAddress) GetSigners() []sdk.AccAddress {
-	acc, err := sdk.ValAddressFromBech32(msg.Validator)
+func (msg *MsgSetOrchestratorAddresses) GetSigners() []sdk.AccAddress {
+	acc, err := sdk.ValAddressFromBech32(msg.Sender)
 	if err != nil {
 		panic(err)
 	}
