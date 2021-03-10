@@ -100,7 +100,7 @@ type peggyBroadcastClient struct {
 func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
-	orchAddr sdk.AccAddress,
+	orchestratorAddr sdk.AccAddress,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -120,7 +120,7 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	msg := &types.MsgSetOrchestratorAddresses{
 		Sender:       s.ValFromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
-		Orchestrator: orchAddr.String(),
+		Orchestrator: orchestratorAddr.String(),
 	}
 
 	_, err := s.broadcastClient.SyncBroadcastMsg(msg)
