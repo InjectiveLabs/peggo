@@ -235,15 +235,17 @@ func (s *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 			return err
 		}
 
-		logger.Infoln("Sending TransactionBatch confirm for %d", oldestUnsignedTransactionBatch.BatchNonce)
+		if oldestUnsignedTransactionBatch != nil {
+			logger.Infoln("Sending TransactionBatch confirm for %d", oldestUnsignedTransactionBatch.BatchNonce)
 
-		if err := retry.Do(func() error {
-			return s.peggyBroadcastClient.SendBatchConfirm(ctx, s.ethFrom, peggyID, oldestUnsignedTransactionBatch)
-		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to sign and send TransactionBatch confirmation to Cosmos, will retry (%d)", n)
-		})); err != nil {
-			logger.WithError(err).Errorln("got error, loop exits")
-			return err
+			if err := retry.Do(func() error {
+				return s.peggyBroadcastClient.SendBatchConfirm(ctx, s.ethFrom, peggyID, oldestUnsignedTransactionBatch)
+			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+				logger.WithError(err).Warningf("failed to sign and send TransactionBatch confirmation to Cosmos, will retry (%d)", n)
+			})); err != nil {
+				logger.WithError(err).Errorln("got error, loop exits")
+				return err
+			}
 		}
 
 		return nil

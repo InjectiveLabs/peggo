@@ -25,6 +25,7 @@ type PeggyBroadcastClient interface {
 	UpdatePeggyDelegateAddresses(
 		ctx context.Context,
 		ethFrom ethcmn.Address,
+		orchAddr sdk.AccAddress,
 	) error
 
 	// SendValsetConfirm broadcasts in a confirmation for a specific validator set for a specific block height.
@@ -99,6 +100,7 @@ type peggyBroadcastClient struct {
 func (s *peggyBroadcastClient) UpdatePeggyDelegateAddresses(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
+	orchAddr sdk.AccAddress,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -119,10 +121,9 @@ func (s *peggyBroadcastClient) UpdatePeggyDelegateAddresses(
 
 	// -------------
 	msg := &types.MsgSetOrchestratorAddress{
-		EthAddress: ethFrom.Hex(),
-		Validator:  valAddr.String(),
-		// TODO : Set the orchestrator address
-		Orchestrator: "",
+		EthAddress:   ethFrom.Hex(),
+		Validator:    valAddr.String(),
+		Orchestrator: orchAddr.String(),
 	}
 
 	_, err := s.broadcastClient.SyncBroadcastMsg(msg)
