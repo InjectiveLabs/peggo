@@ -6,6 +6,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
@@ -17,12 +18,12 @@ var (
 	_ sdk.Msg = &MsgSetOrchestratorAddresses{}
 )
 
-// NewMsgSetOrchestratorAddress returns a new MsgSetOrchestratorAddresses
-func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth string) *MsgSetOrchestratorAddresses {
+// NewMsgSetOrchestratorAddresses returns a new MsgSetOrchestratorAddresses
+func NewMsgSetOrchestratorAddresses(sender, orchestrator sdk.AccAddress, ethAddr common.Address) *MsgSetOrchestratorAddresses {
 	return &MsgSetOrchestratorAddresses{
-		Sender:       val.String(),
-		Orchestrator: oper.String(),
-		EthAddress:   eth,
+		Sender:       sender.String(),
+		Orchestrator: orchestrator.String(),
+		EthAddress:   ethAddr.Hex(),
 	}
 }
 
@@ -34,7 +35,7 @@ func (msg *MsgSetOrchestratorAddresses) Type() string { return "set_operator_add
 
 // ValidateBasic performs stateless checks
 func (msg *MsgSetOrchestratorAddresses) ValidateBasic() (err error) {
-	if _, err = sdk.ValAddressFromBech32(msg.Sender); err != nil {
+	if _, err = sdk.AccAddressFromBech32(msg.Sender); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Sender)
 	}
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
@@ -53,11 +54,12 @@ func (msg *MsgSetOrchestratorAddresses) GetSignBytes() []byte {
 
 // GetSigners defines whose signature is required
 func (msg *MsgSetOrchestratorAddresses) GetSigners() []sdk.AccAddress {
-	acc, err := sdk.ValAddressFromBech32(msg.Sender)
+	acc, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
 		panic(err)
 	}
-	return []sdk.AccAddress{sdk.AccAddress(acc)}
+
+	return []sdk.AccAddress{acc}
 }
 
 // NewMsgValsetConfirm returns a new msgValsetConfirm

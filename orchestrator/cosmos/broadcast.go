@@ -19,6 +19,7 @@ import (
 
 type PeggyBroadcastClient interface {
 	ValFromAddress() sdk.ValAddress
+	AccFromAddress() sdk.AccAddress
 
 	/// Send a transaction updating the eth address for the sending
 	/// Cosmos address. The sending Cosmos address should be a validator
@@ -88,6 +89,11 @@ func (s *peggyBroadcastClient) ValFromAddress() sdk.ValAddress {
 	return sdk.ValAddress(s.broadcastClient.FromAddress().Bytes())
 }
 
+func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
+	return s.broadcastClient.FromAddress()
+}
+
+
 type peggyBroadcastClient struct {
 	daemonQueryClient types.QueryClient
 	broadcastClient   client.CosmosClient
@@ -105,7 +111,7 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
-	// SetOrchestratorAddress
+	// SetOrchestratorAddresses
 
 	// This message allows validators to delegate their voting responsibilities
 	// to a given key. This key is then used as an optional authentication method
@@ -118,7 +124,7 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 
 	// -------------
 	msg := &types.MsgSetOrchestratorAddresses{
-		Sender:       s.ValFromAddress().String(),
+		Sender:       s.AccFromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
 		Orchestrator: orchestratorAddr.String(),
 	}
@@ -126,7 +132,7 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	_, err := s.broadcastClient.SyncBroadcastMsg(msg)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgSetOrchestratorAddress failed")
+		err = errors.Wrap(err, "broadcasting MsgSetOrchestratorAddresses failed")
 		return err
 	}
 	return nil

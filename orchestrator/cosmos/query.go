@@ -22,7 +22,7 @@ type PeggyQueryClient interface {
 	UnbatchedTokensWithFees(ctx context.Context) ([]*types.BatchFees, error)
 
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract ethcmn.Address) ([]*types.MsgConfirmBatch, error)
-	LastEventNonce(ctx context.Context, valAddress sdk.ValAddress) (uint64, error)
+	LastEventNonce(ctx context.Context, validatorAccountAddress sdk.AccAddress) (uint64, error)
 }
 
 func NewPeggyQueryClient(client types.QueryClient) PeggyQueryClient {
@@ -207,13 +207,13 @@ func (s *peggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce
 	return daemonResp.Confirms, nil
 }
 
-func (s *peggyQueryClient) LastEventNonce(ctx context.Context, valAddress sdk.ValAddress) (uint64, error) {
+func (s *peggyQueryClient) LastEventNonce(ctx context.Context, validatorAccountAddress sdk.AccAddress) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
 	daemonResp, err := s.daemonQueryClient.LastEventNonceByAddr(ctx, &types.QueryLastEventNonceByAddrRequest{
-		Address: valAddress.String(),
+		Address: validatorAccountAddress.String(),
 	})
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
