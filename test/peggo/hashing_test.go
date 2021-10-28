@@ -162,9 +162,12 @@ func makeValsetCheckpoint(
 ) common.Hash {
 	methodName := formatBytes32String("checkpoint")
 
+	//TODO: check if we want to add a reward amount and a reward token here
+
 	buf, err := valsetConfirmABI.Pack("checkpoint",
-		peggyID, methodName, valsetNonce, validators, powers,
+		peggyID, methodName, valsetNonce, validators, powers, &big.Int{}, zeroAddress,
 	)
+
 	orFail(err)
 
 	return crypto.Keccak256Hash(buf[4:])

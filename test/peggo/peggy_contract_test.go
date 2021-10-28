@@ -309,17 +309,27 @@ var _ = Describe("Contract Tests", func() {
 							return
 						}
 
+						// TODO: add reward amount and reward token
+						currentValsetArgs := peggy.ValsetArgs{
+							Validators:   validators,
+							Powers:       powers,
+							ValsetNonce:  state_lastValsetNonce,
+							RewardAmount: &big.Int{},
+							RewardToken:  common.Address{},
+						}
+
+						newValsetArgs := peggy.ValsetArgs{
+							Validators:   newValidators,
+							Powers:       newPowers,
+							ValsetNonce:  nextValsetNonce,
+							RewardAmount: &big.Int{},
+							RewardToken:  common.Address{},
+						}
+
 						updateValsetTxHash, _, updateValsetErr = ContractDeployer.Tx(context.Background(), peggyTxOpts,
 							"updateValset", withArgsFn(
-								// The new version of the validator set
-								newValidators,   // address[] memory _newValidators,
-								newPowers,       // uint256[] memory _newPowers,
-								nextValsetNonce, // uint256 _newValsetNonce,
-								// The current validators that approve the change
-								validators,            // address[] memory _currentValidators,
-								powers,                // uint256[] memory _currentPowers,
-								state_lastValsetNonce, // uint256 _currentValsetNonce,
-								// These are arrays of the parts of the current validator's signatures
+								newValsetArgs,
+								currentValsetArgs,
 								sigsV, // uint8[] memory _v,
 								sigsR, // bytes32[] memory _r,
 								sigsS, // bytes32[] memory _s
@@ -417,17 +427,30 @@ var _ = Describe("Contract Tests", func() {
 							valsetCheckpointHash, getSigningKeysForAddresses(newValidators, CosmosAccounts[:3]...)...)
 						orFail(signValsetErr)
 
+						// TODO: add reward amount and reward token
+						currentValsetArgs := peggy.ValsetArgs{
+							Validators:   validators,
+							Powers:       powers,
+							ValsetNonce:  state_lastValsetNonce,
+							RewardAmount: &big.Int{},
+							RewardToken:  common.Address{},
+						}
+
+						newValsetArgs := peggy.ValsetArgs{
+							Validators:   newValidators,
+							Powers:       newPowers,
+							ValsetNonce:  nextValsetNonce,
+							RewardAmount: &big.Int{},
+							RewardToken:  common.Address{},
+						}
+
 						// NOTE: this is a rollback, the current valset was the "new valset".
 						rollbackValsetTxHash, _, rollbackValsetErr = ContractDeployer.Tx(context.Background(), peggyTxOpts,
 							"updateValset", withArgsFn(
 								// The new version of the validator set
-								validators,      // address[] memory _newValidators,
-								powers,          // uint256[] memory _newPowers,
-								nextValsetNonce, // uint256 _newValsetNonce,
+								newValsetArgs,
 								// The current validators that approve the change
-								newValidators,         // address[] memory _currentValidators,
-								newPowers,             // uint256[] memory _currentPowers,
-								state_lastValsetNonce, // uint256 _currentValsetNonce,
+								currentValsetArgs,
 								// These are arrays of the parts of the current validator's signatures
 								sigsV, // uint8[] memory _v,
 								sigsR, // bytes32[] memory _r,
@@ -668,12 +691,19 @@ var _ = Describe("Contract Tests", func() {
 									return
 								}
 
+								// TODO: add reward amount and reward token
+								currentValsetArgs := peggy.ValsetArgs{
+									Validators:   validators,
+									Powers:       powers,
+									ValsetNonce:  state_lastValsetNonce,
+									RewardAmount: &big.Int{},
+									RewardToken:  common.Address{},
+								}
+
 								submitBatchTxHash, _, submitBatchErr = ContractDeployer.Tx(context.Background(), peggyTxOpts,
 									"submitBatch", withArgsFn(
 										// The validators that approve the batch
-										validators,            // 	address[] memory _currentValidators,
-										powers,                // 	uint256[] memory _currentPowers,
-										state_lastValsetNonce, // 	uint256 _currentValsetNonce,
+										currentValsetArgs,
 
 										// These are arrays of the parts of the validators signatures
 										sigsV, // 	uint8[] memory _v,
