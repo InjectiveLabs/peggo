@@ -23,7 +23,7 @@ type PendingTxInputList []PendingTxInput
 
 func (p *PendingTxInputList) AddPendingTxInput(pendingTx *RPCTransaction) {
 
-	if !IsBatchAndValsetUpdateTx(pendingTx.Input) {
+	if !IsBatchOrValsetUpdateTx(pendingTx.Input) {
 		return
 	}
 
@@ -42,7 +42,7 @@ func (p *PendingTxInputList) AddPendingTxInput(pendingTx *RPCTransaction) {
 	}
 }
 
-func IsBatchAndValsetUpdateTx(inputData hexutil.Bytes) bool {
+func IsBatchOrValsetUpdateTx(inputData hexutil.Bytes) bool {
 
 	submitBatchMethod := peggyABI.Methods["submitBatch"]
 	valsetUpdateMethod := peggyABI.Methods["updateValset"]

@@ -55,7 +55,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		ethNodeRPC            *string
 		ethNodeAlchemyWS      *string
 		ethGasPriceAdjustment *float64
-		ethMaxGasPrice        *int
+		ethMaxGasPrice        *string
 
 		// Ethereum Key Management
 		ethKeystoreDir *string

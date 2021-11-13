@@ -21,7 +21,7 @@ import (
 func NewEthCommitter(
 	fromAddress common.Address,
 	ethGasPriceAdjustment float64,
-	ethMaxGasPrice int,
+	ethMaxGasPrice string,
 	fromSigner bind.SignerFn,
 	evmProvider provider.EVMProviderWithRet,
 	committerOpts ...EVMCommitterOption,
@@ -33,7 +33,7 @@ func NewEthCommitter(
 		},
 
 		ethGasPriceAdjustment: ethGasPriceAdjustment,
-		ethMaxGasPrice:        ethMaxGasPrice,
+		ethMaxGasPrice:        ParseMaxGasPrice(ethMaxGasPrice),
 		fromAddress:           fromAddress,
 		fromSigner:            fromSigner,
 		evmProvider:           evmProvider,
@@ -59,7 +59,7 @@ type ethCommitter struct {
 	fromSigner  bind.SignerFn
 
 	ethGasPriceAdjustment float64
-	ethMaxGasPrice        int
+	ethMaxGasPrice        int64
 	evmProvider           provider.EVMProviderWithRet
 	nonceCache            util.NonceCache
 
