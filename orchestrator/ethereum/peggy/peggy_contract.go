@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -67,11 +68,16 @@ type PeggyContract interface {
 		erc20ContractAddress common.Address,
 		callerAddress common.Address,
 	) (symbol string, err error)
+
+	SubscribeToPendingTxs(
+		alchemyWebsocketURL string)
 }
 
 func NewPeggyContract(
 	ethCommitter committer.EVMCommitter,
 	peggyAddress common.Address,
+	pendingTxInputList PendingTxInputList,
+	pendingTxWaitDuration time.Duration,
 ) (PeggyContract, error) {
 	ethPeggy, err := wrappers.NewPeggy(peggyAddress, ethCommitter.Provider())
 	if err != nil {
@@ -79,10 +85,11 @@ func NewPeggyContract(
 	}
 
 	svc := &peggyContract{
-		EVMCommitter: ethCommitter,
-		peggyAddress: peggyAddress,
-		ethPeggy:     ethPeggy,
-
+		EVMCommitter:          ethCommitter,
+		peggyAddress:          peggyAddress,
+		ethPeggy:              ethPeggy,
+		pendingTxInputList:    pendingTxInputList,
+		pendingTxWaitDuration: pendingTxWaitDuration,
 		svcTags: metrics.Tags{
 			"svc": "peggy_contract",
 		},
@@ -97,6 +104,9 @@ type peggyContract struct {
 	ethProvider  provider.EVMProvider
 	peggyAddress common.Address
 	ethPeggy     *wrappers.Peggy
+
+	pendingTxInputList    PendingTxInputList
+	pendingTxWaitDuration time.Duration
 
 	svcTags metrics.Tags
 }

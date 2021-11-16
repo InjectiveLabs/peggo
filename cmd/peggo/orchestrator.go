@@ -53,7 +53,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		// Ethereum params
 		ethChainID            *int
 		ethNodeRPC            *string
+		ethNodeAlchemyWS      *string
 		ethGasPriceAdjustment *float64
+		ethMaxGasPrice        *string
 
 		// Ethereum Key Management
 		ethKeystoreDir *string
@@ -63,8 +65,11 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		ethUseLedger   *bool
 
 		// Relayer config
-		relayValsets *bool
-		relayBatches *bool
+		relayValsets          *bool
+		relayValsetOffsetDur  *string
+		relayBatches          *bool
+		relayBatchOffsetDur   *string
+		pendingTxWaitDuration *string
 
 		// Batch requester config
 		minBatchFeeUSD *float64
@@ -95,7 +100,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		cmd,
 		&ethChainID,
 		&ethNodeRPC,
+		&ethNodeAlchemyWS,
 		&ethGasPriceAdjustment,
+		&ethMaxGasPrice,
 	)
 
 	initEthereumKeyOptions(
@@ -110,7 +117,10 @@ func orchestratorCmd(cmd *cli.Cmd) {
 	initRelayerOptions(
 		cmd,
 		&relayValsets,
+		&relayValsetOffsetDur,
 		&relayBatches,
+		&relayBatchOffsetDur,
+		&pendingTxWaitDuration,
 	)
 
 	initBatchRequesterOptions(
@@ -220,13 +230,23 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		ethProvider := provider.NewEVMProvider(evmRPC)
 		log.Infoln("Connected to Ethereum RPC at", *ethNodeRPC)
 
-		ethCommitter, err := committer.NewEthCommitter(ethKeyFromAddress, *ethGasPriceAdjustment, signerFn, ethProvider)
+		ethCommitter, err := committer.NewEthCommitter(ethKeyFromAddress, *ethGasPriceAdjustment, *ethMaxGasPrice, signerFn, ethProvider)
 		orShutdown(err)
 
-		peggyContract, err := peggy.NewPeggyContract(ethCommitter, peggyAddress)
+		pendingTxInputList := peggy.PendingTxInputList{}
+
+		pendingTxWaitDuration, err := time.ParseDuration(*pendingTxWaitDuration)
 		orShutdown(err)
 
-		relayer := relayer.NewPeggyRelayer(cosmosQueryClient, peggyContract, *relayValsets, *relayBatches)
+		peggyContract, err := peggy.NewPeggyContract(ethCommitter, peggyAddress, pendingTxInputList, pendingTxWaitDuration)
+		orShutdown(err)
+
+		// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
+		if *ethNodeAlchemyWS != "" {
+			go peggyContract.SubscribeToPendingTxs(*ethNodeAlchemyWS)
+		}
+
+		relayer := relayer.NewPeggyRelayer(cosmosQueryClient, tmclient.NewRPCClient(*tendermintRPC), peggyContract, *relayValsets, *relayValsetOffsetDur, *relayBatches, *relayBatchOffsetDur)
 
 		coingeckoConfig := coingecko.Config{
 			BaseURL: *coingeckoApi,

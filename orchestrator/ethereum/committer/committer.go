@@ -3,6 +3,7 @@ package committer
 import (
 	"context"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -63,6 +64,33 @@ func OptionGasPriceFromString(str string) EVMCommitterOption {
 		o.GasPrice = gasPrice
 		return nil
 	}
+}
+
+func ParseMaxGasPrice(maxGasPriceStr string) int64 {
+	maxGasPriceStr = strings.TrimSpace(maxGasPriceStr)
+	maxGasPriceStr = strings.ToLower(maxGasPriceStr)
+
+	// If the denom is gwei, convert to wei
+	unit := "gwei"
+	isGwei := false
+	if strings.HasSuffix(maxGasPriceStr, unit) {
+		maxGasPriceStr = strings.TrimSuffix(maxGasPriceStr, unit)
+		isGwei = true
+	}
+
+	// if denom is not present, consider it as wei
+	maxGasPriceStr = strings.TrimSpace(maxGasPriceStr)
+	maxGasPrice, err := decimal.NewFromString(maxGasPriceStr)
+	if err != nil {
+		err = errors.Wrap(err, "unable to parse max gas price. max_gas_price should be in gwei")
+		panic(err)
+	}
+
+	if isGwei {
+		maxGasPrice = maxGasPrice.Shift(9) // Gwei to wei
+	}
+
+	return maxGasPrice.IntPart()
 }
 
 func OptionGasPriceFromDecimal(gasPrice decimal.Decimal) EVMCommitterOption {
