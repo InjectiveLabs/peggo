@@ -11,7 +11,7 @@ import (
 func (s *peggyRelayer) Start(ctx context.Context) error {
 	logger := s.logger.With().Str("loop", "RelayerMainLoop").Logger()
 
-	return loops.RunLoop(ctx, s.loopDuration, func() error {
+	return loops.RunLoop(ctx, s.logger, s.loopDuration, func() error {
 		var pg loops.ParanoidGroup
 		if s.valsetRelayEnabled {
 			logger.Info().Msg("valset relay enabled; starting to relay valsets to Ethereum")
