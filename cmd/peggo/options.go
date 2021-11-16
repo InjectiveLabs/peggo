@@ -141,7 +141,9 @@ func initEthereumOptions(
 	cmd *cli.Cmd,
 	ethChainID **int,
 	ethNodeRPC **string,
+	ethNodeAlchemyWS **string,
 	ethGasPriceAdjustment **float64,
+	ethMaxGasPrice **string,
 ) {
 	*ethChainID = cmd.Int(cli.IntOpt{
 		Name:   "eth-chain-id",
@@ -157,11 +159,25 @@ func initEthereumOptions(
 		Value:  "http://localhost:1317",
 	})
 
+	*ethNodeAlchemyWS = cmd.String(cli.StringOpt{
+		Name:   "eth-node-alchemy-ws",
+		Desc:   "Specify websocket url for an Alchemy ethereum node.",
+		EnvVar: "PEGGO_ETH_ALCHEMY_WS",
+		Value:  "",
+	})
+
 	*ethGasPriceAdjustment = cmd.Float64(cli.Float64Opt{
 		Name:   "eth_gas_price_adjustment",
 		Desc:   "gas price adjustment for Ethereum transactions",
 		EnvVar: "PEGGO_ETH_GAS_PRICE_ADJUSTMENT",
 		Value:  float64(1.3),
+	})
+
+	*ethMaxGasPrice = cmd.String(cli.StringOpt{
+		Name:   "eth-max-gas-price",
+		Desc:   "Specify Max gas price for Ethereum Transactions in GWei",
+		EnvVar: "PEGGO_ETH_MAX_GAS_PRICE",
+		Value:  "500gwei",
 	})
 }
 
@@ -254,7 +270,10 @@ func initStatsdOptions(
 func initRelayerOptions(
 	cmd *cli.Cmd,
 	relayValsets **bool,
+	relayValsetOffsetDur **string,
 	relayBatches **bool,
+	relayBatchOffsetDur **string,
+	pendingTxWaitDuration **string,
 ) {
 	*relayValsets = cmd.Bool(cli.BoolOpt{
 		Name:   "relay_valsets",
@@ -263,11 +282,32 @@ func initRelayerOptions(
 		Value:  false,
 	})
 
+	*relayValsetOffsetDur = cmd.String(cli.StringOpt{
+		Name:   "relay_valset_offset_dur",
+		Desc:   "If set, relayer will broadcast valsetUpdate only after relayValsetOffsetDur has passed from time of valsetUpdate creation",
+		EnvVar: "PEGGO_RELAY_VALSET_OFFSET_DUR",
+		Value:  "5m",
+	})
+
 	*relayBatches = cmd.Bool(cli.BoolOpt{
 		Name:   "relay_batches",
 		Desc:   "If enabled, relayer will relay batches to ethereum",
 		EnvVar: "PEGGO_RELAY_BATCHES",
 		Value:  false,
+	})
+
+	*relayBatchOffsetDur = cmd.String(cli.StringOpt{
+		Name:   "relay_batch_offset_dur",
+		Desc:   "If set, relayer will broadcast batches only after relayBatchOffsetDur has passed from time of batch creation",
+		EnvVar: "PEGGO_RELAY_BATCH_OFFSET_DUR",
+		Value:  "5m",
+	})
+
+	*pendingTxWaitDuration = cmd.String(cli.StringOpt{
+		Name:   "relay_pending_tx_wait_duration",
+		Desc:   "If set, relayer will broadcast pending batches/valsetupdate only after pendingTxWaitDuration has passed",
+		EnvVar: "PEGGO_RELAY_PENDING_TX_WAIT_DURATION",
+		Value:  "20m",
 	})
 }
 
