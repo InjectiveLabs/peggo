@@ -19,7 +19,7 @@ import (
 
 type PeggyOrchestrator interface {
 	Start(ctx context.Context) error
-	CheckForEvents(ctx context.Context, startingBlock uint64) (currentBlock uint64, err error)
+	CheckForEvents(ctx context.Context, startingBlock, ethBlockConfirmationDelay uint64) (currentBlock uint64, err error)
 	GetLastCheckedBlock(ctx context.Context) (uint64, error)
 	EthOracleMainLoop(ctx context.Context) error
 	EthSignerMainLoop(ctx context.Context) error
@@ -43,6 +43,7 @@ type peggyOrchestrator struct {
 	relayer              relayer.PeggyRelayer
 	loopsDuration        time.Duration
 	cosmosBlockTime      time.Duration
+	ethBlocksPerLoop     uint64
 
 	// optional inputs with defaults
 	minBatchFeeUSD float64
@@ -61,6 +62,7 @@ func NewPeggyOrchestrator(
 	relayer relayer.PeggyRelayer,
 	loopDuration time.Duration,
 	cosmosBlockTime time.Duration,
+	ethBlocksPerLoop int64,
 	options ...func(PeggyOrchestrator),
 ) PeggyOrchestrator {
 
@@ -77,6 +79,7 @@ func NewPeggyOrchestrator(
 		relayer:              relayer,
 		loopsDuration:        loopDuration,
 		cosmosBlockTime:      cosmosBlockTime,
+		ethBlocksPerLoop:     uint64(ethBlocksPerLoop),
 	}
 
 	for _, option := range options {

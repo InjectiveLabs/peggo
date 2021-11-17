@@ -42,15 +42,28 @@ func (p *peggyOrchestrator) Start(ctx context.Context) error {
 func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	logger := p.logger.With().Str("loop", "EthOracleMainLoop").Logger()
 	lastResync := time.Now()
-	var lastCheckedBlock uint64
+
+	var (
+		lastCheckedBlock uint64
+		peggyParams      *types.Params
+	)
+
+	if err := retry.Do(func() (err error) {
+		peggyParams, err = p.cosmosQueryClient.PeggyParams(ctx)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("failed to query peggy params, is umeed running?")
+		}
+		return
+	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+		logger.Err(err).Uint("retry", n).Msg("failed to get Peggy params; retrying...")
+	})); err != nil {
+		logger.Err(err).Msg("got error, loop exits")
+		return err
+	}
 
 	if err := retry.Do(func() (err error) {
 		lastCheckedBlock, err = p.GetLastCheckedBlock(ctx)
 		if lastCheckedBlock == 0 {
-			peggyParams, err := p.cosmosQueryClient.PeggyParams(ctx)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("failed to query peggy params, is injectived running?")
-			}
 			lastCheckedBlock = peggyParams.BridgeContractStartHeight
 		}
 		return
@@ -67,7 +80,7 @@ func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 		// Relays events from Ethereum -> Cosmos
 		var currentBlock uint64
 		if err := retry.Do(func() (err error) {
-			currentBlock, err = p.CheckForEvents(ctx, lastCheckedBlock)
+			currentBlock, err = p.CheckForEvents(ctx, lastCheckedBlock, getEthBlockDelay(peggyParams.BridgeChainId))
 			return
 		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 			logger.Err(err).Uint("retry", n).Msg("error during Eth event checking; retrying...")
@@ -323,4 +336,31 @@ func (p *peggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		return p.relayer.Start(ctx)
 	}
 	return errors.New("relayer is nil")
+}
+
+// getEthBlockDelay returns the right amount of Ethereum blocks to wait until we
+// consider a block final. This depends on the chain we are talking to.
+// Copying from https://github.com/althea-net/cosmos-gravity-bridge/blob/main/orchestrator/orchestrator/src/ethereum_event_watcher.rs#L222
+func getEthBlockDelay(chainID uint64) uint64 {
+	switch chainID {
+	// Mainline Ethereum, Ethereum classic, or the Ropsten, Kotti, Mordor testnets
+	// all POW Chains
+	case 1, 3, 6, 7:
+		return 6
+
+	// Dev, our own Gravity Ethereum testnet, and Hardhat respectively
+	// all single signer chains with no chance of any reorgs
+	case 2018, 15, 31337:
+		return 0
+
+	// Rinkeby and Goerli use Clique (POA) Consensus, finality takes
+	// up to num validators blocks. Number is higher than Ethereum based
+	// on experience with operational issues
+	case 4, 5:
+		return 10
+
+	// assume the safe option (POW) where we don't know
+	default:
+		return 6
+	}
 }

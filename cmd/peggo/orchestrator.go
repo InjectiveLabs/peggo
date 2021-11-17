@@ -174,6 +174,7 @@ func getOrchestratorCmd() *cobra.Command {
 				relayer,
 				konfig.Duration(flagOrchLoopDuration),
 				konfig.Duration(flagCosmosBlockTime),
+				konfig.Int64(flagEthBlocksPerLoop),
 				orchestrator.SetMinBatchFee(konfig.Float64(flagMinBatchFeeUSD)),
 				orchestrator.SetPriceFeeder(coingeckoFeed),
 			)
@@ -197,6 +198,7 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Duration(flagRelayerLoopDuration, 5*time.Minute, "Duration between relayer loops")
 	cmd.Flags().Duration(flagOrchLoopDuration, 1*time.Minute, "Duration between orchestrator loops")
 	cmd.Flags().Duration(flagCosmosBlockTime, 5*time.Second, "Average block time of the cosmos chain")
+	cmd.Flags().Int64(flagEthBlocksPerLoop, 40, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().Float64(
 		flagMinBatchFeeUSD,
 		float64(0.0),
