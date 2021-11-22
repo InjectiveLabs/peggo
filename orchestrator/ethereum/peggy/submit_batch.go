@@ -9,20 +9,22 @@ import (
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
-func (s *peggyContract) SendTransactionBatch(
+type RepackedBatchSigs struct {
+	validators []common.Address
+	powers     []*big.Int
+	v          []uint8
+	r          []common.Hash
+	s          []common.Hash
+}
+
+func (s *peggyContract) EncodeTransactionBatch(
 	ctx context.Context,
 	currentValset *types.Valset,
 	batch *types.OutgoingTxBatch,
 	confirms []*types.MsgConfirmBatch,
-) (*common.Hash, error) {
-	s.logger.Info().
-		Str("token_contract", batch.TokenContract).
-		Uint64("new_nonce", batch.BatchNonce).
-		Msg("checking signatures and submitting TransactionBatch to Ethereum")
+) ([]byte, error) {
 
-	s.logger.Debug().Interface("batch", batch).Msg("batch")
-
-	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
+	sigs, err := CheckBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {
 		err = errors.Wrap(err, "confirmations check failed")
 		return nil, err
@@ -33,29 +35,9 @@ func (s *peggyContract) SendTransactionBatch(
 	batchNonce := new(big.Int).SetUint64(batch.BatchNonce)
 	batchTimeout := new(big.Int).SetUint64(batch.BatchTimeout)
 
-	// Solidity function signature
-	// function submitBatch(
-	// 		// The validators that approve the batch and new valset
-	// 		address[] memory _currentValidators,
-	// 		uint256[] memory _currentPowers,
-	// 		uint256 _currentValsetNonce,
-	//
-	// 		// These are arrays of the parts of the validators signatures
-	// 		uint8[] memory _v,
-	// 		bytes32[] memory _r,
-	// 		bytes32[] memory _s,
-	//
-	// 		// The batch of transactions
-	// 		uint256[] memory _amounts,
-	// 		address[] memory _destinations,
-	// 		uint256[] memory _fees,
-	// 		uint256 _batchNonce,
-	// 		address _tokenContract
-	// )
-
 	currentValsetArs := ValsetArgs{
-		Validators:   validators,
-		Powers:       powers,
+		Validators:   sigs.validators,
+		Powers:       sigs.powers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: currentValset.RewardAmount.BigInt(),
 		RewardToken:  common.HexToAddress(currentValset.RewardToken),
@@ -63,7 +45,7 @@ func (s *peggyContract) SendTransactionBatch(
 
 	txData, err := peggyABI.Pack("submitBatch",
 		currentValsetArs,
-		sigV, sigR, sigS,
+		sigs.v, sigs.r, sigs.s,
 		amounts,
 		destinations,
 		fees,
@@ -76,6 +58,13 @@ func (s *peggyContract) SendTransactionBatch(
 		return nil, err
 	}
 
+	return txData, nil
+}
+
+func (s *peggyContract) SendTransactionBatch(
+	ctx context.Context,
+	txData []byte,
+) (*common.Hash, error) {
 	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
 	if err != nil {
 		s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Peggy submitBatch) to EVM")
@@ -83,57 +72,6 @@ func (s *peggyContract) SendTransactionBatch(
 	}
 
 	s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Peggy submitBatch)")
-
-	//     let before_nonce = get_tx_batch_nonce(
-	//         peggy_contract_address,
-	//         batch.token_contract,
-	//         eth_address,
-	//         &web3,
-	//     )
-	//     .await?;
-	//     if before_nonce >= new_batch_nonce {
-	//         info!(
-	//             "Someone else updated the batch to {}, exiting early",
-	//             before_nonce
-	//         );
-	//         return Ok(());
-	//     }
-
-	//     let tx = web3
-	//         .send_transaction(
-	//             peggy_contract_address,
-	//             payload,
-	//             0u32.into(),
-	//             eth_address,
-	//             our_eth_key,
-	//             vec![SendTxOption::GasLimit(1_000_000u32.into())],
-	//         )
-	//         .await?;
-	//     info!("Sent batch update with txid {:#066x}", tx);
-
-	//     // TODO this segment of code works around the race condition for submitting batches mostly
-	//     // by not caring if our own submission reverts and only checking if the valset has been updated
-	//     // period not if our update succeeded in particular. This will require some further consideration
-	//     // in the future as many independent relayers racing to update the same thing will hopefully
-	//     // be the common case.
-	//     web3.wait_for_transaction(tx, timeout, None).await?;
-
-	//     let last_nonce = get_tx_batch_nonce(
-	//         peggy_contract_address,
-	//         batch.token_contract,
-	//         eth_address,
-	//         &web3,
-	//     )
-	//     .await?;
-	//     if last_nonce != new_batch_nonce {
-	//         error!(
-	//             "Current nonce is {} expected to update to nonce {}",
-	//             last_nonce, new_batch_nonce
-	//         );
-	//     } else {
-	//         info!("Successfully updated Batch with new Nonce {:?}", last_nonce);
-	//     }
-	//     Ok(())
 
 	return &txHash, nil
 }
@@ -156,21 +94,17 @@ func getBatchCheckpointValues(batch *types.OutgoingTxBatch) (
 	return
 }
 
-func checkBatchSigsAndRepack(
-	valset *types.Valset,
-	confirms []*types.MsgConfirmBatch,
-) (
-	validators []common.Address,
-	powers []*big.Int,
-	v []uint8,
-	r []common.Hash,
-	s []common.Hash,
-	err error,
-) {
+// CheckBatchSigsAndRepack checks all the signatures for a batch (confirmations), assembles them into the expected
+// format and checks if the power of the signatures would be enough to send this batch to Ethereum.
+func CheckBatchSigsAndRepack(valset *types.Valset, confirms []*types.MsgConfirmBatch) (*RepackedBatchSigs, error) {
+	var err error
+
 	if len(confirms) == 0 {
 		err = errors.New("no signatures in batch confirmation")
-		return
+		return nil, err
 	}
+
+	sigs := &RepackedBatchSigs{}
 
 	signerToSig := make(map[string]*types.MsgConfirmBatch, len(confirms))
 	for _, sig := range confirms {
@@ -184,25 +118,25 @@ func checkBatchSigsAndRepack(
 		if sig, ok := signerToSig[m.EthereumAddress]; ok && sig.EthSigner == m.EthereumAddress {
 			powerOfGoodSigs.Add(powerOfGoodSigs, mPower)
 
-			validators = append(validators, common.HexToAddress(m.EthereumAddress))
-			powers = append(powers, mPower)
+			sigs.validators = append(sigs.validators, common.HexToAddress(m.EthereumAddress))
+			sigs.powers = append(sigs.powers, mPower)
 
 			sigV, sigR, sigS := sigToVRS(sig.Signature)
-			v = append(v, sigV)
-			r = append(r, sigR)
-			s = append(s, sigS)
+			sigs.v = append(sigs.v, sigV)
+			sigs.r = append(sigs.r, sigR)
+			sigs.s = append(sigs.s, sigS)
 		} else {
-			validators = append(validators, common.HexToAddress(m.EthereumAddress))
-			powers = append(powers, mPower)
-			v = append(v, 0)
-			r = append(r, [32]byte{})
-			s = append(s, [32]byte{})
+			sigs.validators = append(sigs.validators, common.HexToAddress(m.EthereumAddress))
+			sigs.powers = append(sigs.powers, mPower)
+			sigs.v = append(sigs.v, 0)
+			sigs.r = append(sigs.r, [32]byte{})
+			sigs.s = append(sigs.s, [32]byte{})
 		}
 	}
 	if peggyPowerToPercent(powerOfGoodSigs) < 66 {
 		err = ErrInsufficientVotingPowerToPass
-		return validators, powers, v, r, s, err
+		return sigs, err
 	}
 
-	return validators, powers, v, r, s, err
+	return sigs, err
 }

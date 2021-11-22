@@ -22,6 +22,12 @@ type EVMCommitter interface {
 		recipient common.Address,
 		txData []byte,
 	) (txHash common.Hash, err error)
+
+	EstimateGas(
+		ctx context.Context,
+		recipient common.Address,
+		txData []byte,
+	) (gasCost uint64, gasPrice *big.Int, err error)
 }
 
 type EVMCommitterOption func(o *options) error

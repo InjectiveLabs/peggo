@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -64,6 +65,42 @@ func (e *ethCommitter) FromAddress() common.Address {
 
 func (e *ethCommitter) Provider() provider.EVMProvider {
 	return e.evmProvider
+}
+
+func (e *ethCommitter) EstimateGas(
+	ctx context.Context,
+	recipient common.Address,
+	txData []byte,
+) (gasCost uint64, gasPrice *big.Int, err error) {
+
+	opts := &bind.TransactOpts{
+		From:     e.fromAddress,
+		Signer:   e.fromSigner,
+		GasPrice: e.committerOpts.GasPrice.BigInt(),
+		GasLimit: e.committerOpts.GasLimit,
+		Context:  ctx, // with RPC timeout
+	}
+
+	suggestedGasPrice, err := e.evmProvider.SuggestGasPrice(opts.Context)
+	if err != nil {
+		return 0, nil, errors.Errorf("failed to suggest gas price: %v", err)
+	}
+
+	// Suggested gas price may not be accurate, so we multiply the result by the gas price adjustment factor.
+	incrementedPrice := big.NewFloat(0).Mul(
+		new(big.Float).SetInt(suggestedGasPrice),
+		big.NewFloat(e.ethGasPriceAdjustment),
+	)
+
+	gasPrice = new(big.Int)
+	incrementedPrice.Int(gasPrice)
+
+	opts.GasPrice = gasPrice
+	msg := ethereum.CallMsg{From: opts.From, To: &recipient, GasPrice: gasPrice, Value: nil, Data: txData}
+
+	gasCost, err = e.evmProvider.EstimateGas(ctx, msg)
+
+	return gasCost, gasPrice, err
 }
 
 func (e *ethCommitter) SendTx(

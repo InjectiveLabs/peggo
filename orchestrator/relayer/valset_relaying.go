@@ -9,7 +9,7 @@ import (
 
 // RelayValsets checks the last validator set on Ethereum, if it's lower than our latest validator
 // set then we should package and submit the update as an Ethereum transaction
-func (s *peggyRelayer) RelayValsets(ctx context.Context) error {
+func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Valset) error {
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
@@ -39,18 +39,12 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context) error {
 		return nil
 	}
 
-	currentEthValset, err := s.FindLatestValset(ctx)
-	if err != nil {
-		err = errors.Wrap(err, "couldn't find latest confirmed valset on Ethereum")
-		return err
-	}
-
 	s.logger.Debug().
-		Interface("current_eth_valset", currentEthValset).
-		Interface("latest_cosmos_confirmed", latestCosmosConfirmed).
+		Uint64("current_eth_valset_nonce", currentValset.Nonce).
+		Uint64("latest_cosmos_confirmed_nonce", latestCosmosConfirmed.Nonce).
 		Msg("found latest valsets")
 
-	if latestCosmosConfirmed.Nonce > currentEthValset.Nonce {
+	if latestCosmosConfirmed.Nonce > currentValset.Nonce {
 		latestEthereumValsetNonce, err := s.peggyContract.GetValsetNonce(ctx, s.peggyContract.FromAddress())
 		if err != nil {
 			err = errors.Wrap(err, "failed to get latest Valset nonce")
@@ -67,7 +61,7 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context) error {
 			// Send Valset Update to Ethereum
 			txHash, err := s.peggyContract.SendEthValsetUpdate(
 				ctx,
-				currentEthValset,
+				currentValset,
 				latestCosmosConfirmed,
 				latestCosmosSigs,
 			)

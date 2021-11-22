@@ -46,10 +46,6 @@ func (s *peggyRelayer) FindLatestValset(ctx context.Context) (*types.Valset, err
 	}
 
 	for currentBlock > 0 {
-		s.logger.Debug().
-			Uint64("block", currentBlock).
-			Msg("about to submit a Valset or Batch looking back into the history to find the last Valset Update")
-
 		var endSearchBlock uint64
 		if currentBlock <= defaultBlocksToSearch {
 			endSearchBlock = 0
@@ -81,7 +77,7 @@ func (s *peggyRelayer) FindLatestValset(ctx context.Context) (*types.Valset, err
 		sort.Sort(sort.Reverse(PeggyValsetUpdatedEvents(valsetUpdatedEvents)))
 
 		s.logger.Debug().
-			Interface("valset_updated_events", valsetUpdatedEvents).
+			Int("valset_updated_events_num", len(valsetUpdatedEvents)).
 			Msg("found ValsetUpdated events")
 
 		// we take only the first event if we find any at all.

@@ -30,7 +30,6 @@ const (
 	flagEthPassphrase        = "eth-passphrase"
 	flagEthPK                = "eth-pk"
 	flagEthUseLedger         = "eth-use-ledger"
-	flagEthChainID           = "eth-chain-id"
 	flagEthRPC               = "eth-rpc"
 	flagEthGasAdjustment     = "eth-gas-price-adjustment"
 	flagRelayValsets         = "relay-valsets"
@@ -41,9 +40,7 @@ const (
 	flagEthGasLimit          = "eth-gas-limit"
 	flagPowerThreshold       = "power-threshold"
 	flagAutoApprove          = "auto-approve"
-	flagRelayerLoopDuration  = "relayer-loop-duration"
 	flagOrchLoopDuration     = "orch-loop-duration"
-	flagCosmosBlockTime      = "cosmos-block-time"
 	flagEthBlocksPerLoop     = "eth-blocks-per-loop"
 )
 
@@ -87,7 +84,6 @@ func ethereumKeyOptsFlagSet() *pflag.FlagSet {
 func ethereumOptsFlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
 
-	fs.Int64(flagEthChainID, 42, "Specify the chain ID of the Ethereum network")
 	fs.String(flagEthRPC, "http://localhost:8545", "Specify the RPC address of an Ethereum node")
 	fs.Float64(flagEthGasAdjustment, float64(1.3), "Specify a gas price adjustment for Ethereum transactions")
 

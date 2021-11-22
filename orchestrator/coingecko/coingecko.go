@@ -2,8 +2,6 @@ package coingecko
 
 import (
 	"encoding/json"
-	"io"
-	"io/ioutil"
 
 	"net/http"
 	"net/url"
@@ -11,17 +9,14 @@ import (
 	"strings"
 	"time"
 
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/shopspring/decimal"
 )
 
 const (
 	maxRespTime        = 15 * time.Second
 	maxRespHeadersTime = 15 * time.Second
-	maxRespBytes       = 10 * 1024 * 1024
 )
 
 var zeroPrice = float64(0)
@@ -49,6 +44,53 @@ func urlJoin(baseURL string, segments ...string) string {
 
 }
 
+type priceResponse map[string]struct {
+	USD float64 `json:"usd"`
+}
+
+func (cp *PriceFeed) QueryETHUSDPrice() (float64, error) {
+	u, err := url.ParseRequestURI(urlJoin(cp.config.BaseURL, "simple", "price"))
+	if err != nil {
+		cp.logger.Fatal().Err(err).Msg("failed to parse URL")
+	}
+
+	q := make(url.Values)
+
+	q.Set("ids", "ethereum")
+	q.Set("vs_currencies", "usd")
+	u.RawQuery = q.Encode()
+
+	reqURL := u.String()
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		cp.logger.Fatal().Err(err).Msg("failed to create HTTP request")
+	}
+
+	resp, err := cp.client.Do(req)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to fetch price from %s", reqURL)
+		return zeroPrice, err
+	}
+
+	defer resp.Body.Close()
+
+	var respBody priceResponse
+
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
+
+	if err != nil {
+		return zeroPrice, errors.Wrapf(err, "failed to parse response body from %s", reqURL)
+	}
+
+	price := respBody["ethereum"].USD
+
+	if price == zeroPrice {
+		return zeroPrice, errors.Errorf("failed to get price for Ethereum")
+	}
+
+	return price, nil
+}
+
 func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
 
 	u, err := url.ParseRequestURI(urlJoin(cp.config.BaseURL, "simple", "token_price", "ethereum"))
@@ -74,30 +116,23 @@ func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error
 		return zeroPrice, err
 	}
 
-	respBody, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
-	if err != nil {
-		_ = resp.Body.Close()
-		err = errors.Wrapf(err, "failed to read response body from %s", reqURL)
-		return zeroPrice, err
-	}
-	_ = resp.Body.Close()
+	defer resp.Body.Close()
 
-	var f interface{}
-	err = json.Unmarshal(respBody, &f)
+	var respBody priceResponse
+
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
+
 	if err != nil {
 		return zeroPrice, errors.Wrapf(err, "failed to parse response body from %s", reqURL)
 	}
 
-	m := f.(map[string]interface{})
+	price := respBody[strings.ToLower(erc20Contract.String())].USD
 
-	v := m[strings.ToLower(erc20Contract.String())]
-	n, ok := v.(map[string]interface{})
-	if !ok {
+	if price == zeroPrice {
 		return zeroPrice, errors.Errorf("failed to get price for token %s", erc20Contract.Hex())
 	}
 
-	tokenPriceInUSD := n["usd"].(float64)
-	return tokenPriceInUSD, nil
+	return price, nil
 }
 
 // NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
@@ -126,18 +161,4 @@ func checkCoingeckoConfig(cfg *Config) *Config {
 	}
 
 	return cfg
-}
-
-func (cp *PriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
-	tokenPriceInUSD, err := cp.QueryUSDPrice(erc20Contract)
-	if err != nil {
-		return false
-	}
-
-	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
-	totalFeeInUSDDec := decimal.NewFromBigInt(totalFee.BigInt(), -18).Mul(tokenPriceInUSDDec)
-	minFeeInUSDDec := decimal.NewFromFloat(minFeeInUSD)
-
-	return totalFeeInUSDDec.GreaterThan(minFeeInUSDDec)
-
 }
