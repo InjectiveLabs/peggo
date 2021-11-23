@@ -7,7 +7,6 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/cosmos/tmclient"
 
 	sidechain "github.com/umee-network/peggo/orchestrator/cosmos"
@@ -25,9 +24,6 @@ type PeggyOrchestrator interface {
 	EthSignerMainLoop(ctx context.Context) error
 	BatchRequesterLoop(ctx context.Context) error
 	RelayerMainLoop(ctx context.Context) error
-
-	SetMinBatchFee(float64)
-	SetPriceFeeder(*coingecko.PriceFeed)
 }
 
 type peggyOrchestrator struct {
@@ -44,10 +40,6 @@ type peggyOrchestrator struct {
 	loopsDuration        time.Duration
 	cosmosBlockTime      time.Duration
 	ethBlocksPerLoop     uint64
-
-	// optional inputs with defaults
-	minBatchFeeUSD float64
-	priceFeeder    *coingecko.PriceFeed
 }
 
 func NewPeggyOrchestrator(

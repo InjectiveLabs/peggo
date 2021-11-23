@@ -19,13 +19,12 @@ type ValsetArgs struct {
 	RewardToken common.Address `protobuf:"bytes,5,opt,name=rewardToken,json=rewardToken,proto3" json:"rewardToken,omitempty"`
 }
 
-func (s *peggyContract) SendEthValsetUpdate(
+func (s *peggyContract) EncodeValsetUpdate(
 	ctx context.Context,
 	oldValset *types.Valset,
 	newValset *types.Valset,
 	confirms []*types.MsgValsetConfirm,
-) (*common.Hash, error) {
-
+) ([]byte, error) {
 	if newValset.Nonce <= oldValset.Nonce {
 		err := errors.New("new valset nonce should be greater than old valset nonce")
 		return nil, err
@@ -62,23 +61,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 		RewardAmount: oldValset.RewardAmount.BigInt(),
 		RewardToken:  common.HexToAddress(oldValset.RewardToken),
 	}
-	// Solidity function signature
-	// function updateValset(
-	// 		// The new version of the validator set
-	// 		address[] memory _newValidators,
-	// 		uint256[] memory _newPowers,
-	// 		uint256 _newValsetNonce,
-	//
-	// 		// The current validators that approve the change
-	// 		address[] memory _currentValidators,
-	// 		uint256[] memory _currentPowers,
-	// 		uint256 _currentValsetNonce,
-	//
-	// 		// These are arrays of the parts of the current validator's signatures
-	// 		uint8[] memory _v,
-	// 		bytes32[] memory _r,
-	// 		bytes32[] memory _s
-	// )
+
 	s.logger.Debug().
 		Interface("current_validators", currentValidators).
 		Interface("current_powers", currentPowers).
@@ -97,60 +80,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 		return nil, err
 	}
 
-	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
-	if err != nil {
-		s.logger.Err(err).
-			Str("tx_hash", txHash.String()).
-			Msg("failed to sign and submit (Peggy updateValset) to EVM")
-
-		return nil, err
-	}
-
-	s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Peggy updateValset)")
-
-	//     let before_nonce = get_valset_nonce(peggy_contract_address, eth_address, web3).await?;
-	//     if before_nonce != old_nonce {
-	//         info!(
-	//             "Someone else updated the valset to {}, exiting early",
-	//             before_nonce
-	//         );
-	//         return Ok(());
-	//     }
-
-	//     let tx = web3
-	//         .send_transaction(
-	//             peggy_contract_address,
-	//             payload,
-	//             0u32.into(),
-	//             eth_address,
-	//             our_eth_key,
-	//             vec![SendTxOption::GasLimit(1_000_000u32.into())],
-	//         )
-	//         .await?;
-	//     info!("Sent valset update with txid {:#066x}", tx);
-
-	//     // TODO this segment of code works around the race condition for submitting valsets mostly
-	//     // by not caring if our own submission reverts and only checking if the valset has been updated
-	//     // period not if our update succeeded in particular. This will require some further consideration
-	//     // in the future as many independent relayers racing to update the same thing will hopefully
-	//     // be the common case.
-	//     web3.wait_for_transaction(tx, timeout, None).await?;
-
-	//     let last_nonce = get_valset_nonce(peggy_contract_address, eth_address, web3).await?;
-	//     if last_nonce != new_nonce {
-	//         error!(
-	//             "Current nonce is {} expected to update to nonce {}",
-	//             last_nonce, new_nonce
-	//         );
-	//     } else {
-	//         info!(
-	//             "Successfully updated Valset with new Nonce {:?}",
-	//             last_nonce
-	//         );
-	//     }
-	//     Ok(())
-
-	return &txHash, nil
+	return txData, nil
 }
 
 func validatorsAndPowers(valset *types.Valset) (

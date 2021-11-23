@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -42,17 +43,14 @@ type Contract interface {
 		confirms []*types.MsgConfirmBatch,
 	) ([]byte, error)
 
-	SendTransactionBatch(
-		ctx context.Context,
-		txData []byte,
-	) (*common.Hash, error)
-
-	SendEthValsetUpdate(
+	// EncodeValsetUpdate encodes a valset update into a tx byte data. This is specially helpful for estimating gas and
+	// detecting identical transactions in the mempool.
+	EncodeValsetUpdate(
 		ctx context.Context,
 		oldValset *types.Valset,
 		newValset *types.Valset,
 		confirms []*types.MsgValsetConfirm,
-	) (*common.Hash, error)
+	) ([]byte, error)
 
 	GetTxBatchNonce(
 		ctx context.Context,
@@ -81,6 +79,14 @@ type Contract interface {
 		erc20ContractAddress common.Address,
 		callerAddress common.Address,
 	) (decimals uint8, err error)
+
+	// SubscribeToPendingTxs starts a websocket connection to Alchemy's service that listens for new pending txs made
+	// to the Peggy contract.
+	SubscribeToPendingTxs(ctx context.Context, alchemyWebsocketURL string) error
+
+	// IsPendingTxInput returns true if the input data is found in the pending tx list. If the tx is found but the tx is
+	// older than pendingTxWaitDuration, we consider it stale and return false, so the validator re-sends it.
+	IsPendingTxInput(txData []byte, pendingTxWaitDuration time.Duration) bool
 }
 
 func NewPeggyContract(
@@ -110,6 +116,8 @@ type peggyContract struct {
 	ethProvider  provider.EVMProvider
 	peggyAddress common.Address
 	ethPeggy     *wrappers.Peggy
+
+	pendingTxInputList PendingTxInputList
 }
 
 func (s *peggyContract) Address() common.Address {

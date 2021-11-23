@@ -164,6 +164,7 @@ func getOrchestratorCmd() *cobra.Command {
 				konfig.Bool(flagRelayValsets),
 				konfig.Bool(flagRelayBatches),
 				averageEthBlockTime,
+				konfig.Duration(flagEthPendingTXWait),
 				relayer.SetPriceFeeder(coingeckoFeed),
 			)
 
@@ -192,8 +193,6 @@ func getOrchestratorCmd() *cobra.Command {
 				konfig.Duration(flagOrchLoopDuration),
 				averageCosmosBlockTime,
 				konfig.Int64(flagEthBlocksPerLoop),
-				orchestrator.SetMinBatchFee(konfig.Float64(flagMinBatchFeeUSD)),
-				orchestrator.SetPriceFeeder(coingeckoFeed),
 			)
 
 			ctx, cancel = context.WithCancel(context.Background())
@@ -202,6 +201,14 @@ func getOrchestratorCmd() *cobra.Command {
 			g.Go(func() error {
 				return startOrchestrator(errCtx, logger, orch)
 			})
+
+			// If we have the alchemy WS endpoint, start listening for txs against the Peggy contract.
+			alchemyWS := konfig.String(flagEthAlchemyWS)
+			if alchemyWS != "" {
+				g.Go(func() error {
+					return peggyContract.SubscribeToPendingTxs(errCtx, alchemyWS)
+				})
+			}
 
 			// listen for and trap any OS signal to gracefully shutdown and exit
 			trapSignal(cancel)
@@ -214,12 +221,9 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Bool(flagRelayBatches, false, "Relay transaction batches to Ethereum")
 	cmd.Flags().Duration(flagOrchLoopDuration, 20*time.Second, "Duration between orchestrator loops")
 	cmd.Flags().Int64(flagEthBlocksPerLoop, 40, "Number of Ethereum blocks to process per orchestrator loop")
-	cmd.Flags().Float64(
-		flagMinBatchFeeUSD,
-		float64(0.0),
-		"If non-zero, batch requests will only be made if fee threshold criteria is met",
-	)
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
+	cmd.Flags().Duration(flagEthPendingTXWait, 20*time.Minute, "Time for a pending tx to be considered stale")
+	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())

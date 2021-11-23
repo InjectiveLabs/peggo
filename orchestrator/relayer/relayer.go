@@ -38,6 +38,7 @@ type peggyRelayer struct {
 	batchRelayEnabled  bool
 	ethereumBlockTime  time.Duration
 	priceFeeder        *coingecko.PriceFeed
+	pendingTxWait      time.Duration
 
 	// store locally the last tx this validator made to avoid sending duplicates
 	// or invalid txs
@@ -52,6 +53,7 @@ func NewPeggyRelayer(
 	valsetRelayEnabled bool,
 	batchRelayEnabled bool,
 	ethereumBlockTime time.Duration,
+	pendingTxWait time.Duration,
 	options ...func(PeggyRelayer),
 ) PeggyRelayer {
 	relayer := &peggyRelayer{
@@ -63,6 +65,7 @@ func NewPeggyRelayer(
 		valsetRelayEnabled: valsetRelayEnabled,
 		batchRelayEnabled:  batchRelayEnabled,
 		ethereumBlockTime:  ethereumBlockTime,
+		pendingTxWait:      pendingTxWait,
 	}
 
 	for _, option := range options {

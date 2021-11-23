@@ -61,21 +61,6 @@ func (s *peggyContract) EncodeTransactionBatch(
 	return txData, nil
 }
 
-func (s *peggyContract) SendTransactionBatch(
-	ctx context.Context,
-	txData []byte,
-) (*common.Hash, error) {
-	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
-	if err != nil {
-		s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Peggy submitBatch) to EVM")
-		return nil, err
-	}
-
-	s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Peggy submitBatch)")
-
-	return &txHash, nil
-}
-
 func getBatchCheckpointValues(batch *types.OutgoingTxBatch) (
 	amounts []*big.Int,
 	destinations []common.Address,

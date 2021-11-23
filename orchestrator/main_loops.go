@@ -35,8 +35,6 @@ func (p *peggyOrchestrator) Start(ctx context.Context) error {
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
-//
-// TODO this loop requires a method to bootstrap back to the correct event nonce when restarted
 func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	logger := p.logger.With().Str("loop", "EthOracleMainLoop").Logger()
 	lastResync := time.Now()
@@ -90,15 +88,13 @@ func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 
 		lastCheckedBlock = currentBlock
 
-		/*
-			Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
-				1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as
-				   block produced, there is a chance the event is missed. We need to re-scan this block to ensure events
-				   are not missed due to indexing delay.
-				2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-				3. if infura call failed while filtering events, the peggo missed to broadcast claim events occurred in
-				   last iteration.
-		**/
+		// Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
+		//	1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as
+		//	   block produced, there is a chance the event is missed. We need to re-scan this block to ensure events
+		//	   are not missed due to indexing delay.
+		//	2. If validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+		//	3. If the ETH call failed while filtering events, the peggo missed to broadcast claim events occurred in
+		//	   last iteration.
 		if time.Since(lastResync) >= 48*time.Hour {
 			if err := retry.Do(func() (err error) {
 				lastCheckedBlock, err = p.GetLastCheckedBlock(ctx)

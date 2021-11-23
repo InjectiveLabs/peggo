@@ -32,9 +32,9 @@ const (
 	flagEthUseLedger         = "eth-use-ledger"
 	flagEthRPC               = "eth-rpc"
 	flagEthGasAdjustment     = "eth-gas-price-adjustment"
+	flagEthAlchemyWS         = "eth-alchemy-ws"
 	flagRelayValsets         = "relay-valsets"
 	flagRelayBatches         = "relay-batches"
-	flagMinBatchFeeUSD       = "min-batch-fee-usd"
 	flagCoinGeckoAPI         = "coingecko-api"
 	flagEthGasPrice          = "eth-gas-price"
 	flagEthGasLimit          = "eth-gas-limit"
@@ -42,6 +42,7 @@ const (
 	flagAutoApprove          = "auto-approve"
 	flagOrchLoopDuration     = "orch-loop-duration"
 	flagEthBlocksPerLoop     = "eth-blocks-per-loop"
+	flagEthPendingTXWait     = "eth-pending-tx-wait"
 )
 
 func cosmosFlagSet() *pflag.FlagSet {
