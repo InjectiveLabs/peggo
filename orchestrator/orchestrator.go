@@ -2,14 +2,13 @@ package orchestrator
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
-
-	"github.com/umee-network/peggo/orchestrator/cosmos/tmclient"
-
 	sidechain "github.com/umee-network/peggo/orchestrator/cosmos"
+	"github.com/umee-network/peggo/orchestrator/cosmos/tmclient"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"
 	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
@@ -40,6 +39,9 @@ type peggyOrchestrator struct {
 	loopsDuration        time.Duration
 	cosmosBlockTime      time.Duration
 	ethBlocksPerLoop     uint64
+
+	mtx             sync.Mutex
+	erc20DenomCache map[string]string
 }
 
 func NewPeggyOrchestrator(

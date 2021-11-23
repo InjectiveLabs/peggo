@@ -17,15 +17,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-func init() {
-	// set the address prefixes
-	// config := sdk.GetConfig()
-
-	// This is specific to Injective chain
-	// ctypes.SetBech32Prefixes(config)
-	// ctypes.SetBip44CoinType(config)
-}
-
 type CosmosClient interface {
 	CanSignTransactions() bool
 	FromAddress() sdk.AccAddress

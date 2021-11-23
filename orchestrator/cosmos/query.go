@@ -220,18 +220,16 @@ func (s *peggyQueryClient) PeggyParams(ctx context.Context) (*types.Params, erro
 func (s *peggyQueryClient) ERC20ToDenom(
 	ctx context.Context,
 	contractAddr ethcmn.Address,
-) (
-	*types.QueryERC20ToDenomResponse,
-	error,
-) {
-	daemonResp, err := s.daemonQueryClient.ERC20ToDenom(ctx, &types.QueryERC20ToDenomRequest{
+) (*types.QueryERC20ToDenomResponse, error) {
+
+	resp, err := s.daemonQueryClient.ERC20ToDenom(ctx, &types.QueryERC20ToDenomRequest{
 		Erc20: contractAddr.Hex(),
 	})
 	if err != nil {
-		err = errors.Wrap(err, "failed to query ERC20ToDenom from daemon")
-		return nil, err
-	} else if daemonResp == nil {
+		return nil, errors.Wrap(err, "failed to query ERC20ToDenom from daemon")
+	} else if resp == nil {
 		return nil, ErrNotFound
 	}
-	return daemonResp, nil
+
+	return resp, nil
 }
