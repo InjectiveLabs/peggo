@@ -21,7 +21,7 @@ func (s *peggyRelayer) Start(ctx context.Context) error {
 		logger.Info().Msg("batch relay enabled; starting to relay batches to Ethereum")
 	}
 
-	return loops.RunLoop(ctx, s.logger, s.ethereumBlockTime, func() error {
+	return loops.RunLoop(ctx, s.logger, s.loopDuration, func() error {
 		var (
 			currentValset *types.Valset
 			err           error

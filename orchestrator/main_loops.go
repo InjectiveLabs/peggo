@@ -12,6 +12,20 @@ import (
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
+const (
+	// We define loops durations based on multipliers of average block times from Eth and Cosmos.
+	//
+	// Ref: https://github.com/umee-network/peggo/issues/55
+
+	// Run every approximately 5 Ethereum blocks to allow time to receive new blocks.
+	// If we run this faster we wouldn't be getting new blocks, which is not efficient.
+	ethOracleLoopMultiplier = 5
+
+	// Run every approximately 3 Cosmos blocks; so we sign batches and valset updates ASAP but not run these requests
+	// too often that we make too many requests to Cosmos.
+	ethSignerLoopMultiplier = 3
+)
+
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
 func (p *peggyOrchestrator) Start(ctx context.Context) error {
@@ -74,7 +88,7 @@ func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 
 	logger.Info().Uint64("last_checked_block", lastCheckedBlock).Msg("start scanning for events")
 
-	return loops.RunLoop(ctx, p.logger, p.loopsDuration, func() error {
+	return loops.RunLoop(ctx, p.logger, p.ethereumBlockTime*ethOracleLoopMultiplier, func() error {
 		// Relays events from Ethereum -> Cosmos
 		var currentBlock uint64
 		if err := retry.Do(func() (err error) {
@@ -137,7 +151,7 @@ func (p *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 
 	logger.Debug().Hex("peggyID", peggyID[:]).Msg("received peggyID")
 
-	return loops.RunLoop(ctx, p.logger, p.loopsDuration, func() error {
+	return loops.RunLoop(ctx, p.logger, p.cosmosBlockTime*ethSignerLoopMultiplier, func() error {
 		var oldestUnsignedValsets []*types.Valset
 		if err := retry.Do(func() error {
 			oldestValsets, err := p.cosmosQueryClient.OldestUnsignedValsets(ctx, p.peggyBroadcastClient.AccFromAddress())
@@ -222,12 +236,7 @@ func (p *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 func (p *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
 	logger := p.logger.With().Str("loop", "BatchRequesterLoop").Logger()
 
-	// TODO: Change p.loopsDuration for something like 20 x average block time.
-	// We now send a batch request without checking for profitability, that'll be
-	// done during the relayer loop.
-	//
-	// Ref: https://github.com/umee-network/peggo/issues/55
-	return loops.RunLoop(ctx, p.logger, p.loopsDuration, func() error {
+	return loops.RunLoop(ctx, p.logger, p.batchRequesterLoopDuration, func() error {
 		// Each loop performs the following:
 		//
 		// - get All the denominations
