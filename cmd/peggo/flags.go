@@ -42,6 +42,7 @@ const (
 	flagAutoApprove             = "auto-approve"
 	flagEthBlocksPerLoop        = "eth-blocks-per-loop"
 	flagEthPendingTXWait        = "eth-pending-tx-wait"
+	flagProfitMultiplier        = "profit-multiplier"
 	flagRelayerLoopMultiplier   = "relayer-loop-multiplier"
 	flagRequesterLoopMultiplier = "requester-loop-multiplier"
 )

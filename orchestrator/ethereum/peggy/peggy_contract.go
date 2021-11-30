@@ -253,6 +253,10 @@ func (s *peggyContract) GetERC20Decimals(
 		return 0, errors.Wrap(err, "ERC20 'decimals' call failed")
 	}
 
+	if s.erc20DecimalCache == nil {
+		s.erc20DecimalCache = map[string]uint8{}
+	}
+
 	s.erc20DecimalCache[tokenAddrStr] = decimals
 	return decimals, nil
 }

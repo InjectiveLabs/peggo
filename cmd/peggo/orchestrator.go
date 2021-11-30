@@ -171,6 +171,7 @@ func getOrchestratorCmd() *cobra.Command {
 				konfig.Bool(flagRelayBatches),
 				relayerLoopDuration,
 				konfig.Duration(flagEthPendingTXWait),
+				konfig.Float64(flagProfitMultiplier),
 				relayer.SetPriceFeeder(coingeckoFeed),
 			)
 
@@ -234,9 +235,9 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
 	cmd.Flags().Duration(flagEthPendingTXWait, 20*time.Minute, "Time for a pending tx to be considered stale")
 	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")
+	cmd.Flags().Float64(flagProfitMultiplier, 1.0, "Multiplier to apply to relayer profit")
 	cmd.Flags().Float64(flagRelayerLoopMultiplier, 3.0, "Multiplier for the relayer loop duration (in ETH blocks)")
 	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")
-
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())

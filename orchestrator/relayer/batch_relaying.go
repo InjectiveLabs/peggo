@@ -157,7 +157,7 @@ func (s *peggyRelayer) RelayBatches(
 			}
 
 			// If the batch is not profitable, move on to the next one.
-			if !s.IsBatchProfitable(ctx, batch.Batch, estimatedGasCost, gasPrice) {
+			if !s.IsBatchProfitable(ctx, batch.Batch, estimatedGasCost, gasPrice, s.profitMultiplier) {
 				continue
 			}
 
@@ -199,8 +199,9 @@ func (s *peggyRelayer) IsBatchProfitable(
 	batch *types.OutgoingTxBatch,
 	ethGasCost uint64,
 	gasPrice *big.Int,
+	profitMultiplier float64,
 ) bool {
-	if s.priceFeeder == nil {
+	if s.priceFeeder == nil || profitMultiplier == 0 {
 		return true
 	}
 
@@ -212,6 +213,8 @@ func (s *peggyRelayer) IsBatchProfitable(
 	}
 	usdEthPriceDec := decimal.NewFromFloat(usdEthPrice)
 	totalETHcost := big.NewInt(0).Mul(gasPrice, big.NewInt(int64(ethGasCost)))
+
+	// Ethereum decimals are 18 and that's a constant.
 	gasCostInUSDDec := decimal.NewFromBigInt(totalETHcost, -18).Mul(usdEthPriceDec)
 
 	// Then we get the fees of the batch in USD
@@ -242,8 +245,11 @@ func (s *peggyRelayer) IsBatchProfitable(
 	}
 
 	usdTokenPriceDec := decimal.NewFromFloat(usdTokenPrice)
-	// decimals (uint8) can be safely casted into int32 because the max uint8 is 255 and the max int32 is 2147483647
+	// Decimals (uint8) can be safely casted into int32 because the max uint8 is 255 and the max int32 is 2147483647.
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalBatchFees, -int32(decimals)).Mul(usdTokenPriceDec)
+
+	// Simplified: totalFee > (gasCost * profitMultiplier).
+	isProfitable := totalFeeInUSDDec.GreaterThanOrEqual(gasCostInUSDDec.Mul(decimal.NewFromFloat(profitMultiplier)))
 
 	s.logger.Debug().
 		Str("token_contract", batch.TokenContract).
@@ -251,7 +257,10 @@ func (s *peggyRelayer) IsBatchProfitable(
 		Int64("total_fees", totalBatchFees.Int64()).
 		Float64("total_fee_in_usd", totalFeeInUSDDec.InexactFloat64()).
 		Float64("gas_cost_in_usd", gasCostInUSDDec.InexactFloat64()).
-		Msg("checking if batch fees meet minimum batch fee threshold")
+		Float64("profit_multiplier", profitMultiplier).
+		Bool("is_profitable", isProfitable).
+		Msg("checking if batch is profitable")
 
-	return totalFeeInUSDDec.GreaterThan(gasCostInUSDDec)
+	return isProfitable
+
 }

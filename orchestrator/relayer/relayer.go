@@ -18,13 +18,17 @@ type PeggyRelayer interface {
 	Start(ctx context.Context) error
 
 	FindLatestValset(ctx context.Context) (*types.Valset, error)
+
 	RelayBatches(
 		ctx context.Context,
 		currentValset *types.Valset,
 		possibleBatches map[common.Address][]SubmittableBatch,
 	) error
+
 	RelayValsets(ctx context.Context, currentValset *types.Valset) error
 
+	// SetPriceFeeder sets the (optional) price feeder used when performing profitable
+	// batch calculations.
 	SetPriceFeeder(*coingecko.PriceFeed)
 }
 
@@ -39,6 +43,7 @@ type peggyRelayer struct {
 	loopDuration       time.Duration
 	priceFeeder        *coingecko.PriceFeed
 	pendingTxWait      time.Duration
+	profitMultiplier   float64
 
 	// store locally the last tx this validator made to avoid sending duplicates
 	// or invalid txs
@@ -54,6 +59,7 @@ func NewPeggyRelayer(
 	batchRelayEnabled bool,
 	loopDuration time.Duration,
 	pendingTxWait time.Duration,
+	profitMultiplier float64,
 	options ...func(PeggyRelayer),
 ) PeggyRelayer {
 	relayer := &peggyRelayer{
@@ -66,6 +72,7 @@ func NewPeggyRelayer(
 		batchRelayEnabled:  batchRelayEnabled,
 		loopDuration:       loopDuration,
 		pendingTxWait:      pendingTxWait,
+		profitMultiplier:   profitMultiplier,
 	}
 
 	for _, option := range options {
