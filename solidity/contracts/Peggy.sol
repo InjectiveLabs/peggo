@@ -435,13 +435,19 @@ uint256 public state_powerThreshold;
     bytes32 _destination,
     uint256 _amount
   ) external whenNotPaused nonReentrant {
+    uint256 oldBalance = IERC20(_tokenContract).balanceOf(address(this));
     IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
+    uint256 newBalance = IERC20(_tokenContract).balanceOf(address(this));
+    uint256 receivedAmount = newBalance - oldBalance;
+    require(receivedAmount <= _amount, "Incorrect transferred token amount");
+
     state_lastEventNonce = state_lastEventNonce + 1;
+
     emit SendToCosmosEvent(
       _tokenContract,
       msg.sender,
       _destination,
-      _amount,
+      receivedAmount,
       state_lastEventNonce
     );
   }
