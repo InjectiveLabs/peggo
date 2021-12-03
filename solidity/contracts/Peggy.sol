@@ -276,6 +276,21 @@ uint256 public state_powerThreshold;
       "Supplied current validators and powers do not match checkpoint."
     );
 
+    uint256 state_powerThreshold_ = state_powerThreshold;
+    uint256 cumulativePower;
+
+    for (uint256 i = 0; i < _newValset.powers.length; i++) {
+        cumulativePower = cumulativePower + _newValset.powers[i];
+        if (cumulativePower > state_powerThreshold_) {
+            break;
+        }
+    }
+
+    require(
+        cumulativePower > state_powerThreshold_,
+        "New validator set signatures do not have enough power." 
+    );
+
     // Check that enough current validators have signed off on the new validator set
     bytes32 newCheckpoint = makeCheckpoint(_newValset, state_peggyId);
     checkValidatorSignatures(
@@ -285,7 +300,7 @@ uint256 public state_powerThreshold;
       _r,
       _s,
       newCheckpoint,
-      state_powerThreshold
+      state_powerThreshold_
     );
 
     // ACTIONS
