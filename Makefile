@@ -36,6 +36,24 @@ install: go.sum
 ##                              Tests & Linting                              ##
 ###############################################################################
 
+PACKAGES_UNIT=$(shell go list ./... | grep -v '/e2e')
+PACKAGES_E2E=$(shell go list ./... | grep '/e2e')
+TEST_PACKAGES=./...
+TEST_TARGETS := test-unit test-unit-cover test-race test-e2e
+
+test-e2e: ARGS=-timeout=25m -v
+test-e2e: TEST_PACKAGES=$(PACKAGES_E2E)
+$(TEST_TARGETS): run-tests
+
+run-tests:
+ifneq (,$(shell which tparse 2>/dev/null))
+	@echo "--> Running tests"
+	@go test -mod=readonly -json $(ARGS) $(TEST_PACKAGES) | tparse
+else
+	@echo "--> Running tests"
+	@go test -mod=readonly $(ARGS) $(TEST_PACKAGES)
+endif
+
 build-docker-test:
 	@echo "--> Building docker image..."
 	@docker build -f Dockerfile.test -t peggo-test .
@@ -74,3 +92,16 @@ solidity-wrappers: $(SOLIDITY_DIR)/contracts/*.sol
 			echo abigen --type=peggy --pkg wrappers --out=../wrappers/$${file}/wrapper.go --sol $${file} ; \
 			abigen --type=peggy --pkg wrappers --out=../wrappers/$${file}/wrapper.go --sol $${file} ; \
 	done
+
+
+###############################################################################
+##                                  Docker                                   ##
+###############################################################################
+
+docker-build:
+	@docker build -t umeenet/peggo .
+
+docker-build-debug:
+	@docker build -t umeenet/peggo --build-arg IMG_TAG=debug .
+
+.PHONY: docker-build docker-build-debug
