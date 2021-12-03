@@ -13,7 +13,6 @@ const (
 	flagLogLevel                = "log-level"
 	flagLogFormat               = "log-format"
 	flagSvcWaitTimeout          = "svc-wait-timeout"
-	flagAutoConfirm             = "yes"
 	flagCosmosChainID           = "cosmos-chain-id"
 	flagCosmosGRPC              = "cosmos-grpc"
 	flagTendermintRPC           = "tendermint-rpc"

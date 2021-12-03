@@ -43,14 +43,16 @@ sign claims going from Ethereum to Umee and to sign any transactions sent to
 Ethereum (batches or validator set updates).
 
 ```shell
-$ peggo tx register-eth-key \
-  --cosmos-chain-id="..." \
-  --cosmos-grpc="tcp://..." \
-  --tendermint-rpc="http://..." \
-  --cosmos-keyring=... \
-  --cosmos-keyring-dir=... \
-  --cosmos-from=... \
-  --eth-pk=$ETH_PK
+$ umeed tx peggy set-orchestrator-address \
+  {validatorAddress} \
+  {validatorAddress} \
+  {ethAddress} \
+  --eth-priv-key="..." \
+  --chain-id="..." \
+  --fees="..." \
+  --keyring-backend=... \
+  --keyring-dir=... \
+  --from=...
 ```
 
 ### Run the orchestrator
@@ -61,7 +63,6 @@ $ peggo orchestrator \
   --eth-rpc=$ETH_RPC \
   --relay-batches=true \
   --relay-valsets=true \
-  --eth-chain-id=... \
   --cosmos-chain-id=... \
   --cosmos-grpc="tcp://..." \
   --tendermint-rpc="http://..." \

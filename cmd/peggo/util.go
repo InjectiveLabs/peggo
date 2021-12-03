@@ -12,25 +12,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-func stdinConfirm(msg string) bool {
-	var response string
-
-	fmt.Fprint(os.Stderr, msg)
-
-	if _, err := fmt.Scanln(&response); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to confirm action: %s\n", err)
-		return false
-	}
-
-	switch strings.ToLower(strings.TrimSpace(response)) {
-	case "y", "yes":
-		return true
-
-	default:
-		return false
-	}
-}
-
 func hexToBytes(str string) ([]byte, error) {
 	str = strings.TrimPrefix(str, "0x")
 
