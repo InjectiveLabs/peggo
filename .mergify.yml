@@ -14,7 +14,9 @@ pull_request_rules:
         name: default
       merge:
         method: squash
-        commit_message: title+body
+         commit_message_template: |
+            {{ title }} (#{{ number }})
+            {{ body }}
 
   - name: Backport patches to release/v0.1.x branch
     conditions:
