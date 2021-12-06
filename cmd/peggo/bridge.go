@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/umee-network/peggo/cmd/peggo/client"
-	"github.com/umee-network/peggo/orchestrator/cosmos"
 	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/umee-network/umee/x/peggy/types"
 	"google.golang.org/grpc"
@@ -182,20 +181,24 @@ prior to initializing.`,
 			var peggyID [32]byte
 			copy(peggyID[:], peggyParams.PeggyId)
 
-			peggyQueryClient := cosmos.NewPeggyQueryClient(peggytypes.NewQueryClient(gRPCConn))
-			currValSet, err := peggyQueryClient.CurrentValset(cmd.Context())
+			peggyQueryClient := peggytypes.NewQueryClient(gRPCConn)
+			currValset, err := peggyQueryClient.CurrentValset(cmd.Context(), &peggytypes.QueryCurrentValsetRequest{})
 			if err != nil {
 				return err
 			}
 
+			if currValset == nil {
+				return errors.New("no validator set found")
+			}
+
 			var (
-				validators = make([]ethcmn.Address, len(currValSet.Members))
-				powers     = make([]*big.Int, len(currValSet.Members))
+				validators = make([]ethcmn.Address, len(currValset.Valset.Members))
+				powers     = make([]*big.Int, len(currValset.Valset.Members))
 
 				totalPower uint64
 			)
 
-			for i, member := range currValSet.Members {
+			for i, member := range currValset.Valset.Members {
 				validators[i] = ethcmn.HexToAddress(member.EthereumAddress)
 				powers[i] = new(big.Int).SetUint64(member.Power)
 				totalPower += member.Power
@@ -634,17 +637,17 @@ func buildTransactOpts(konfig *koanf.Koanf, ethClient *ethclient.Client) (*bind.
 }
 
 func getPeggyParams(gRPCConn *grpc.ClientConn) (*peggytypes.Params, error) {
-	peggyQueryClient := cosmos.NewPeggyQueryClient(peggytypes.NewQueryClient(gRPCConn))
+	peggyQueryClient := peggytypes.NewQueryClient(gRPCConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	peggyParams, err := peggyQueryClient.PeggyParams(ctx)
-	if err != nil {
+	peggyParamsResp, err := peggyQueryClient.Params(ctx, &peggytypes.QueryParamsRequest{})
+	if err != nil || peggyParamsResp == nil {
 		return nil, fmt.Errorf("failed to query for Peggy params: %w", err)
 	}
 
-	return peggyParams, nil
+	return &peggyParamsResp.Params, nil
 }
 
 func getPeggyContract(ethRPC *ethclient.Client, peggyAddr string) (*wrappers.Peggy, error) {

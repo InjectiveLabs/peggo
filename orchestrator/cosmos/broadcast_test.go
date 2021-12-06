@@ -3,16 +3,183 @@ package cosmos
 import (
 	"context"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 	"github.com/umee-network/peggo/mocks"
 	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
+func TestSendValsetConfirm(t *testing.T) {
+
+	t.Run("success", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, nil
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+			RewardAmount: sdk.NewInt(0),
+		})
+
+		assert.Nil(t, err)
+	})
+
+	t.Run("failed to sign validator address", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, errors.New("some error during signing")
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+			RewardAmount: sdk.NewInt(0),
+		})
+
+		assert.EqualError(t, err, "failed to sign validator address")
+	})
+
+	t.Run("error during broadcast", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, nil
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+			RewardAmount: sdk.NewInt(0),
+		})
+
+		assert.EqualError(t, err, "broadcasting MsgValsetConfirm failed: some error during broadcast")
+	})
+
+}
+
+func TestSendBatchConfirm(t *testing.T) {
+
+	t.Run("success", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, nil
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+
+		assert.Nil(t, err)
+	})
+
+	t.Run("failed to sign validator address", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, errors.New("some error during signing")
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+
+		assert.EqualError(t, err, "failed to sign validator address")
+	})
+
+	t.Run("error during broadcast", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+			return []byte{}, nil
+		}
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			mockPersonalSignFn,
+		)
+
+		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+
+		assert.EqualError(t, err, "broadcasting MsgConfirmBatch failed: some error during broadcast")
+	})
+
+}
+
+// Custom matcher for TestSendDepositClaims
 type hasBiggerNonce struct {
 	currentNonce uint64
 }
@@ -71,13 +238,15 @@ func TestSendEthereumClaims(t *testing.T) {
 	mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 	mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
 
-	biggerNonceMatcher := HasBiggerNonce(0)
-	mockCosmos.EXPECT().SyncBroadcastMsg(biggerNonceMatcher).Return(&sdk.TxResponse{}, nil).Times(8)
+	mockCosmos.EXPECT().SyncBroadcastMsg(HasBiggerNonce(0)).Return(&sdk.TxResponse{}, nil).Times(8)
 
-	s := peggyBroadcastClient{
-		daemonQueryClient: nil,
-		broadcastClient:   mockCosmos,
-	}
+	s := NewPeggyBroadcastClient(
+		zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+		nil,
+		mockCosmos,
+		nil,
+		nil,
+	)
 
 	deposits := []*wrappers.PeggySendToCosmosEvent{
 		{
@@ -142,8 +311,7 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 	mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 	mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
 
-	biggerNonceMatcher := HasBiggerNonce(0)
-	mockCosmos.EXPECT().SyncBroadcastMsg(biggerNonceMatcher).Return(&sdk.TxResponse{}, nil).Times(7)
+	mockCosmos.EXPECT().SyncBroadcastMsg(HasBiggerNonce(0)).Return(&sdk.TxResponse{}, nil).Times(7)
 
 	s := peggyBroadcastClient{
 		daemonQueryClient: nil,
@@ -206,4 +374,50 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 		erc20Deployed,
 		time.Microsecond,
 	)
+}
+
+func TestSendRequestBatch(t *testing.T) {
+
+	t.Run("success", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			nil,
+		)
+
+		err := s.SendRequestBatch(context.Background(), "uumee")
+
+		assert.Nil(t, err)
+	})
+
+	t.Run("error during broadcast", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
+		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
+		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
+
+		s := NewPeggyBroadcastClient(
+			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
+			nil,
+			mockCosmos,
+			nil,
+			nil,
+		)
+
+		err := s.SendRequestBatch(context.Background(), "uumee")
+
+		assert.EqualError(t, err, "broadcasting MsgRequestBatch failed: some error during broadcast")
+	})
+
 }

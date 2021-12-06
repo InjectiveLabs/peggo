@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,7 +15,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
-	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -28,10 +26,6 @@ const totalPeggyPower int64 = math.MaxUint32
 
 var (
 	peggyABI, _ = abi.JSON(strings.NewReader(wrappers.PeggyABI))
-	erc20ABI, _ = abi.JSON(strings.NewReader(wrappers.ERC20ABI))
-
-	// maxUintAllowance is uint constant MAX_UINT = 2**256 - 1
-	maxUintAllowance = big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1))
 
 	ErrInsufficientVotingPowerToPass = errors.New("insufficient voting power")
 )
@@ -41,15 +35,6 @@ type Contract interface {
 
 	// Address returns the Peggy contract address
 	Address() common.Address
-
-	// SendToCosmos executes the function of the same name on the Peggy contract to send ERC20 tokens to Cosmos.
-	SendToCosmos(
-		ctx context.Context,
-		erc20 common.Address,
-		amount *big.Int,
-		cosmosAccAddress sdk.AccAddress,
-		senderAddress common.Address,
-	) (*common.Hash, error)
 
 	// EncodeTransactionBatch encodes a batch into a tx byte data. This is specially helpful for estimating gas and
 	// detecting identical transactions in the mempool.
@@ -104,13 +89,14 @@ type Contract interface {
 	// IsPendingTxInput returns true if the input data is found in the pending tx list. If the tx is found but the tx is
 	// older than pendingTxWaitDuration, we consider it stale and return false, so the validator re-sends it.
 	IsPendingTxInput(txData []byte, pendingTxWaitDuration time.Duration) bool
+
+	GetPendingTxInputList() *PendingTxInputList
 }
 
 type peggyContract struct {
 	committer.EVMCommitter
 
 	logger             zerolog.Logger
-	ethProvider        provider.EVMProvider
 	peggyAddress       common.Address
 	ethPeggy           *wrappers.Peggy
 	pendingTxInputList PendingTxInputList
@@ -123,12 +109,8 @@ func NewPeggyContract(
 	logger zerolog.Logger,
 	ethCommitter committer.EVMCommitter,
 	peggyAddress common.Address,
+	ethPeggy *wrappers.Peggy,
 ) (Contract, error) {
-	ethPeggy, err := wrappers.NewPeggy(peggyAddress, ethCommitter.Provider())
-	if err != nil {
-		return nil, err
-	}
-
 	return &peggyContract{
 		logger:       logger.With().Str("module", "peggy_contract").Logger(),
 		EVMCommitter: ethCommitter,

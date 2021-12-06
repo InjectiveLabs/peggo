@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
@@ -28,27 +27,33 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 ) (map[common.Address][]SubmittableBatch, error) {
 	possibleBatches := map[common.Address][]SubmittableBatch{}
 
-	latestBatches, err := s.cosmosQueryClient.LatestTransactionBatches(ctx)
+	outTxBatches, err := s.cosmosQueryClient.OutgoingTxBatches(ctx, &types.QueryOutgoingTxBatchesRequest{})
+
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get latest batches")
 		return possibleBatches, err
+	} else if outTxBatches == nil {
+		s.logger.Info().Msg("no outgoing TX batches found")
+		return possibleBatches, nil
 	}
 
-	for _, batch := range latestBatches {
+	for _, batch := range outTxBatches.Batches {
 
 		// We might have already sent this same batch. Skip it.
 		if s.lastSentBatchNonce >= batch.BatchNonce {
 			continue
 		}
 
-		sigs, err := s.cosmosQueryClient.TransactionBatchSignatures(
-			ctx,
-			batch.BatchNonce,
-			common.HexToAddress(batch.TokenContract),
-		)
-		if err != nil {
+		batchConfirms, err := s.cosmosQueryClient.BatchConfirms(ctx, &types.QueryBatchConfirmsRequest{
+			Nonce:           batch.BatchNonce,
+			ContractAddress: batch.TokenContract,
+		})
+
+		if err != nil || batchConfirms == nil {
 			// If we can't get the signatures for a batch we will continue to the next batch.
-			s.logger.Err(err).
+			// Use Error() instead of Err() because the latter will print on info level instead of error if err == nil.
+			s.logger.Error().
+				AnErr("error", err).
 				Uint64("batch_nonce", batch.BatchNonce).
 				Str("token_contract", batch.TokenContract).
 				Msg("failed to get batch's signatures")
@@ -57,7 +62,7 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 
 		// This checks that the signatures for the batch are actually possible to submit to the chain.
 		// We only need to know if the signatures are good, we won't use the other returned value.
-		_, err = peggy.CheckBatchSigsAndRepack(currentValset, sigs)
+		_, err = s.peggyContract.EncodeTransactionBatch(ctx, currentValset, batch, batchConfirms.Confirms)
 
 		if err != nil {
 			// this batch is not ready to be relayed
@@ -75,7 +80,7 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 		// if the previous check didn't fail, we can add the batch to the list of possible batches
 		possibleBatches[common.HexToAddress(batch.TokenContract)] = append(
 			possibleBatches[common.HexToAddress(batch.TokenContract)],
-			SubmittableBatch{Batch: batch, Signatures: sigs},
+			SubmittableBatch{Batch: batch, Signatures: batchConfirms.Confirms},
 		)
 	}
 

@@ -12,24 +12,34 @@ import (
 func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Valset) error {
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
-	latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
+	latestValsets, err := s.cosmosQueryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
 		err = errors.Wrap(err, "failed to fetch latest valsets from cosmos")
 		return err
+	} else if latestValsets == nil {
+		return errors.New("no valsets found")
 	}
 
 	var latestCosmosSigs []*types.MsgValsetConfirm
 	var latestCosmosConfirmed *types.Valset
-	for _, set := range latestValsets {
-		sigs, err := s.cosmosQueryClient.AllValsetConfirms(ctx, set.Nonce)
+	for _, set := range latestValsets.Valsets {
+		sigs, err := s.cosmosQueryClient.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
+			Nonce: set.Nonce,
+		})
+
 		if err != nil {
 			err = errors.Wrapf(err, "failed to get valset confirms at nonce %d", set.Nonce)
 			return err
-		} else if len(sigs) == 0 {
+		}
+		if sigs == nil {
+			return errors.New("no valset confirms found")
+		}
+
+		if len(sigs.Confirms) == 0 {
 			continue
 		}
 
-		latestCosmosSigs = sigs
+		latestCosmosSigs = sigs.Confirms
 		latestCosmosConfirmed = set
 		break
 	}

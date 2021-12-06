@@ -48,32 +48,32 @@ func (s *peggyContract) EncodeValsetUpdate(
 
 	// we need to use the old valset here because our signatures need to match the current
 	// members of the validator set in the contract.
-	currentValidators, currentPowers, sigV, sigR, sigS, err := checkValsetSigsAndRepack(oldValset, confirms)
+	sigs, err := checkValsetSigsAndRepack(oldValset, confirms)
 	if err != nil {
 		err = errors.Wrap(err, "confirmations check failed")
 		return nil, err
 	}
 	currentValsetNonce := new(big.Int).SetUint64(oldValset.Nonce)
 	currentValsetArgs := ValsetArgs{
-		Validators:   currentValidators,
-		Powers:       currentPowers,
+		Validators:   sigs.validators,
+		Powers:       sigs.powers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: oldValset.RewardAmount.BigInt(),
 		RewardToken:  common.HexToAddress(oldValset.RewardToken),
 	}
 
 	s.logger.Debug().
-		Interface("current_validators", currentValidators).
-		Interface("current_powers", currentPowers).
+		Interface("current_validators", sigs.validators).
+		Interface("current_powers", sigs.powers).
 		Interface("current_valset_nonce", currentValsetNonce).
 		Msg("sending updateValset Ethereum TX")
 
 	txData, err := peggyABI.Pack("updateValset",
 		newValsetArgs,
 		currentValsetArgs,
-		sigV,
-		sigR,
-		sigS,
+		sigs.v,
+		sigs.r,
+		sigs.s,
 	)
 	if err != nil {
 		s.logger.Err(err).Msg("ABI Pack (Peggy updateValset) method")
@@ -96,50 +96,18 @@ func validatorsAndPowers(valset *types.Valset) (
 	return
 }
 
-func checkValsetSigsAndRepack(
-	valset *types.Valset,
-	confirms []*types.MsgValsetConfirm,
-) (
-	validators []common.Address,
-	powers []*big.Int,
-	v []uint8,
-	r []common.Hash,
-	s []common.Hash,
-	err error,
-) {
+func checkValsetSigsAndRepack(valset *types.Valset, confirms []*types.MsgValsetConfirm) (*RepackedSigs, error) {
 	if len(confirms) == 0 {
-		err = errors.New("no signatures in valset confirmation")
-		return
+		return nil, errors.New("no signatures in valset confirmation")
 	}
 
-	signerToSig := make(map[string]*types.MsgValsetConfirm, len(confirms))
-	for _, sig := range confirms {
-		signerToSig[sig.EthAddress] = sig
-	}
-
-	powerOfGoodSigs := new(big.Int)
-	for _, m := range valset.Members {
-		mPower := big.NewInt(0).SetUint64(m.Power)
-		if sig, ok := signerToSig[m.EthereumAddress]; ok && sig.EthAddress == m.EthereumAddress {
-			powerOfGoodSigs.Add(powerOfGoodSigs, mPower)
-			validators = append(validators, common.HexToAddress(m.EthereumAddress))
-			powers = append(powers, mPower)
-			sigV, sigR, sigS := sigToVRS(sig.Signature)
-			v = append(v, sigV)
-			r = append(r, sigR)
-			s = append(s, sigS)
-		} else {
-			validators = append(validators, common.HexToAddress(m.EthereumAddress))
-			powers = append(powers, mPower)
-			v = append(v, 0)
-			r = append(r, [32]byte{})
-			s = append(s, [32]byte{})
+	genericConfirms := make([]genericConfirm, len(confirms))
+	for i, c := range confirms {
+		genericConfirms[i] = genericConfirm{
+			EthSigner: c.EthAddress,
+			Signature: c.Signature,
 		}
 	}
-	if peggyPowerToPercent(powerOfGoodSigs) < 66 {
-		err = ErrInsufficientVotingPowerToPass
-		return validators, powers, v, r, s, err
-	}
 
-	return validators, powers, v, r, s, err
+	return checkAndRepackSigs(valset, genericConfirms)
 }

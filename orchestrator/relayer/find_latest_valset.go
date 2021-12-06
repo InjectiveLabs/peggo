@@ -7,7 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
-	"github.com/umee-network/peggo/orchestrator/ethereum/util"
 	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -39,10 +38,15 @@ func (s *peggyRelayer) FindLatestValset(ctx context.Context) (*types.Valset, err
 		return nil, err
 	}
 
-	cosmosValset, err := s.cosmosQueryClient.ValsetAt(ctx, latestEthereumValsetNonce.Uint64())
+	cosmosValset, err := s.cosmosQueryClient.ValsetRequest(ctx, &types.QueryValsetRequestRequest{
+		Nonce: latestEthereumValsetNonce.Uint64(),
+	})
+
 	if err != nil {
 		err = errors.Wrap(err, "failed to get cosmos Valset")
 		return nil, err
+	} else if cosmosValset == nil {
+		return nil, errors.New("failed to get cosmos Valset, empty response")
 	}
 
 	for currentBlock > 0 {
@@ -97,7 +101,7 @@ func (s *peggyRelayer) FindLatestValset(ctx context.Context) (*types.Valset, err
 				})
 			}
 
-			s.checkIfValsetsDiffer(cosmosValset, valset)
+			s.checkIfValsetsDiffer(cosmosValset.Valset, valset)
 			return valset, nil
 		}
 
@@ -174,7 +178,7 @@ func (b BridgeValidators) Sort() {
 	sort.Slice(b, func(i, j int) bool {
 		if b[i].Power == b[j].Power {
 			// Secondary sort on eth address in case powers are equal
-			return util.EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
+			return types.EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
 		}
 		return b[i].Power > b[j].Power
 	})

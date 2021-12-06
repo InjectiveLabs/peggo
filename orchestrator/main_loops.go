@@ -7,7 +7,6 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/umee-network/peggo/orchestrator/cosmos"
 	"github.com/umee-network/peggo/orchestrator/loops"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -55,14 +54,16 @@ func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 
 	var (
 		lastCheckedBlock uint64
-		peggyParams      *types.Params
+		peggyParams      types.Params
 	)
 
 	if err := retry.Do(func() (err error) {
-		peggyParams, err = p.cosmosQueryClient.PeggyParams(ctx)
-		if err != nil {
+		peggyParamsResp, err := p.cosmosQueryClient.Params(ctx, &types.QueryParamsRequest{})
+		if err != nil || peggyParamsResp == nil {
 			logger.Fatal().Err(err).Msg("failed to query peggy params, is umeed running?")
 		}
+
+		peggyParams = peggyParamsResp.Params
 
 		return err
 	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
@@ -154,17 +155,23 @@ func (p *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 	return loops.RunLoop(ctx, p.logger, p.cosmosBlockTime*ethSignerLoopMultiplier, func() error {
 		var oldestUnsignedValsets []*types.Valset
 		if err := retry.Do(func() error {
-			oldestValsets, err := p.cosmosQueryClient.OldestUnsignedValsets(ctx, p.peggyBroadcastClient.AccFromAddress())
-			if err != nil {
-				if err == cosmos.ErrNotFound || oldestValsets == nil {
-					logger.Debug().Msg("no Valset waiting to be signed")
-					return nil
-				}
+			oldestValsets, err := p.cosmosQueryClient.LastPendingValsetRequestByAddr(
+				ctx,
+				&types.QueryLastPendingValsetRequestByAddrRequest{
+					Address: p.peggyBroadcastClient.AccFromAddress().String(),
+				},
+			)
 
+			if err != nil {
 				return err
 			}
 
-			oldestUnsignedValsets = oldestValsets
+			if oldestValsets == nil || oldestValsets.Valsets == nil {
+				logger.Debug().Msg("no Valset waiting to be signed")
+				return nil
+			}
+
+			oldestUnsignedValsets = oldestValsets.Valsets
 			return nil
 		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 			logger.Err(err).Uint("retry", n).Msg("failed to get unsigned Valset for signing; retrying...")
@@ -192,17 +199,23 @@ func (p *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 		var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
 		if err := retry.Do(func() error {
 			// sign the last unsigned batch, TODO check if we already have signed this
-			txBatch, err := p.cosmosQueryClient.OldestUnsignedTransactionBatch(ctx, p.peggyBroadcastClient.AccFromAddress())
-			if err != nil {
-				if err == cosmos.ErrNotFound || txBatch == nil {
-					logger.Debug().Msg("no TransactionBatch waiting to be signed")
-					return nil
-				}
+			txBatch, err := p.cosmosQueryClient.LastPendingBatchRequestByAddr(
+				ctx,
+				&types.QueryLastPendingBatchRequestByAddrRequest{
+					Address: p.peggyBroadcastClient.AccFromAddress().String(),
+				},
+			)
 
+			if err != nil {
 				return err
 			}
 
-			oldestUnsignedTransactionBatch = txBatch
+			if txBatch == nil || txBatch.Batch == nil {
+				logger.Debug().Msg("no TransactionBatch waiting to be signed")
+				return nil
+			}
+
+			oldestUnsignedTransactionBatch = txBatch.Batch
 			return nil
 		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 			logger.Err(err).
@@ -247,7 +260,14 @@ func (p *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 			var unbatchedTokensWithFees []*types.BatchFees
 
 			if err := retry.Do(func() (err error) {
-				unbatchedTokensWithFees, err = p.cosmosQueryClient.UnbatchedTokensWithFees(ctx)
+				batchFeesResp, err := p.cosmosQueryClient.BatchFees(ctx, &types.QueryBatchFeeRequest{})
+
+				if err != nil {
+					return err
+				}
+
+				unbatchedTokensWithFees = batchFeesResp.GetBatchFees()
+
 				return
 			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 				logger.Err(err).Uint("retry", n).Msg("failed to get UnbatchedTokensWithFees; retrying...")
@@ -303,9 +323,13 @@ func (p *peggyOrchestrator) ERC20ToDenom(ctx context.Context, tokenAddr common.A
 		return denom, nil
 	}
 
-	resp, err := p.cosmosQueryClient.ERC20ToDenom(ctx, tokenAddr)
+	resp, err := p.cosmosQueryClient.ERC20ToDenom(ctx, &types.QueryERC20ToDenomRequest{Erc20: tokenAddrStr})
 	if err != nil {
 		return "", err
+	}
+
+	if resp == nil {
+		return "", errors.New("no denom found for token")
 	}
 
 	if p.erc20DenomCache == nil {

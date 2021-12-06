@@ -19,11 +19,11 @@ import (
 	"github.com/umee-network/peggo/orchestrator"
 	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/cosmos"
-	"github.com/umee-network/peggo/orchestrator/cosmos/tmclient"
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
 	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 	"github.com/umee-network/peggo/orchestrator/relayer"
+	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/umee-network/umee/x/peggy/types"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -94,12 +94,7 @@ func getOrchestratorCmd() *cobra.Command {
 
 			peggyQuerier := peggytypes.NewQueryClient(gRPCConn)
 
-			// query peggy params
-			peggyQueryClient := cosmos.NewPeggyQueryClient(peggyQuerier)
-			ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-
-			peggyParams, err := peggyQueryClient.PeggyParams(ctx)
+			peggyParams, err := getPeggyParams(gRPCConn)
 			if err != nil {
 				return fmt.Errorf("failed to query for Peggy params: %w", err)
 			}
@@ -140,7 +135,13 @@ func getOrchestratorCmd() *cobra.Command {
 			)
 
 			peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
-			peggyContract, err := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress)
+
+			ethPeggy, err := wrappers.NewPeggy(peggyAddress, ethCommitter.Provider())
+			if err != nil {
+				return fmt.Errorf("failed to create a new instance of Peggy: %w", err)
+			}
+
+			peggyContract, err := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, ethPeggy)
 			if err != nil {
 				return fmt.Errorf("failed to create Ethereum committer: %w", err)
 			}
@@ -164,9 +165,8 @@ func getOrchestratorCmd() *cobra.Command {
 
 			relayer := relayer.NewPeggyRelayer(
 				logger,
-				peggyQueryClient,
+				peggyQuerier,
 				peggyContract,
-				tmclient.NewRPCClient(logger, tmRPCEndpoint),
 				konfig.Bool(flagRelayValsets),
 				konfig.Bool(flagRelayBatches),
 				relayerLoopDuration,
@@ -193,9 +193,8 @@ func getOrchestratorCmd() *cobra.Command {
 
 			orch := orchestrator.NewPeggyOrchestrator(
 				logger,
-				peggyQueryClient,
+				peggyQuerier,
 				peggyBroadcaster,
-				tmclient.NewRPCClient(logger, tmRPCEndpoint),
 				peggyContract,
 				ethKeyFromAddress,
 				signerFn,

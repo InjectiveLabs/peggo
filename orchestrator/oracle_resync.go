@@ -2,15 +2,25 @@ package orchestrator
 
 import (
 	"context"
+
+	"github.com/pkg/errors"
+	"github.com/umee-network/umee/x/peggy/types"
 )
 
-// GetLastCheckedBlock retrieves the last claim event this oracle has relayed to Cosmos.
+// GetLastCheckedBlock retrieves the Ethereum block height from the last claim event this oracle has relayed to Cosmos.
 func (p *peggyOrchestrator) GetLastCheckedBlock(ctx context.Context) (uint64, error) {
 
-	lastClaimEvent, err := p.cosmosQueryClient.LastClaimEventByAddr(ctx, p.peggyBroadcastClient.AccFromAddress())
+	lastEventResp, err := p.cosmosQueryClient.LastEventByAddr(ctx, &types.QueryLastEventByAddrRequest{
+		Address: p.peggyBroadcastClient.AccFromAddress().String(),
+	})
+
 	if err != nil {
 		return uint64(0), err
 	}
 
-	return lastClaimEvent.EthereumEventHeight, nil
+	if lastEventResp == nil {
+		return 0, errors.New("no last event response returned")
+	}
+
+	return lastEventResp.LastClaimEvent.EthereumEventHeight, nil
 }

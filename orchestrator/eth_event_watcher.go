@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
+	"github.com/umee-network/umee/x/peggy/types"
 )
 
 // CheckForEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
@@ -174,16 +175,25 @@ func (p *peggyOrchestrator) CheckForEvents(
 		Int("num_events", len(valsetUpdatedEvents)).
 		Msg("scanned ValsetUpdatedEvents events from Ethereum")
 
-	// note that starting block overlaps with our last che	cked block, because we have to deal with
+	// note that starting block overlaps with our last checked block, because we have to deal with
 	// the possibility that the relayer was killed after relaying only one of multiple events in a single
 	// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
 	// multi event block again. In theory we only send all events for every block and that will pass of fail
 	// atomically but lets not take that risk.
-	lastClaimEvent, err := p.cosmosQueryClient.LastClaimEventByAddr(ctx, p.peggyBroadcastClient.AccFromAddress())
+	lastEventResp, err := p.cosmosQueryClient.LastEventByAddr(ctx, &types.QueryLastEventByAddrRequest{
+		Address: p.peggyBroadcastClient.AccFromAddress().String(),
+	})
+
 	if err != nil {
 		err = errors.New("failed to query last claim event from backend")
 		return 0, err
 	}
+
+	if lastEventResp == nil {
+		return 0, errors.New("no last event response returned")
+	}
+
+	lastClaimEvent := lastEventResp.LastClaimEvent
 
 	deposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastClaimEvent.EthereumEventNonce)
 	withdraws := filterTransactionBatchExecutedEventsByNonce(
@@ -194,7 +204,7 @@ func (p *peggyOrchestrator) CheckForEvents(
 	deployedERC20Updates := filterERC20DeployedEventsByNonce(erc20DeployedEvents, lastClaimEvent.EthereumEventNonce)
 
 	if len(deposits) > 0 || len(withdraws) > 0 || len(valsetUpdates) > 0 || len(deployedERC20Updates) > 0 {
-		// todo get eth chain id from the chain
+
 		if err := p.peggyBroadcastClient.SendEthereumClaims(
 			ctx,
 			lastClaimEvent.EthereumEventNonce,

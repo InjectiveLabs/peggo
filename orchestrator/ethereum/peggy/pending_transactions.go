@@ -17,6 +17,11 @@ type PendingTxInput struct {
 
 type PendingTxInputList []PendingTxInput
 
+// RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
+type RPCTransaction struct {
+	Input hexutil.Bytes `json:"input"`
+}
+
 // AddPendingTxInput adds pending submitBatch and updateBatch calls to the Peggy contract to the list of pending
 // transactions, any other transaction is ignored.
 func (p *PendingTxInputList) AddPendingTxInput(pendingTx *RPCTransaction) {
@@ -93,7 +98,6 @@ func (s *peggyContract) SubscribeToPendingTxs(ctx context.Context, alchemyWebsoc
 	}
 }
 
-// RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
-type RPCTransaction struct {
-	Input hexutil.Bytes `json:"input"`
+func (s *peggyContract) GetPendingTxInputList() *PendingTxInputList {
+	return &s.pendingTxInputList
 }

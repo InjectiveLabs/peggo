@@ -36,11 +36,15 @@ install: go.sum
 ##                              Tests & Linting                              ##
 ###############################################################################
 
-PACKAGES_UNIT=$(shell go list ./... | grep -v '/e2e')
+PACKAGES_UNIT=$(shell go list ./... | grep -v '/e2e' | grep -v '/solidity' | grep -v '/test' )
 PACKAGES_E2E=$(shell go list ./... | grep '/e2e')
 TEST_PACKAGES=./...
 TEST_TARGETS := test-unit test-unit-cover test-race test-e2e
 
+test-unit: ARGS=-timeout=5m -tags='norace'
+test-unit: TEST_PACKAGES=$(PACKAGES_UNIT)
+test-unit-cover: ARGS=-timeout=5m -tags='norace' -coverprofile=coverage.txt -covermode=atomic
+test-unit-cover: TEST_PACKAGES=$(PACKAGES_UNIT)
 test-e2e: ARGS=-timeout=25m -v
 test-e2e: TEST_PACKAGES=$(PACKAGES_E2E)
 $(TEST_TARGETS): run-tests
@@ -75,6 +79,12 @@ mocks:
 	@go run github.com/golang/mock/mockgen -destination=mocks/cosmos.go \
 			 -package=mocks github.com/umee-network/peggo/cmd/peggo/client \
 			  CosmosClient
+	@go run github.com/golang/mock/mockgen -destination=mocks/evm_provider.go \
+			 -package=mocks github.com/umee-network/peggo/orchestrator/ethereum/provider \
+			  EVMProviderWithRet
+	@go run github.com/golang/mock/mockgen -destination=mocks/peggy_queryclient.go \
+			 -package=mocks github.com/umee-network/umee/x/peggy/types \
+			  QueryClient
 
 .PHONY: test-integration lint mocks
 

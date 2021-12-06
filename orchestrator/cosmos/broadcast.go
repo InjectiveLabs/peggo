@@ -2,8 +2,6 @@ package cosmos
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"sort"
 	"time"
 
@@ -20,16 +18,7 @@ import (
 )
 
 type PeggyBroadcastClient interface {
-	ValFromAddress() sdk.ValAddress
 	AccFromAddress() sdk.AccAddress
-
-	// Send a transaction updating the eth address for the sending
-	// Cosmos address. The sending Cosmos address should be a validator
-	UpdatePeggyOrchestratorAddresses(
-		ctx context.Context,
-		ethFrom ethcmn.Address,
-		orchAddr sdk.AccAddress,
-	) error
 
 	// SendValsetConfirm broadcasts in a confirmation for a specific validator set for a specific block height.
 	SendValsetConfirm(
@@ -56,15 +45,6 @@ type PeggyBroadcastClient interface {
 		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
 		erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
 		loopDuration time.Duration,
-	) error
-
-	// SendToEth broadcasts a Tx that tokens from Cosmos to Ethereum.
-	// These tokens will not be sent immediately. Instead, they will require
-	// some time to be included in a batch.
-	SendToEth(
-		ctx context.Context,
-		destination ethcmn.Address,
-		amount, fee sdk.Coin,
 	) error
 
 	// SendRequestBatch broadcasts a requests a batch of withdrawal transactions to be generated on the chain.
@@ -100,10 +80,6 @@ func NewPeggyBroadcastClient(
 	}
 }
 
-func (s *peggyBroadcastClient) ValFromAddress() sdk.ValAddress {
-	return sdk.ValAddress(s.broadcastClient.FromAddress().Bytes())
-}
-
 func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
 	return s.broadcastClient.FromAddress()
 }
@@ -114,39 +90,6 @@ type peggyBroadcastClient struct {
 	broadcastClient   client.CosmosClient
 	ethSignerFn       keystore.SignerFn
 	ethPersonalSignFn keystore.PersonalSignFn
-}
-
-func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
-	ctx context.Context,
-	ethFrom ethcmn.Address,
-	orchestratorAddr sdk.AccAddress,
-) error {
-	// SetOrchestratorAddresses
-
-	// This message allows validators to delegate their voting responsibilities
-	// to a given key. This key is then used as an optional authentication method
-	// for sigining oracle claims
-	// This is used by the validators to set the Ethereum address that represents
-	// them on the Ethereum side of the bridge. They must sign their Cosmos address
-	// using the Ethereum address they have submitted. Like ValsetResponse this
-	// message can in theory be submitted by anyone, but only the current validator
-	// sets submissions carry any weight.
-
-	// -------------
-	msg := &types.MsgSetOrchestratorAddresses{
-		Sender:       s.AccFromAddress().String(),
-		EthAddress:   ethFrom.Hex(),
-		Orchestrator: orchestratorAddr.String(),
-	}
-
-	res, err := s.broadcastClient.SyncBroadcastMsg(msg)
-	fmt.Fprintf(os.Stderr, "Broadcast MsgSetOrchestratorAddresses response: \n%v\n", res)
-	if err != nil {
-		err = errors.Wrap(err, "broadcasting MsgSetOrchestratorAddresses failed")
-		return err
-	}
-
-	return nil
 }
 
 func (s *peggyBroadcastClient) SendValsetConfirm(
@@ -432,8 +375,8 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 
 	// iterate through events and send them sequentially
 	for _, ev := range allevents {
-		// If the event nonce isn't sequential, we break from this loop
-		// given that the events are sorted, this should never happen.
+		// If the event nonce isn't sequential, we break from this loop.
+		// Given that the events are sorted, this should never happen.
 		if ev.EventNonce != lastClaimEvent+1 {
 			break
 		}
@@ -467,38 +410,6 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 
 		lastClaimEvent++
 		time.Sleep(cosmosBlockTime)
-	}
-
-	return nil
-}
-
-func (s *peggyBroadcastClient) SendToEth(
-	ctx context.Context,
-	destination ethcmn.Address,
-	amount, fee sdk.Coin,
-) error {
-	// MsgSendToEth
-	// This is the message that a user calls when they want to bridge an asset
-	// it will later be removed when it is included in a batch and successfully
-	// submitted tokens are removed from the users balance immediately
-	// -------------
-	// AMOUNT:
-	// the coin to send across the bridge, note the restriction that this is a
-	// single coin not a set of coins that is normal in other Cosmos messages
-	// FEE:
-	// the fee paid for the bridge, distinct from the fee paid to the chain to
-	// actually send this message in the first place. So a successful send has
-	// two layers of fees for the user
-
-	msg := &types.MsgSendToEth{
-		Sender:    s.AccFromAddress().String(),
-		EthDest:   destination.Hex(),
-		Amount:    amount,
-		BridgeFee: fee, // TODO: use exactly that fee for transaction
-	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		err = errors.Wrap(err, "broadcasting MsgSendToEth failed")
-		return err
 	}
 
 	return nil
