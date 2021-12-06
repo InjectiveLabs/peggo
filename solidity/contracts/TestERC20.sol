@@ -1,4 +1,4 @@
-pragma solidity ^0.8.0;
+pragma solidity 0.8.4;
 import "./@openzeppelin/contracts/ERC20.sol";
 
 // One of three testing coins
