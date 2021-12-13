@@ -230,7 +230,7 @@ func getOrchestratorCmd() *cobra.Command {
 
 	cmd.Flags().Bool(flagRelayValsets, false, "Relay validator set updates to Ethereum")
 	cmd.Flags().Bool(flagRelayBatches, false, "Relay transaction batches to Ethereum")
-	cmd.Flags().Int64(flagEthBlocksPerLoop, 40, "Number of Ethereum blocks to process per orchestrator loop")
+	cmd.Flags().Int64(flagEthBlocksPerLoop, 2000, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
 	cmd.Flags().Duration(flagEthPendingTXWait, 20*time.Minute, "Time for a pending tx to be considered stale")
 	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")

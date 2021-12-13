@@ -132,6 +132,9 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
+		// TODO: making this more specific might be useful for testing?
+		mockCosmos.EXPECT().SyncBroadcastMsg(gomock.Any()).Return(&sdk.TxResponse{}, nil).AnyTimes()
+
 		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
 			logger,
 			nil,

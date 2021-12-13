@@ -171,150 +171,102 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
-func (s *peggyBroadcastClient) sendDepositClaims(deposit *wrappers.PeggySendToCosmosEvent) error {
-	// EthereumBridgeDepositClaim
-	// When more than 66% of the active validator set has
-	// claimed to have seen the deposit enter the ethereum blockchain coins are
-	// issued to the Cosmos address in question
-	// -------------
+func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) error {
+	msgs := []sdk.Msg{}
 
-	recipientBz := deposit.Destination[:umeeapp.MaxAddrLen]
+	// Use SliceStable so we always get the same order
+	sort.SliceStable(events, func(i, j int) bool {
+		return events[i].EventNonce < events[j].EventNonce
+	})
 
-	s.logger.Info().
-		Str("sender", deposit.Sender.Hex()).
-		Str("recipient", sdk.AccAddress(recipientBz).String()).
-		Str("amount", deposit.Amount.String()).
-		Str("event_nonce", deposit.EventNonce.String()).
-		Msg("oracle observed a deposit event. Sending MsgDepositClaim")
-
-	msg := &types.MsgDepositClaim{
-		EventNonce:     deposit.EventNonce.Uint64(),
-		BlockHeight:    deposit.Raw.BlockNumber,
-		TokenContract:  deposit.TokenContract.Hex(),
-		Amount:         sdk.NewIntFromBigInt(deposit.Amount),
-		EthereumSender: deposit.Sender.Hex(),
-		CosmosReceiver: sdk.AccAddress(recipientBz).String(),
-		Orchestrator:   s.broadcastClient.FromAddress().String(),
+	evCounter := map[string]int{
+		"deposit":       0,
+		"withdraw":      0,
+		"valset_update": 0,
+		"erc20_deploy":  0,
 	}
 
-	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg)
-	if err != nil {
-		s.logger.Err(err).Msg("broadcasting MsgDepositClaim failed")
-		return err
-	}
+	// iterate through events and send them sequentially.
+	for _, ev := range events {
+		switch {
+		case ev.DepositEvent != nil:
+			recipientBz := ev.DepositEvent.Destination[:umeeapp.MaxAddrLen]
 
-	s.logger.Info().
-		Str("tx_hash", txResponse.TxHash).
-		Str("event_nonce", deposit.EventNonce.String()).
-		Msg("oracle sent deposit event successfully")
+			msgs = append(msgs, &types.MsgDepositClaim{
+				EventNonce:     ev.DepositEvent.EventNonce.Uint64(),
+				BlockHeight:    ev.DepositEvent.Raw.BlockNumber,
+				TokenContract:  ev.DepositEvent.TokenContract.Hex(),
+				Amount:         sdk.NewIntFromBigInt(ev.DepositEvent.Amount),
+				EthereumSender: ev.DepositEvent.Sender.Hex(),
+				CosmosReceiver: sdk.AccAddress(recipientBz).String(),
+				Orchestrator:   s.broadcastClient.FromAddress().String(),
+			})
+			evCounter["deposit"]++
 
-	return nil
-}
+		case ev.WithdrawEvent != nil:
+			msgs = append(msgs, &types.MsgWithdrawClaim{
+				EventNonce:    ev.WithdrawEvent.EventNonce.Uint64(),
+				BatchNonce:    ev.WithdrawEvent.BatchNonce.Uint64(),
+				BlockHeight:   ev.WithdrawEvent.Raw.BlockNumber,
+				TokenContract: ev.WithdrawEvent.Token.Hex(),
+				Orchestrator:  s.AccFromAddress().String(),
+			})
+			evCounter["withdraw"]++
 
-func (s *peggyBroadcastClient) sendWithdrawClaims(withdraw *wrappers.PeggyTransactionBatchExecutedEvent) error {
+		case ev.ValsetUpdateEvent != nil:
+			members := make([]*types.BridgeValidator, len(ev.ValsetUpdateEvent.Validators))
+			for i, val := range ev.ValsetUpdateEvent.Validators {
+				members[i] = &types.BridgeValidator{
+					EthereumAddress: val.Hex(),
+					Power:           ev.ValsetUpdateEvent.Powers[i].Uint64(),
+				}
+			}
 
-	s.logger.Info().
-		Str("nonce", withdraw.BatchNonce.String()).
-		Str("token_contract", withdraw.Token.Hex()).
-		Str("event_nonce", withdraw.EventNonce.String()).
-		Msg("oracle observed a withdraw event. Sending MsgWithdrawClaim")
+			msgs = append(msgs, &types.MsgValsetUpdatedClaim{
+				EventNonce:   ev.ValsetUpdateEvent.EventNonce.Uint64(),
+				ValsetNonce:  ev.ValsetUpdateEvent.NewValsetNonce.Uint64(),
+				BlockHeight:  ev.ValsetUpdateEvent.Raw.BlockNumber,
+				RewardAmount: sdk.NewIntFromBigInt(ev.ValsetUpdateEvent.RewardAmount),
+				RewardToken:  ev.ValsetUpdateEvent.RewardToken.Hex(),
+				Members:      members,
+				Orchestrator: s.AccFromAddress().String(),
+			})
+			evCounter["valset_update"]++
 
-	// WithdrawClaim claims that a batch of withdrawal
-	// operations on the bridge contract was executed.
-	msg := &types.MsgWithdrawClaim{
-		EventNonce:    withdraw.EventNonce.Uint64(),
-		BatchNonce:    withdraw.BatchNonce.Uint64(),
-		BlockHeight:   withdraw.Raw.BlockNumber,
-		TokenContract: withdraw.Token.Hex(),
-		Orchestrator:  s.AccFromAddress().String(),
-	}
+		case ev.ERC20DeployedEvent != nil:
+			msgs = append(msgs, &types.MsgERC20DeployedClaim{
+				EventNonce:    ev.ERC20DeployedEvent.EventNonce.Uint64(),
+				BlockHeight:   ev.ERC20DeployedEvent.Raw.BlockNumber,
+				Orchestrator:  s.AccFromAddress().String(),
+				CosmosDenom:   ev.ERC20DeployedEvent.CosmosDenom,
+				TokenContract: ev.ERC20DeployedEvent.TokenContract.Hex(),
+				Name:          ev.ERC20DeployedEvent.Name,
+				Decimals:      uint64(ev.ERC20DeployedEvent.Decimals),
+				Symbol:        ev.ERC20DeployedEvent.Symbol,
+			})
+			evCounter["erc20_deploy"]++
 
-	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg)
-	if err != nil {
-		s.logger.Err(err).Msg("broadcasting MsgWithdrawClaim failed")
-		return err
-	}
-
-	s.logger.Info().
-		Str("tx_hash", txResponse.TxHash).
-		Str("event_nonce", withdraw.EventNonce.String()).
-		Msg("oracle sent Withdraw event successfully")
-
-	return nil
-}
-
-func (s *peggyBroadcastClient) sendValsetUpdateClaims(valsetUpdate *wrappers.PeggyValsetUpdatedEvent) error {
-
-	s.logger.Info().
-		Str("event_nonce", valsetUpdate.EventNonce.String()).
-		Uint64("valset_nonce", valsetUpdate.NewValsetNonce.Uint64()).
-		Int("validators", len(valsetUpdate.Validators)).
-		Interface("powers", valsetUpdate.Powers).
-		Uint64("reward_amount", valsetUpdate.RewardAmount.Uint64()).
-		Str("reward_token", valsetUpdate.RewardToken.Hex()).
-		Msg("oracle observed a valset update event; sending MsgValsetUpdateClaim")
-
-	members := make([]*types.BridgeValidator, len(valsetUpdate.Validators))
-	for i, val := range valsetUpdate.Validators {
-		members[i] = &types.BridgeValidator{
-			EthereumAddress: val.Hex(),
-			Power:           valsetUpdate.Powers[i].Uint64(),
 		}
 	}
 
-	msg := &types.MsgValsetUpdatedClaim{
-		EventNonce:   valsetUpdate.EventNonce.Uint64(),
-		ValsetNonce:  valsetUpdate.NewValsetNonce.Uint64(),
-		BlockHeight:  valsetUpdate.Raw.BlockNumber,
-		RewardAmount: sdk.NewIntFromBigInt(valsetUpdate.RewardAmount),
-		RewardToken:  valsetUpdate.RewardToken.Hex(),
-		Members:      members,
-		Orchestrator: s.AccFromAddress().String(),
-	}
+	s.logger.Info().
+		Int("num_deposit", evCounter["deposit"]).
+		Int("num_withdraw", evCounter["withdraw"]).
+		Int("num_valset_update", evCounter["valset_update"]).
+		Int("num_erc20_deploy", evCounter["erc20_deploy"]).
+		Int("num_total_claims", len(events)).
+		Msg("oracle observed events; sending claims")
 
-	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msgs...)
 	if err != nil {
-		s.logger.Err(err).Msg("broadcasting MsgValsetUpdatedClaim failed")
+		s.logger.Err(err).Msg("broadcasting multiple claims failed")
 		return err
 	}
 
 	s.logger.Info().
 		Str("tx_hash", txResponse.TxHash).
-		Str("event_nonce", valsetUpdate.EventNonce.String()).
-		Msg("oracle sent ValsetUpdate event successfully")
-
-	return nil
-}
-
-func (s *peggyBroadcastClient) sendERC20DeployedClaims(event *wrappers.PeggyERC20DeployedEvent) error {
-
-	s.logger.Info().
-		Str("event_nonce", event.EventNonce.String()).
-		Str("token_contract", event.TokenContract.Hex()).
-		Str("cosmos_denom", event.CosmosDenom).
-		Msg("oracle observed an ERC20 deployed event; sending MsgERC20DeployedClaim")
-
-	msg := &types.MsgERC20DeployedClaim{
-		EventNonce:    event.EventNonce.Uint64(),
-		BlockHeight:   event.Raw.BlockNumber,
-		Orchestrator:  s.AccFromAddress().String(),
-		CosmosDenom:   event.CosmosDenom,
-		TokenContract: event.TokenContract.Hex(),
-		Name:          event.Name,
-		Decimals:      uint64(event.Decimals),
-		Symbol:        event.Symbol,
-	}
-
-	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg)
-	if err != nil {
-		s.logger.Err(err).Msg("broadcasting ERC20DeployedClaim failed")
-		return err
-	}
-
-	s.logger.Info().
-		Str("tx_hash", txResponse.TxHash).
-		Str("event_nonce", event.EventNonce.String()).
-		Msg("oracle sent ERC20Deployed event successfully")
+		Int("total_claims", len(events)).
+		Msg("oracle sent claims successfully")
 
 	return nil
 }
@@ -368,51 +320,7 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 		}
 	}
 
-	// Use SliceStable so we always get the same order
-	sort.SliceStable(allevents, func(i, j int) bool {
-		return allevents[i].EventNonce < allevents[j].EventNonce
-	})
-
-	// iterate through events and send them sequentially
-	for _, ev := range allevents {
-		// If the event nonce isn't sequential, we break from this loop.
-		// Given that the events are sorted, this should never happen.
-		if ev.EventNonce != lastClaimEvent+1 {
-			break
-		}
-
-		switch {
-		case ev.DepositEvent != nil:
-			err := s.sendDepositClaims(ev.DepositEvent)
-			if err != nil {
-				s.logger.Err(err).Msg("broadcasting MsgDepositClaim failed")
-				return err
-			}
-		case ev.WithdrawEvent != nil:
-			err := s.sendWithdrawClaims(ev.WithdrawEvent)
-			if err != nil {
-				s.logger.Err(err).Msg("broadcasting MsgWithdrawClaim failed")
-				return err
-			}
-		case ev.ValsetUpdateEvent != nil:
-			err := s.sendValsetUpdateClaims(ev.ValsetUpdateEvent)
-			if err != nil {
-				s.logger.Err(err).Msg("broadcasting MsgValsetUpdateClaim failed")
-				return err
-			}
-		case ev.ERC20DeployedEvent != nil:
-			err := s.sendERC20DeployedClaims(ev.ERC20DeployedEvent)
-			if err != nil {
-				s.logger.Err(err).Msg("broadcasting MsgERC20DeployedClaim failed")
-				return err
-			}
-		}
-
-		lastClaimEvent++
-		time.Sleep(cosmosBlockTime)
-	}
-
-	return nil
+	return s.broadcastEthereumEvents(allevents)
 }
 
 func (s *peggyBroadcastClient) SendRequestBatch(

@@ -44,8 +44,9 @@ type peggyRelayer struct {
 	profitMultiplier   float64
 
 	// Store locally the last tx this validator made to avoid sending duplicates
-	// or invalid txs
-	lastSentBatchNonce uint64
+	// or invalid txs.
+	lastSentBatchNonce  uint64
+	lastSentValsetNonce uint64
 }
 
 func NewPeggyRelayer(

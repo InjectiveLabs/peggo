@@ -12,7 +12,7 @@ RUN make install
 
 # Fetch umeed binary
 FROM golang:1.17-alpine AS umeed-builder
-ARG UMEE_VERSION=v0.5.0-rc1
+ARG UMEE_VERSION=v0.5.0-rc2
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev
 RUN apk add --no-cache $PACKAGES
 WORKDIR /downloads/

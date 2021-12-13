@@ -54,6 +54,11 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Va
 		Uint64("latest_cosmos_confirmed_nonce", latestCosmosConfirmed.Nonce).
 		Msg("found latest valsets")
 
+	if s.lastSentValsetNonce >= latestCosmosConfirmed.Nonce {
+		s.logger.Debug().Msg("already relayed this valset; skipping")
+		return nil
+	}
+
 	if latestCosmosConfirmed.Nonce > currentValset.Nonce {
 		latestEthereumValsetNonce, err := s.peggyContract.GetValsetNonce(ctx, s.peggyContract.FromAddress())
 		if err != nil {
@@ -101,6 +106,8 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Va
 
 			s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Peggy updateValset)")
 
+			// update our local tracker of the latest valset
+			s.lastSentValsetNonce = latestCosmosConfirmed.Nonce
 		}
 
 	}
