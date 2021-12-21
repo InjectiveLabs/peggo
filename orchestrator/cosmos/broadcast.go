@@ -54,15 +54,25 @@ type PeggyBroadcastClient interface {
 	) error
 }
 
-// sortableEvent exists with the only purpose to make a nicer sortable slice for Ethereum events.
-// It is only used in SendEthereumClaims
-type sortableEvent struct {
-	EventNonce         uint64
-	DepositEvent       *wrappers.PeggySendToCosmosEvent
-	WithdrawEvent      *wrappers.PeggyTransactionBatchExecutedEvent
-	ValsetUpdateEvent  *wrappers.PeggyValsetUpdatedEvent
-	ERC20DeployedEvent *wrappers.PeggyERC20DeployedEvent
-}
+type (
+	peggyBroadcastClient struct {
+		logger            zerolog.Logger
+		daemonQueryClient types.QueryClient
+		broadcastClient   client.CosmosClient
+		ethSignerFn       keystore.SignerFn
+		ethPersonalSignFn keystore.PersonalSignFn
+	}
+
+	// sortableEvent exists with the only purpose to make a nicer sortable slice
+	// for Ethereum events. It is only used in SendEthereumClaims.
+	sortableEvent struct {
+		EventNonce         uint64
+		DepositEvent       *wrappers.PeggySendToCosmosEvent
+		WithdrawEvent      *wrappers.PeggyTransactionBatchExecutedEvent
+		ValsetUpdateEvent  *wrappers.PeggyValsetUpdatedEvent
+		ERC20DeployedEvent *wrappers.PeggyERC20DeployedEvent
+	}
+)
 
 func NewPeggyBroadcastClient(
 	logger zerolog.Logger,
@@ -84,14 +94,6 @@ func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
 	return s.broadcastClient.FromAddress()
 }
 
-type peggyBroadcastClient struct {
-	logger            zerolog.Logger
-	daemonQueryClient types.QueryClient
-	broadcastClient   client.CosmosClient
-	ethSignerFn       keystore.SignerFn
-	ethPersonalSignFn keystore.PersonalSignFn
-}
-
 func (s *peggyBroadcastClient) SendValsetConfirm(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
@@ -105,6 +107,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 		err = errors.New("failed to sign validator address")
 		return err
 	}
+
 	// MsgValsetConfirm
 	// this is the message sent by the validators when they wish to submit their
 	// signatures over the validator set at a given block height. A validator must

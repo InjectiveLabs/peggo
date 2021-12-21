@@ -71,7 +71,16 @@ func getOrchestratorCmd() *cobra.Command {
 			}
 
 			fmt.Fprintf(os.Stderr, "Connected to Tendermint RPC: %s\n", tmRPCEndpoint)
-			clientCtx = clientCtx.WithClient(tmRPC).WithNodeURI(tmRPCEndpoint)
+
+			var feeGranter sdk.AccAddress
+			if v := konfig.String(flagCosmosFeeGranter); len(v) > 0 {
+				feeGranter, err = sdk.AccAddressFromBech32(v)
+				if err != nil {
+					return fmt.Errorf("failed to parse fee granter address: %w", err)
+				}
+			}
+
+			clientCtx = clientCtx.WithClient(tmRPC).WithNodeURI(tmRPCEndpoint).WithFeeGranterAddress(feeGranter)
 
 			daemonClient, err := client.NewCosmosClient(clientCtx, logger, cosmosGRPC, client.OptionGasPrices(cosmosGasPrices))
 			if err != nil {
@@ -237,6 +246,7 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Float64(flagProfitMultiplier, 1.0, "Multiplier to apply to relayer profit")
 	cmd.Flags().Float64(flagRelayerLoopMultiplier, 3.0, "Multiplier for the relayer loop duration (in ETH blocks)")
 	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")
+	cmd.Flags().String(flagCosmosFeeGranter, "", "Set an (optional) fee granter address that will pay for Cosmos fees (feegrant must exist)")
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())
