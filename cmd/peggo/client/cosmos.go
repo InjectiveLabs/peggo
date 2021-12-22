@@ -226,7 +226,7 @@ func (c *cosmosClient) AsyncBroadcastMsg(msgs ...sdk.Msg) (*sdk.TxResponse, erro
 
 const (
 	defaultBroadcastStatusPoll = 100 * time.Millisecond
-	defaultBroadcastTimeout    = 40 * time.Second
+	defaultBroadcastTimeout    = 60 * time.Second
 )
 
 func (c *cosmosClient) broadcastTx(

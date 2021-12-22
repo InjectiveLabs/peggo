@@ -174,6 +174,84 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
+func (s *peggyBroadcastClient) SendEthereumClaims(
+	ctx context.Context,
+	lastClaimEvent uint64,
+	deposits []*wrappers.PeggySendToCosmosEvent,
+	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
+	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
+	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
+	cosmosBlockTime time.Duration,
+) error {
+	allevents := []sortableEvent{}
+
+	// We add all the events to the same list to be sorted.
+	// Only events that have a nonce higher than the last claim event will be appended.
+	for _, ev := range deposits {
+		if ev.EventNonce.Uint64() > lastClaimEvent {
+			allevents = append(allevents, sortableEvent{
+				EventNonce:   ev.EventNonce.Uint64(),
+				DepositEvent: ev,
+			})
+		}
+	}
+
+	for _, ev := range withdraws {
+		if ev.EventNonce.Uint64() > lastClaimEvent {
+			allevents = append(allevents, sortableEvent{
+				EventNonce:    ev.EventNonce.Uint64(),
+				WithdrawEvent: ev,
+			})
+		}
+	}
+
+	for _, ev := range valsetUpdates {
+		if ev.EventNonce.Uint64() > lastClaimEvent {
+			allevents = append(allevents, sortableEvent{
+				EventNonce:        ev.EventNonce.Uint64(),
+				ValsetUpdateEvent: ev,
+			})
+		}
+	}
+
+	for _, ev := range erc20Deployed {
+		if ev.EventNonce.Uint64() > lastClaimEvent {
+			allevents = append(allevents, sortableEvent{
+				EventNonce:         ev.EventNonce.Uint64(),
+				ERC20DeployedEvent: ev,
+			})
+		}
+	}
+
+	return s.broadcastEthereumEvents(allevents)
+}
+
+func (s *peggyBroadcastClient) SendRequestBatch(
+	ctx context.Context,
+	denom string,
+) error {
+	// MsgRequestBatch
+	// this is a message anyone can send that requests a batch of transactions to
+	// send across the bridge be created for whatever block height this message is
+	// included in. This acts as a coordination point, the handler for this message
+	// looks at the AddToOutgoingPool tx's in the store and generates a batch, also
+	// available in the store tied to this message. The validators then grab this
+	// batch, sign it, submit the signatures with a MsgConfirmBatch before a relayer
+	// can finally submit the batch
+	// -------------
+
+	msg := &types.MsgRequestBatch{
+		Denom:        denom,
+		Orchestrator: s.AccFromAddress().String(),
+	}
+	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
+		return err
+	}
+
+	return nil
+}
+
 func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) error {
 	msgs := []sdk.Msg{}
 
@@ -260,94 +338,35 @@ func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) e
 		Int("num_total_claims", len(events)).
 		Msg("oracle observed events; sending claims")
 
-	txResponse, err := s.broadcastClient.SyncBroadcastMsg(msgs...)
-	if err != nil {
-		s.logger.Err(err).Msg("broadcasting multiple claims failed")
-		return err
-	}
+	// We send the messages in batches of 10, so that we don't hit any limits
+	msgSets := splitMsgs(msgs, 10)
 
-	s.logger.Info().
-		Str("tx_hash", txResponse.TxHash).
-		Int("total_claims", len(events)).
-		Msg("oracle sent claims successfully")
+	for _, msgSet := range msgSets {
+		txResponse, err := s.broadcastClient.SyncBroadcastMsg(msgSet...)
+		if err != nil {
+			s.logger.Err(err).Msg("broadcasting multiple claims failed")
+			return err
+		}
+
+		s.logger.Info().
+			Str("tx_hash", txResponse.TxHash).
+			Int("total_claims", len(events)).
+			Int("claims_sent", len(msgSet)).
+			Msg("oracle sent set of claims successfully")
+	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendEthereumClaims(
-	ctx context.Context,
-	lastClaimEvent uint64,
-	deposits []*wrappers.PeggySendToCosmosEvent,
-	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
-	cosmosBlockTime time.Duration,
-) error {
-	allevents := []sortableEvent{}
-
-	// We add all the events to the same list to be sorted.
-	// Only events that have a nonce higher than the last claim event will be appended.
-	for _, ev := range deposits {
-		if ev.EventNonce.Uint64() > lastClaimEvent {
-			allevents = append(allevents, sortableEvent{
-				EventNonce:   ev.EventNonce.Uint64(),
-				DepositEvent: ev,
-			})
-		}
+func splitMsgs(buf []sdk.Msg, lim int) [][]sdk.Msg {
+	var chunk []sdk.Msg
+	chunks := make([][]sdk.Msg, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
 	}
-
-	for _, ev := range withdraws {
-		if ev.EventNonce.Uint64() > lastClaimEvent {
-			allevents = append(allevents, sortableEvent{
-				EventNonce:    ev.EventNonce.Uint64(),
-				WithdrawEvent: ev,
-			})
-		}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf)
 	}
-
-	for _, ev := range valsetUpdates {
-		if ev.EventNonce.Uint64() > lastClaimEvent {
-			allevents = append(allevents, sortableEvent{
-				EventNonce:        ev.EventNonce.Uint64(),
-				ValsetUpdateEvent: ev,
-			})
-		}
-	}
-
-	for _, ev := range erc20Deployed {
-		if ev.EventNonce.Uint64() > lastClaimEvent {
-			allevents = append(allevents, sortableEvent{
-				EventNonce:         ev.EventNonce.Uint64(),
-				ERC20DeployedEvent: ev,
-			})
-		}
-	}
-
-	return s.broadcastEthereumEvents(allevents)
-}
-
-func (s *peggyBroadcastClient) SendRequestBatch(
-	ctx context.Context,
-	denom string,
-) error {
-	// MsgRequestBatch
-	// this is a message anyone can send that requests a batch of transactions to
-	// send across the bridge be created for whatever block height this message is
-	// included in. This acts as a coordination point, the handler for this message
-	// looks at the AddToOutgoingPool tx's in the store and generates a batch, also
-	// available in the store tied to this message. The validators then grab this
-	// batch, sign it, submit the signatures with a MsgConfirmBatch before a relayer
-	// can finally submit the batch
-	// -------------
-
-	msg := &types.MsgRequestBatch{
-		Denom:        denom,
-		Orchestrator: s.AccFromAddress().String(),
-	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
-		return err
-	}
-
-	return nil
+	return chunks
 }
