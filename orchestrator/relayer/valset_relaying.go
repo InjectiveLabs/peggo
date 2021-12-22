@@ -83,7 +83,13 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Va
 				return err
 			}
 
-			// TODO: Estimate gas and profitability using "valset reward" param.
+			estimatedGasCost, gasPrice, err := s.peggyContract.EstimateGas(ctx, s.peggyContract.Address(), txData)
+			if err != nil {
+				s.logger.Err(err).Msg("failed to estimate gas cost")
+				return err
+			}
+
+			// TODO: Estimate profitability using "valset reward" param.
 			//
 			// Ref: https://github.com/umee-network/peggo/issues/56
 
@@ -96,7 +102,7 @@ func (s *peggyRelayer) RelayValsets(ctx context.Context, currentValset *types.Va
 			}
 
 			// Send Valset Update to Ethereum
-			txHash, err := s.peggyContract.SendTx(ctx, s.peggyContract.Address(), txData)
+			txHash, err := s.peggyContract.SendTx(ctx, s.peggyContract.Address(), txData, estimatedGasCost, gasPrice)
 			if err != nil {
 				s.logger.Err(err).
 					Str("tx_hash", txHash.Hex()).

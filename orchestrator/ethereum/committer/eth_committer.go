@@ -107,33 +107,17 @@ func (e *ethCommitter) SendTx(
 	ctx context.Context,
 	recipient common.Address,
 	txData []byte,
+	gasCost uint64,
+	gasPrice *big.Int,
 ) (txHash common.Hash, err error) {
 	opts := &bind.TransactOpts{
 		From:   e.fromAddress,
 		Signer: e.fromSigner,
 
-		GasPrice: e.committerOpts.GasPrice.BigInt(),
-		GasLimit: e.committerOpts.GasLimit,
+		GasPrice: gasPrice,
+		GasLimit: gasCost,
 		Context:  ctx, // with RPC timeout
 	}
-
-	// Figure out the gas price values
-	suggestedGasPrice, err := e.evmProvider.SuggestGasPrice(opts.Context)
-	if err != nil {
-		return common.Hash{}, errors.Errorf("failed to suggest gas price: %v", err)
-	}
-
-	// Suggested gas price is not accurate. Increment by multiplying with gasprice adjustment factor
-	incrementedPrice := big.NewFloat(0).Mul(
-		new(big.Float).SetInt(suggestedGasPrice),
-		big.NewFloat(e.ethGasPriceAdjustment),
-	)
-
-	// set gasprice to incremented gas price.
-	gasPrice := new(big.Int)
-	incrementedPrice.Int(gasPrice)
-
-	opts.GasPrice = gasPrice
 
 	resyncNonces := func(from common.Address) {
 		e.nonceCache.Sync(from, func() (uint64, error) {

@@ -179,7 +179,7 @@ func (s *peggyRelayer) RelayBatches(
 				Uint64("latest_ethereum_batch", latestEthereumBatch.Uint64()).
 				Msg("we have detected a newer profitable batch; sending an update")
 
-			txHash, err := s.peggyContract.SendTx(ctx, s.peggyContract.Address(), txData)
+			txHash, err := s.peggyContract.SendTx(ctx, s.peggyContract.Address(), txData, estimatedGasCost, gasPrice)
 			if err != nil {
 				s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Peggy submitBatch) to EVM")
 				return err

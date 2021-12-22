@@ -21,6 +21,8 @@ type EVMCommitter interface {
 		ctx context.Context,
 		recipient common.Address,
 		txData []byte,
+		gasCost uint64,
+		gasPrice *big.Int,
 	) (txHash common.Hash, err error)
 
 	EstimateGas(
@@ -42,7 +44,7 @@ func defaultOptions() *options {
 	v, _ := decimal.NewFromString("20")
 	return &options{
 		GasPrice:   v.Shift(9), // 20 gwei
-		GasLimit:   1000000,
+		GasLimit:   1500000,
 		RPCTimeout: 10 * time.Second,
 	}
 }
