@@ -120,6 +120,7 @@ func TestCheckForEvents(t *testing.T) {
 			logger,
 			fromAddress,
 			ethGasPriceAdjustment,
+			1.0,
 			nil,
 			ethProvider,
 		)
@@ -207,6 +208,7 @@ func TestCheckForEvents(t *testing.T) {
 		ethCommitter, _ := committer.NewEthCommitter(
 			logger,
 			fromAddress,
+			1.0,
 			1.0,
 			nil,
 			ethProvider,
@@ -313,6 +315,7 @@ func TestCheckForEvents(t *testing.T) {
 			logger,
 			fromAddress,
 			ethGasPriceAdjustment,
+			1.0,
 			nil,
 			ethProvider,
 		)
@@ -431,6 +434,7 @@ func TestCheckForEvents(t *testing.T) {
 			logger,
 			fromAddress,
 			ethGasPriceAdjustment,
+			1.0,
 			nil,
 			ethProvider,
 		)
@@ -563,6 +567,7 @@ func TestCheckForEvents(t *testing.T) {
 			logger,
 			fromAddress,
 			ethGasPriceAdjustment,
+			1.0,
 			nil,
 			ethProvider,
 		)

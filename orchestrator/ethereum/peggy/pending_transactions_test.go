@@ -57,6 +57,7 @@ func TestIsPendingTxInput(t *testing.T) {
 		logger,
 		common.Address{},
 		1.0,
+		1.0,
 		nil,
 		mockEvmProvider,
 	)

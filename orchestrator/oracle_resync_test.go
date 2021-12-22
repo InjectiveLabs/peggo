@@ -46,6 +46,7 @@ func TestGetLastCheckedBlock(t *testing.T) {
 		logger,
 		fromAddress,
 		ethGasPriceAdjustment,
+		1.0,
 		nil,
 		ethProvider,
 	)

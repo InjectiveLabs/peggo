@@ -124,10 +124,12 @@ func getOrchestratorCmd() *cobra.Command {
 			ethProvider := provider.NewEVMProvider(ethRPC)
 
 			ethGasPriceAdjustment := konfig.Float64(flagEthGasAdjustment)
+			ethGasLimitAdjustment := konfig.Float64(flagEthGasLimitAdjustment)
 			ethCommitter, err := committer.NewEthCommitter(
 				logger,
 				ethKeyFromAddress,
 				ethGasPriceAdjustment,
+				ethGasLimitAdjustment,
 				signerFn,
 				ethProvider,
 			)

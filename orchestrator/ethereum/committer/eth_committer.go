@@ -21,6 +21,7 @@ func NewEthCommitter(
 	logger zerolog.Logger,
 	fromAddress common.Address,
 	ethGasPriceAdjustment float64,
+	ethGasLimitAdjustment float64,
 	fromSigner bind.SignerFn,
 	evmProvider provider.EVMProviderWithRet,
 	committerOpts ...EVMCommitterOption,
@@ -29,6 +30,7 @@ func NewEthCommitter(
 		logger:                logger.With().Str("module", "ethCommiter").Logger(),
 		committerOpts:         defaultOptions(),
 		ethGasPriceAdjustment: ethGasPriceAdjustment,
+		ethGasLimitAdjustment: ethGasLimitAdjustment,
 		fromAddress:           fromAddress,
 		fromSigner:            fromSigner,
 		evmProvider:           evmProvider,
@@ -55,6 +57,7 @@ type ethCommitter struct {
 	fromSigner  bind.SignerFn
 
 	ethGasPriceAdjustment float64
+	ethGasLimitAdjustment float64
 	evmProvider           provider.EVMProviderWithRet
 	nonceCache            util.NonceCache
 }
@@ -99,6 +102,9 @@ func (e *ethCommitter) EstimateGas(
 	msg := ethereum.CallMsg{From: opts.From, To: &recipient, GasPrice: gasPrice, Value: nil, Data: txData}
 
 	gasCost, err = e.evmProvider.EstimateGas(ctx, msg)
+
+	// Estimated gas cost may not be accurate, so we multiply the result by the gas limit adjustment factor.
+	gasCost = uint64(float64(gasCost) * e.ethGasLimitAdjustment)
 
 	return gasCost, gasPrice, err
 }

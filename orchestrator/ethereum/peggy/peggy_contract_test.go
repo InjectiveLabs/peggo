@@ -48,6 +48,7 @@ func TestGetTxBatchNonce(t *testing.T) {
 		logger,
 		common.Address{},
 		1.0,
+		1.0,
 		nil,
 		mockEvmProvider,
 	)
@@ -86,6 +87,7 @@ func TestGetValsetNonce(t *testing.T) {
 		logger,
 		common.Address{},
 		1.0,
+		1.0,
 		nil,
 		mockEvmProvider,
 	)
@@ -122,6 +124,7 @@ func TestGetGetPeggyID(t *testing.T) {
 	ethCommitter, _ := committer.NewEthCommitter(
 		logger,
 		common.Address{},
+		1.0,
 		1.0,
 		nil,
 		mockEvmProvider,
@@ -167,6 +170,7 @@ func TestGetERC20Symbol(t *testing.T) {
 		logger,
 		common.Address{},
 		1.0,
+		1.0,
 		nil,
 		mockEvmProvider,
 	)
@@ -210,6 +214,7 @@ func TestGetERC20Decimals(t *testing.T) {
 		logger,
 		common.Address{},
 		1.0,
+		1.0,
 		nil,
 		mockEvmProvider,
 	)
@@ -234,6 +239,7 @@ func TestAddress(t *testing.T) {
 	ethCommitter, _ := committer.NewEthCommitter(
 		logger,
 		common.Address{},
+		1.0,
 		1.0,
 		nil,
 		mockEvmProvider,
