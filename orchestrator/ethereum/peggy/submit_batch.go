@@ -4,17 +4,17 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
 type RepackedSigs struct {
-	validators []common.Address
+	validators []ethcmn.Address
 	powers     []*big.Int
 	v          []uint8
-	r          []common.Hash
-	s          []common.Hash
+	r          []ethcmn.Hash
+	s          []ethcmn.Hash
 }
 
 // genericConfirm exists only to aid the check and repacking of signatures.
@@ -47,7 +47,7 @@ func (s *peggyContract) EncodeTransactionBatch(
 		Powers:       sigs.powers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: currentValset.RewardAmount.BigInt(),
-		RewardToken:  common.HexToAddress(currentValset.RewardToken),
+		RewardToken:  ethcmn.HexToAddress(currentValset.RewardToken),
 	}
 
 	txData, err := peggyABI.Pack("submitBatch",
@@ -57,7 +57,7 @@ func (s *peggyContract) EncodeTransactionBatch(
 		destinations,
 		fees,
 		batchNonce,
-		common.HexToAddress(batch.TokenContract),
+		ethcmn.HexToAddress(batch.TokenContract),
 		batchTimeout,
 	)
 	if err != nil {
@@ -70,16 +70,16 @@ func (s *peggyContract) EncodeTransactionBatch(
 
 func getBatchCheckpointValues(batch *types.OutgoingTxBatch) (
 	amounts []*big.Int,
-	destinations []common.Address,
+	destinations []ethcmn.Address,
 	fees []*big.Int,
 ) {
 	amounts = make([]*big.Int, len(batch.Transactions))
-	destinations = make([]common.Address, len(batch.Transactions))
+	destinations = make([]ethcmn.Address, len(batch.Transactions))
 	fees = make([]*big.Int, len(batch.Transactions))
 
 	for i, tx := range batch.Transactions {
 		amounts[i] = tx.Erc20Token.Amount.BigInt()
-		destinations[i] = common.HexToAddress(tx.DestAddress)
+		destinations[i] = ethcmn.HexToAddress(tx.DestAddress)
 		fees[i] = tx.Erc20Fee.Amount.BigInt()
 	}
 
@@ -121,7 +121,7 @@ func checkAndRepackSigs(valset *types.Valset, confirms []genericConfirm) (*Repac
 		if sig, ok := signerToSig[m.EthereumAddress]; ok && sig.EthSigner == m.EthereumAddress {
 			powerOfGoodSigs.Add(powerOfGoodSigs, mPower)
 
-			sigs.validators = append(sigs.validators, common.HexToAddress(m.EthereumAddress))
+			sigs.validators = append(sigs.validators, ethcmn.HexToAddress(m.EthereumAddress))
 			sigs.powers = append(sigs.powers, mPower)
 
 			sigV, sigR, sigS := sigToVRS(sig.Signature)
@@ -129,7 +129,7 @@ func checkAndRepackSigs(valset *types.Valset, confirms []genericConfirm) (*Repac
 			sigs.r = append(sigs.r, sigR)
 			sigs.s = append(sigs.s, sigS)
 		} else {
-			sigs.validators = append(sigs.validators, common.HexToAddress(m.EthereumAddress))
+			sigs.validators = append(sigs.validators, ethcmn.HexToAddress(m.EthereumAddress))
 			sigs.powers = append(sigs.powers, mPower)
 			sigs.v = append(sigs.v, 0)
 			sigs.r = append(sigs.r, [32]byte{})

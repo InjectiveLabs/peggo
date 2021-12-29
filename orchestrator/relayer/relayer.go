@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
@@ -21,7 +21,7 @@ type PeggyRelayer interface {
 	RelayBatches(
 		ctx context.Context,
 		currentValset *peggytypes.Valset,
-		possibleBatches map[common.Address][]SubmittableBatch,
+		possibleBatches map[ethcmn.Address][]SubmittableBatch,
 	) error
 
 	RelayValsets(ctx context.Context, currentValset *peggytypes.Valset) error

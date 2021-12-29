@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 
@@ -15,19 +15,19 @@ import (
 // EVMCommitter defines an interface for submitting transactions
 // into Ethereum, Matic, and other EVM-compatible networks.
 type EVMCommitter interface {
-	FromAddress() common.Address
+	FromAddress() ethcmn.Address
 	Provider() provider.EVMProvider
 	SendTx(
 		ctx context.Context,
-		recipient common.Address,
+		recipient ethcmn.Address,
 		txData []byte,
 		gasCost uint64,
 		gasPrice *big.Int,
-	) (txHash common.Hash, err error)
+	) (txHash ethcmn.Hash, err error)
 
 	EstimateGas(
 		ctx context.Context,
-		recipient common.Address,
+		recipient ethcmn.Address,
 		txData []byte,
 	) (gasCost uint64, gasPrice *big.Int, err error)
 }

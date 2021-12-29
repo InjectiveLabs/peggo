@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -24,8 +24,8 @@ type SubmittableBatch struct {
 func (s *peggyRelayer) getBatchesAndSignatures(
 	ctx context.Context,
 	currentValset *types.Valset,
-) (map[common.Address][]SubmittableBatch, error) {
-	possibleBatches := map[common.Address][]SubmittableBatch{}
+) (map[ethcmn.Address][]SubmittableBatch, error) {
+	possibleBatches := map[ethcmn.Address][]SubmittableBatch{}
 
 	outTxBatches, err := s.cosmosQueryClient.OutgoingTxBatches(ctx, &types.QueryOutgoingTxBatchesRequest{})
 
@@ -78,8 +78,8 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 		}
 
 		// if the previous check didn't fail, we can add the batch to the list of possible batches
-		possibleBatches[common.HexToAddress(batch.TokenContract)] = append(
-			possibleBatches[common.HexToAddress(batch.TokenContract)],
+		possibleBatches[ethcmn.HexToAddress(batch.TokenContract)] = append(
+			possibleBatches[ethcmn.HexToAddress(batch.TokenContract)],
 			SubmittableBatch{Batch: batch, Signatures: batchConfirms.Confirms},
 		)
 	}
@@ -106,7 +106,7 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 func (s *peggyRelayer) RelayBatches(
 	ctx context.Context,
 	currentValset *types.Valset,
-	possibleBatches map[common.Address][]SubmittableBatch,
+	possibleBatches map[ethcmn.Address][]SubmittableBatch,
 ) error {
 	// first get current block height to check for any timeouts
 	lastEthereumHeader, err := s.ethProvider.HeaderByNumber(ctx, nil)
@@ -169,7 +169,7 @@ func (s *peggyRelayer) RelayBatches(
 			// Checking in pending txs(mempool) if tx with same input is already submitted
 			// We have to check this at the last moment because any other relayer could have submitted.
 			if s.peggyContract.IsPendingTxInput(txData, s.pendingTxWait) {
-				s.logger.Error().
+				s.logger.Debug().
 					Msg("Transaction with same batch input data is already present in mempool")
 				continue
 			}
@@ -225,7 +225,7 @@ func (s *peggyRelayer) IsBatchProfitable(
 	// Then we get the fees of the batch in USD
 	decimals, err := s.peggyContract.GetERC20Decimals(
 		ctx,
-		common.HexToAddress(batch.TokenContract),
+		ethcmn.HexToAddress(batch.TokenContract),
 		s.peggyContract.FromAddress(),
 	)
 	if err != nil {
@@ -238,7 +238,7 @@ func (s *peggyRelayer) IsBatchProfitable(
 		Str("token_contract", batch.TokenContract).
 		Msg("got token decimals")
 
-	usdTokenPrice, err := s.priceFeeder.QueryUSDPrice(common.HexToAddress(batch.TokenContract))
+	usdTokenPrice, err := s.priceFeeder.QueryUSDPrice(ethcmn.HexToAddress(batch.TokenContract))
 	if err != nil {
 		return false
 	}

@@ -10,7 +10,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -56,16 +55,16 @@ func TestCheckForEvents(t *testing.T) {
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
-				// The test data if from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
+				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
 						Address:     peggyAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
-						TxHash:      common.HexToHash("0x0"),
+						TxHash:      ethcmn.HexToHash("0x0"),
 						TxIndex:     2,
-						BlockHash:   common.HexToHash("0x0"),
+						BlockHash:   ethcmn.HexToHash("0x0"),
 						Index:       1,
 						Removed:     false,
 					},
@@ -129,7 +128,7 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -218,7 +217,7 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -279,16 +278,16 @@ func TestCheckForEvents(t *testing.T) {
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
-				// The test data if from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
+				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
 						Address:     peggyAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
-						TxHash:      common.HexToHash("0x0"),
+						TxHash:      ethcmn.HexToHash("0x0"),
 						TxIndex:     2,
-						BlockHash:   common.HexToHash("0x0"),
+						BlockHash:   ethcmn.HexToHash("0x0"),
 						Index:       1,
 						Removed:     false,
 					},
@@ -324,7 +323,7 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -384,16 +383,16 @@ func TestCheckForEvents(t *testing.T) {
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
-				// The test data if from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
+				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
 						Address:     peggyAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
-						TxHash:      common.HexToHash("0x0"),
+						TxHash:      ethcmn.HexToHash("0x0"),
 						TxIndex:     2,
-						BlockHash:   common.HexToHash("0x0"),
+						BlockHash:   ethcmn.HexToHash("0x0"),
 						Index:       1,
 						Removed:     false,
 					},
@@ -443,7 +442,7 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -503,16 +502,16 @@ func TestCheckForEvents(t *testing.T) {
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
-				// The test data if from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
+				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
 						Address:     peggyAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
-						TxHash:      common.HexToHash("0x0"),
+						TxHash:      ethcmn.HexToHash("0x0"),
 						TxIndex:     2,
-						BlockHash:   common.HexToHash("0x0"),
+						BlockHash:   ethcmn.HexToHash("0x0"),
 						Index:       1,
 						Removed:     false,
 					},
@@ -576,7 +575,7 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 

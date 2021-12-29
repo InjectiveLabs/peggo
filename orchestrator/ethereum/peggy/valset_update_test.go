@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -24,12 +24,12 @@ func TestEncodeValsetUpdate(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockEvmProvider := mocks.NewMockEVMProviderWithRet(mockCtrl)
 
-	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), common.HexToAddress("0x0")).Return(uint64(0), nil)
+	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), ethcmn.HexToAddress("0x0")).Return(uint64(0), nil)
 
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 	ethCommitter, _ := committer.NewEthCommitter(
 		logger,
-		common.Address{},
+		ethcmn.Address{},
 		1.0,
 		1.0,
 		nil,
@@ -41,15 +41,15 @@ func TestEncodeValsetUpdate(t *testing.T) {
 		Height: 1111,
 		Members: []*types.BridgeValidator{
 			{
-				EthereumAddress: common.HexToAddress("0x0").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x0").Hex(),
 				Power:           1111111111,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x1").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x1").Hex(),
 				Power:           2212121212,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x2").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x2").Hex(),
 				Power:           123456,
 			},
 		},
@@ -61,11 +61,11 @@ func TestEncodeValsetUpdate(t *testing.T) {
 		Height: 2222,
 		Members: []*types.BridgeValidator{
 			{
-				EthereumAddress: common.HexToAddress("0x0").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x0").Hex(),
 				Power:           1111111111,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x1").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x1").Hex(),
 				Power:           2212121212,
 			},
 		},
@@ -74,18 +74,18 @@ func TestEncodeValsetUpdate(t *testing.T) {
 
 	confirms := []*types.MsgValsetConfirm{
 		{
-			EthAddress: common.HexToAddress("0x0").Hex(),
+			EthAddress: ethcmn.HexToAddress("0x0").Hex(),
 			Signature:  "0xaae54ee7e285fbb0275279143abc4c554e5314e7b417ecac83a5984a964facbaad68866a2841c3e83ddf125a2985566261c4014f9f960ec60253aebcda9513a9b4",
 		},
 		{
-			EthAddress: common.HexToAddress("0x1").Hex(),
+			EthAddress: ethcmn.HexToAddress("0x1").Hex(),
 			Signature:  "0xaae54ee7e285fbb0275279143abc4c554e5314e7b417ecac83a5984a964facbaad68866a2841c3e83ddf125a2985566261c4014f9f960ec60253aebcda9513a9b4",
 		},
 	}
 
-	ethPeggy, _ := wrappers.NewPeggy(common.Address{}, ethCommitter.Provider())
+	ethPeggy, _ := wrappers.NewPeggy(ethcmn.Address{}, ethCommitter.Provider())
 
-	peggyContract, _ := NewPeggyContract(logger, ethCommitter, common.Address{}, ethPeggy)
+	peggyContract, _ := NewPeggyContract(logger, ethCommitter, ethcmn.Address{}, ethPeggy)
 	txData, err := peggyContract.EncodeValsetUpdate(
 		context.Background(),
 		valset,
@@ -105,20 +105,20 @@ func TestValidatorsAndPowers(t *testing.T) {
 	valset := &types.Valset{
 		Members: []*types.BridgeValidator{
 			{
-				EthereumAddress: common.HexToAddress("0x0").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x0").Hex(),
 				Power:           123456,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x1").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x1").Hex(),
 				Power:           7891011,
 			},
 		},
 	}
 	validators, powers := validatorsAndPowers(valset)
 
-	expectedValidators := []common.Address{
-		common.HexToAddress("0x0"),
-		common.HexToAddress("0x1"),
+	expectedValidators := []ethcmn.Address{
+		ethcmn.HexToAddress("0x0"),
+		ethcmn.HexToAddress("0x1"),
 	}
 
 	expectedPowers := []*big.Int{
@@ -137,15 +137,15 @@ func TestCheckValsetSigsAndRepack(t *testing.T) {
 	valset := &types.Valset{
 		Members: []*types.BridgeValidator{
 			{
-				EthereumAddress: common.HexToAddress("0x0").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x0").Hex(),
 				Power:           1111111111,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x1").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x1").Hex(),
 				Power:           2212121212,
 			},
 			{
-				EthereumAddress: common.HexToAddress("0x2").Hex(),
+				EthereumAddress: ethcmn.HexToAddress("0x2").Hex(),
 				Power:           123456,
 			},
 		},
@@ -153,11 +153,11 @@ func TestCheckValsetSigsAndRepack(t *testing.T) {
 
 	confirms := []*types.MsgValsetConfirm{
 		{
-			EthAddress: common.HexToAddress("0x0").Hex(),
+			EthAddress: ethcmn.HexToAddress("0x0").Hex(),
 			Signature:  "0xaae54ee7e285fbb0275279143abc4c554e5314e7b417ecac83a5984a964facbaad68866a2841c3e83ddf125a2985566261c4014f9f960ec60253aebcda9513a9b4",
 		},
 		{
-			EthAddress: common.HexToAddress("0x1").Hex(),
+			EthAddress: ethcmn.HexToAddress("0x1").Hex(),
 			Signature:  "0xaae54ee7e285fbb0275279143abc4c554e5314e7b417ecac83a5984a964facbaad68866a2841c3e83ddf125a2985566261c4014f9f960ec60253aebcda9513a9b4",
 		},
 	}
@@ -165,7 +165,7 @@ func TestCheckValsetSigsAndRepack(t *testing.T) {
 	repackedSigs, err := checkValsetSigsAndRepack(valset, confirms)
 	assert.Nil(t, err)
 
-	assert.Equal(t, []common.Address{common.HexToAddress("0x0"), common.HexToAddress("0x1"), common.HexToAddress("0x2")}, repackedSigs.validators)
+	assert.Equal(t, []ethcmn.Address{ethcmn.HexToAddress("0x0"), ethcmn.HexToAddress("0x1"), ethcmn.HexToAddress("0x2")}, repackedSigs.validators)
 	assert.Equal(t, []*big.Int{big.NewInt(1111111111), big.NewInt(2212121212), big.NewInt(123456)}, repackedSigs.powers)
 
 }

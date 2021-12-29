@@ -3,17 +3,17 @@ package util
 import (
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 )
 
 type NonceCache interface {
-	Serialize(account common.Address, fn func() error) error
-	Sync(account common.Address, syncFn func() (uint64, error))
+	Serialize(account ethcmn.Address, fn func() error) error
+	Sync(account ethcmn.Address, syncFn func() (uint64, error))
 
-	Set(account common.Address, nonce int64)
-	Get(account common.Address) (nonce int64, loaded bool)
-	Incr(account common.Address) int64
-	Decr(account common.Address) int64
+	Set(account ethcmn.Address, nonce int64)
+	Get(account ethcmn.Address) (nonce int64, loaded bool)
+	Incr(account ethcmn.Address) int64
+	Decr(account ethcmn.Address) int64
 }
 
 func NewNonceCache() NonceCache {
@@ -25,15 +25,15 @@ func NewNonceCache() NonceCache {
 }
 
 type nonceCache struct {
-	nonces *sync.Map // map[common.Address]int64
-	locks  *sync.Map // map[common.Address]*sync.RWMutex
+	nonces *sync.Map // map[ethcmn.Address]int64
+	locks  *sync.Map // map[ethcmn.Address]*sync.RWMutex
 	guard  *sync.Map
 }
 
 // Serialize serializes access to the nonce cache for all goroutines, all nonce increments should be done
 // in this context. If a transaction increments nonce, but has not been submitted,
 // it will have exclusive right to decrease nonce back for other transactions.
-func (n nonceCache) Serialize(account common.Address, fn func() error) error {
+func (n nonceCache) Serialize(account ethcmn.Address, fn func() error) error {
 	mux, _ := n.guard.LoadOrStore(account, new(sync.Mutex))
 	mux.(*sync.Mutex).Lock()
 	defer mux.(*sync.Mutex).Unlock()
@@ -41,7 +41,7 @@ func (n nonceCache) Serialize(account common.Address, fn func() error) error {
 	return fn()
 }
 
-func (n nonceCache) Get(account common.Address) (int64, bool) {
+func (n nonceCache) Get(account ethcmn.Address) (int64, bool) {
 	lock, _ := n.locks.LoadOrStore(account, new(sync.RWMutex))
 	lock.(*sync.RWMutex).RLock()
 	defer lock.(*sync.RWMutex).RUnlock()
@@ -51,7 +51,7 @@ func (n nonceCache) Get(account common.Address) (int64, bool) {
 	return nonce.(int64), loaded
 }
 
-func (n nonceCache) Set(account common.Address, nonce int64) {
+func (n nonceCache) Set(account ethcmn.Address, nonce int64) {
 	lock, _ := n.locks.LoadOrStore(account, new(sync.RWMutex))
 	lock.(*sync.RWMutex).Lock()
 	defer lock.(*sync.RWMutex).Unlock()
@@ -59,7 +59,7 @@ func (n nonceCache) Set(account common.Address, nonce int64) {
 	n.nonces.Store(account, nonce)
 }
 
-func (n nonceCache) Incr(account common.Address) int64 {
+func (n nonceCache) Incr(account ethcmn.Address) int64 {
 	lock, _ := n.locks.LoadOrStore(account, new(sync.RWMutex))
 	lock.(*sync.RWMutex).Lock()
 	defer lock.(*sync.RWMutex).Unlock()
@@ -71,7 +71,7 @@ func (n nonceCache) Incr(account common.Address) int64 {
 	return nonce
 }
 
-func (n nonceCache) Decr(account common.Address) int64 {
+func (n nonceCache) Decr(account ethcmn.Address) int64 {
 	lock, _ := n.locks.LoadOrStore(account, new(sync.RWMutex))
 	lock.(*sync.RWMutex).Lock()
 	defer lock.(*sync.RWMutex).Unlock()
@@ -83,7 +83,7 @@ func (n nonceCache) Decr(account common.Address) int64 {
 	return nonce
 }
 
-func (n nonceCache) Sync(account common.Address, syncFn func() (uint64, error)) {
+func (n nonceCache) Sync(account ethcmn.Address, syncFn func() (uint64, error)) {
 	lock, _ := n.locks.LoadOrStore(account, new(sync.RWMutex))
 	lock.(*sync.RWMutex).Lock()
 	defer lock.(*sync.RWMutex).Unlock()

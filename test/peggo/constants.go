@@ -12,7 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 )
@@ -128,8 +128,8 @@ var CosmosAccounts = []Account{
 	{Mnemonic: "pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"},
 }
 
-func getEthAddresses(accounts ...Account) []common.Address {
-	addresses := make([]common.Address, 0, len(accounts))
+func getEthAddresses(accounts ...Account) []ethcmn.Address {
+	addresses := make([]ethcmn.Address, 0, len(accounts))
 	for _, a := range accounts {
 		addresses = append(addresses, a.EthAddress)
 	}
@@ -146,7 +146,7 @@ func getSigningKeys(accounts ...Account) []*ecdsa.PrivateKey {
 	return privkeys
 }
 
-func getSigningKeysForAddresses(addresses []common.Address, accounts ...Account) []*ecdsa.PrivateKey {
+func getSigningKeysForAddresses(addresses []ethcmn.Address, accounts ...Account) []*ecdsa.PrivateKey {
 	privkeys := make([]*ecdsa.PrivateKey, len(addresses))
 
 	for i, a := range addresses {
@@ -166,7 +166,7 @@ type Account struct {
 	Key      string
 	Mnemonic string
 
-	EthAddress common.Address
+	EthAddress ethcmn.Address
 	EthPrivKey *ecdsa.PrivateKey
 
 	CosmosAccAddress cosmtypes.AccAddress
@@ -195,7 +195,7 @@ func (a *Account) Parse() {
 		a.EthPrivKey = pk
 	}
 
-	if ethAddress := common.HexToAddress(a.Address); common.IsHexAddress(a.Address) && ethAddress != zeroAddress {
+	if ethAddress := ethcmn.HexToAddress(a.Address); ethcmn.IsHexAddress(a.Address) && ethAddress != zeroAddress {
 		// provided an Eth address
 
 		if a.EthPrivKey != nil {
@@ -210,7 +210,7 @@ func (a *Account) Parse() {
 	} else if accAddress, err := cosmtypes.AccAddressFromBech32(a.Address); err == nil {
 		// provided a Bech32 address
 
-		a.EthAddress = common.BytesToAddress(accAddress.Bytes())
+		a.EthAddress = ethcmn.BytesToAddress(accAddress.Bytes())
 		if a.EthAddress == zeroAddress {
 			panic(errors.Errorf("unsupported address: %s (check your Bech32 prefix)", a.Address))
 		}

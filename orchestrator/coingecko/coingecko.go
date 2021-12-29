@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -91,7 +91,7 @@ func (cp *PriceFeed) QueryETHUSDPrice() (float64, error) {
 	return price, nil
 }
 
-func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
+func (cp *PriceFeed) QueryUSDPrice(erc20Contract ethcmn.Address) (float64, error) {
 
 	u, err := url.ParseRequestURI(urlJoin(cp.config.BaseURL, "simple", "token_price", "ethereum"))
 	if err != nil {

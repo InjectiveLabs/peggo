@@ -13,21 +13,21 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog"
 )
 
-type PersonalSignFn func(account common.Address, data []byte) (sig []byte, err error)
+type PersonalSignFn func(account ethcmn.Address, data []byte) (sig []byte, err error)
 
 type SignerFn = bind.SignerFn
 
 type EthKeyStore interface {
-	PrivateKey(account common.Address, password string) (*ecdsa.PrivateKey, error)
-	SignerFn(chainID uint64, account common.Address, password string) (SignerFn, error)
-	PersonalSignFn(account common.Address, password string) (PersonalSignFn, error)
-	UnsetKey(account common.Address, password string)
-	Accounts() []common.Address
+	PrivateKey(account ethcmn.Address, password string) (*ecdsa.PrivateKey, error)
+	SignerFn(chainID uint64, account ethcmn.Address, password string) (SignerFn, error)
+	PersonalSignFn(account ethcmn.Address, password string) (PersonalSignFn, error)
+	UnsetKey(account ethcmn.Address, password string)
+	Accounts() []ethcmn.Address
 	AddPath(keystorePath string) error
 	RemovePath(keystorePath string)
 	Paths() []string
@@ -56,26 +56,26 @@ type keyStore struct {
 	pathsMux *sync.RWMutex
 }
 
-func (ks *keyStore) PrivateKey(account common.Address, password string) (*ecdsa.PrivateKey, error) {
+func (ks *keyStore) PrivateKey(account ethcmn.Address, password string) (*ecdsa.PrivateKey, error) {
 	return ks.cache.PrivateKey(account, password)
 }
 
-func (ks *keyStore) SignerFn(chainID uint64, account common.Address, password string) (SignerFn, error) {
+func (ks *keyStore) SignerFn(chainID uint64, account ethcmn.Address, password string) (SignerFn, error) {
 	return ks.cache.SignerFn(chainID, account, password)
 }
 
-func (ks *keyStore) PersonalSignFn(account common.Address, password string) (PersonalSignFn, error) {
+func (ks *keyStore) PersonalSignFn(account ethcmn.Address, password string) (PersonalSignFn, error) {
 	return ks.cache.PersonalSignFn(account, password)
 }
 
-func (ks *keyStore) UnsetKey(account common.Address, password string) {
+func (ks *keyStore) UnsetKey(account ethcmn.Address, password string) {
 	ks.cache.UnsetKey(account, password)
 }
 
-func (ks *keyStore) Accounts() []common.Address {
+func (ks *keyStore) Accounts() []ethcmn.Address {
 	paths := ks.Paths()
 
-	var accounts []common.Address
+	var accounts []ethcmn.Address
 	for _, keystorePath := range paths {
 		if err := ks.forEachWallet(keystorePath, func(spec *WalletSpec) error {
 			accounts = append(accounts, spec.AddressFromHex())
@@ -116,7 +116,7 @@ func (ks *keyStore) forEachWallet(keystorePath string, fn func(spec *WalletSpec)
 		}
 		if len(spec.Address) == 0 {
 			return fmt.Errorf("failed to load address from %s", path)
-		} else if !common.IsHexAddress(spec.Address) {
+		} else if !ethcmn.IsHexAddress(spec.Address) {
 			return fmt.Errorf("wrong (not hex) address from %s", path)
 		}
 		spec.Path = path
@@ -180,14 +180,14 @@ type WalletSpec struct {
 	Path    string `json:"-"`
 }
 
-func (spec *WalletSpec) AddressFromHex() common.Address {
-	return common.HexToAddress(spec.Address)
+func (spec *WalletSpec) AddressFromHex() ethcmn.Address {
+	return ethcmn.HexToAddress(spec.Address)
 }
 
 func PrivateKeyPersonalSignFn(privKey *ecdsa.PrivateKey) (PersonalSignFn, error) {
 	keyAddress := crypto.PubkeyToAddress(privKey.PublicKey)
 
-	signFn := func(from common.Address, data []byte) (sig []byte, err error) {
+	signFn := func(from ethcmn.Address, data []byte) (sig []byte, err error) {
 		if from != keyAddress {
 			return nil, errors.New("from address mismatch")
 		}

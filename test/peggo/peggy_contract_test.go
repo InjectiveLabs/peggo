@@ -8,7 +8,7 @@ import (
 	"github.com/InjectiveLabs/etherman/deployer"
 	"github.com/InjectiveLabs/etherman/sol"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	. "github.com/onsi/ginkgo"
@@ -27,11 +27,11 @@ var _ = Describe("Contract Tests", func() {
 
 			deployArgs   deployer.AbiMethodInputMapperFunc
 			deployErr    error
-			deployTxHash common.Hash
+			deployTxHash ethcmn.Hash
 
-			peggyID    common.Hash
+			peggyID    ethcmn.Hash
 			minPower   *big.Int
-			validators []common.Address
+			validators []ethcmn.Address
 			powers     []*big.Int
 		)
 
@@ -191,7 +191,7 @@ var _ = Describe("Contract Tests", func() {
 				})
 
 				It("Should have valid peggyId", func() {
-					var state_peggyId common.Hash
+					var state_peggyId ethcmn.Hash
 
 					out, outAbi, err := ContractDeployer.Call(context.Background(), peggyCallOpts,
 						"state_peggyId", noArgs,
@@ -204,7 +204,7 @@ var _ = Describe("Contract Tests", func() {
 				})
 
 				It("Should have generated a valid checkpoint", func() {
-					var state_lastValsetCheckpoint common.Hash
+					var state_lastValsetCheckpoint ethcmn.Hash
 
 					out, outAbi, err := ContractDeployer.Call(context.Background(), peggyCallOpts,
 						"state_lastValsetCheckpoint", noArgs,
@@ -245,17 +245,17 @@ var _ = Describe("Contract Tests", func() {
 
 			_ = Describe("Valset Update", func() {
 				var (
-					updateValsetTxHash common.Hash
+					updateValsetTxHash ethcmn.Hash
 					updateValsetErr    error
 					signValsetErr      error
 
-					newValidators        []common.Address
+					newValidators        []ethcmn.Address
 					newPowers            []*big.Int
-					valsetCheckpointHash common.Hash
+					valsetCheckpointHash ethcmn.Hash
 
 					sigsV []uint8
-					sigsR []common.Hash
-					sigsS []common.Hash
+					sigsR []ethcmn.Hash
+					sigsS []ethcmn.Hash
 
 					state_lastValsetNonce *big.Int
 					nextValsetNonce       *big.Int
@@ -277,7 +277,7 @@ var _ = Describe("Contract Tests", func() {
 							return
 						}
 
-						newValidators = make([]common.Address, len(validators))
+						newValidators = make([]ethcmn.Address, len(validators))
 						for i := 0; i < len(validators); i++ {
 							// simply reverse the validator set
 							newValidators[i] = validators[len(validators)-1-i]
@@ -317,7 +317,7 @@ var _ = Describe("Contract Tests", func() {
 							Powers:       powers,
 							ValsetNonce:  state_lastValsetNonce,
 							RewardAmount: &big.Int{},
-							RewardToken:  common.Address{},
+							RewardToken:  ethcmn.Address{},
 						}
 
 						newValsetArgs := peggy.ValsetArgs{
@@ -325,7 +325,7 @@ var _ = Describe("Contract Tests", func() {
 							Powers:       newPowers,
 							ValsetNonce:  nextValsetNonce,
 							RewardAmount: &big.Int{},
-							RewardToken:  common.Address{},
+							RewardToken:  ethcmn.Address{},
 						}
 
 						updateValsetTxHash, _, updateValsetErr = ContractDeployer.Tx(context.Background(), peggyTxOpts,
@@ -364,7 +364,7 @@ var _ = Describe("Contract Tests", func() {
 						})
 
 						It("Updates Valset Checkpoint", func() {
-							var state_lastValsetCheckpoint common.Hash
+							var state_lastValsetCheckpoint ethcmn.Hash
 
 							out, outAbi, err := ContractDeployer.Call(context.Background(), peggyCallOpts,
 								"state_lastValsetCheckpoint", noArgs,
@@ -407,7 +407,7 @@ var _ = Describe("Contract Tests", func() {
 					// "powers" with "newPowers", but instead we're going to rollback the Valset on the contract.
 
 					var (
-						rollbackValsetTxHash common.Hash
+						rollbackValsetTxHash ethcmn.Hash
 						rollbackValsetErr    error
 					)
 
@@ -437,7 +437,7 @@ var _ = Describe("Contract Tests", func() {
 							Powers:       powers,
 							ValsetNonce:  nextValsetNonce,
 							RewardAmount: &big.Int{},
-							RewardToken:  common.Address{},
+							RewardToken:  ethcmn.Address{},
 						}
 
 						newValsetArgs := peggy.ValsetArgs{
@@ -445,7 +445,7 @@ var _ = Describe("Contract Tests", func() {
 							Powers:       newPowers,
 							ValsetNonce:  state_lastValsetNonce,
 							RewardAmount: &big.Int{},
-							RewardToken:  common.Address{},
+							RewardToken:  ethcmn.Address{},
 						}
 
 						// NOTE: this is a rollback, the current valset was the "new valset".
@@ -476,7 +476,7 @@ var _ = Describe("Contract Tests", func() {
 					})
 
 					It("Updates Valset Checkpoint", func() {
-						var state_lastValsetCheckpoint common.Hash
+						var state_lastValsetCheckpoint ethcmn.Hash
 
 						out, outAbi, err := ContractDeployer.Call(context.Background(), peggyCallOpts,
 							"state_lastValsetCheckpoint", noArgs,
@@ -521,7 +521,7 @@ var _ = Describe("Contract Tests", func() {
 					state_lastEventNonce  *big.Int
 					prevEventNonce        *big.Int
 
-					erc20DeployTxHash  common.Hash
+					erc20DeployTxHash  ethcmn.Hash
 					erc20DeployErr     error
 					erc20DeployedEvent = wrappers.PeggyERC20DeployedEvent{}
 				)
@@ -640,17 +640,17 @@ var _ = Describe("Contract Tests", func() {
 
 						_ = When("Cosmos -> Ethereum batch being submitted", func() {
 							var (
-								submitBatchTxHash common.Hash
+								submitBatchTxHash ethcmn.Hash
 								submitBatchErr    error
 								signBatchErr      error
 
 								txAmounts      []*big.Int
-								txDestinations []common.Address
+								txDestinations []ethcmn.Address
 								txFees         []*big.Int
 
 								sigsV []uint8
-								sigsR []common.Hash
-								sigsS []common.Hash
+								sigsR []ethcmn.Hash
+								sigsS []ethcmn.Hash
 
 								batchNonce   *big.Int
 								batchTimeout *big.Int
@@ -701,7 +701,7 @@ var _ = Describe("Contract Tests", func() {
 									Powers:       powers,
 									ValsetNonce:  state_lastValsetNonce,
 									RewardAmount: &big.Int{},
-									RewardToken:  common.Address{},
+									RewardToken:  ethcmn.Address{},
 								}
 
 								submitBatchTxHash, _, submitBatchErr = ContractDeployer.Tx(context.Background(), peggyTxOpts,
@@ -835,14 +835,14 @@ var _ = Describe("Contract Tests", func() {
 var outgoingBatchTxConfirmABI, _ = abi.JSON(strings.NewReader(peggy.OutgoingBatchTxConfirmABIJSON))
 
 func prepareOutgoingTransferBatch(
-	peggyID common.Hash,
-	tokenContract common.Address,
+	peggyID ethcmn.Hash,
+	tokenContract ethcmn.Address,
 	txAmounts []*big.Int,
-	txDestinations []common.Address,
+	txDestinations []ethcmn.Address,
 	txFees []*big.Int,
 	batchNonce *big.Int,
 	batchTimeout *big.Int,
-) common.Hash {
+) ethcmn.Hash {
 	abiEncodedBatch, err := outgoingBatchTxConfirmABI.Pack("transactionBatch",
 		peggyID,
 		formatBytes32String("transactionBatch"),

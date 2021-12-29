@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -20,12 +20,12 @@ type EVMProvider interface {
 	bind.ContractCaller
 	bind.ContractFilterer
 
-	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
-	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
+	PendingNonceAt(ctx context.Context, account ethcmn.Address) (uint64, error)
+	PendingCodeAt(ctx context.Context, account ethcmn.Address) ([]byte, error)
 	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
-	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
-	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	TransactionByHash(ctx context.Context, hash ethcmn.Hash) (tx *types.Transaction, isPending bool, err error)
+	TransactionReceipt(ctx context.Context, txHash ethcmn.Hash) (*types.Receipt, error)
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
@@ -34,7 +34,7 @@ type EVMProvider interface {
 type EVMProviderWithRet interface {
 	EVMProvider
 
-	SendTransactionWithRet(ctx context.Context, tx *types.Transaction) (txHash common.Hash, err error)
+	SendTransactionWithRet(ctx context.Context, tx *types.Transaction) (txHash ethcmn.Hash, err error)
 }
 
 type evmProviderWithRet struct {
@@ -53,25 +53,25 @@ func (p *evmProviderWithRet) SendTransactionWithRet(
 	ctx context.Context,
 	tx *types.Transaction,
 ) (
-	txHash common.Hash,
+	txHash ethcmn.Hash,
 	err error,
 ) {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
-		return common.Hash{}, err
+		return ethcmn.Hash{}, err
 	}
 
 	if err := p.rc.CallContext(ctx, &txHash, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
-		return common.Hash{}, err
+		return ethcmn.Hash{}, err
 	}
 
 	return txHash, nil
 }
 
-type TransactFunc func(opts *bind.TransactOpts, contract *common.Address, input []byte) (*types.Transaction, error)
+type TransactFunc func(opts *bind.TransactOpts, contract *ethcmn.Address, input []byte) (*types.Transaction, error)
 
-func TransactFn(p EVMProviderWithRet, contractAddress common.Address, txHashOut *common.Hash) TransactFunc {
-	return func(opts *bind.TransactOpts, contract *common.Address, input []byte) (*types.Transaction, error) {
+func TransactFn(p EVMProviderWithRet, contractAddress ethcmn.Address, txHashOut *ethcmn.Hash) TransactFunc {
+	return func(opts *bind.TransactOpts, contract *ethcmn.Address, input []byte) (*types.Transaction, error) {
 		var err error
 
 		// Ensure a valid value field and resolve the account nonce

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +29,7 @@ func TestSendValsetConfirm(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, nil
 		}
 
@@ -41,7 +41,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -54,7 +54,7 @@ func TestSendValsetConfirm(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -66,7 +66,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -81,7 +81,7 @@ func TestSendValsetConfirm(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, nil
 		}
 
@@ -93,7 +93,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), common.Address{}, common.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -112,7 +112,7 @@ func TestSendBatchConfirm(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, nil
 		}
 
@@ -124,7 +124,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
 
 		assert.Nil(t, err)
 	})
@@ -135,7 +135,7 @@ func TestSendBatchConfirm(t *testing.T) {
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
@@ -147,7 +147,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
 
 		assert.EqualError(t, err, "failed to sign validator address")
 	})
@@ -160,7 +160,7 @@ func TestSendBatchConfirm(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		mockPersonalSignFn := func(account common.Address, data []byte) (sig []byte, err error) {
+		mockPersonalSignFn := func(account ethcmn.Address, data []byte) (sig []byte, err error) {
 			return []byte{}, nil
 		}
 
@@ -172,7 +172,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), common.Address{}, common.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
 
 		assert.EqualError(t, err, "broadcasting MsgConfirmBatch failed: some error during broadcast")
 	})

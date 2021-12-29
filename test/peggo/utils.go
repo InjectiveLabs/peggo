@@ -7,7 +7,7 @@ import (
 
 	"github.com/InjectiveLabs/etherman/deployer"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	. "github.com/onsi/ginkgo"
 )
@@ -15,15 +15,15 @@ import (
 // Returns a hex string representation of text, exactly 32 bytes wide. Strings must be 31 bytes or shorter, or an exception is thrown.
 //
 // NOTE: Keep in mind that UTF-8 characters outside the ASCII range can be multiple bytes long.
-func formatBytes32String(str string) common.Hash {
-	var v common.Hash
+func formatBytes32String(str string) ethcmn.Hash {
+	var v ethcmn.Hash
 	copy(v[:], str)
 	return v
 }
 
-var zeroAddress = common.Address{}
+var zeroAddress = ethcmn.Address{}
 
-var zeroHash = common.Hash{}
+var zeroHash = ethcmn.Hash{}
 
 // maxUInt256 returns a value equal to 2**256 - 1 (MAX_UINT in Solidity).
 func maxUInt256() *big.Int {
@@ -78,10 +78,10 @@ const (
 	signaturePrefix = "\x19Ethereum Signed Message:\n32"
 )
 
-func signDigest(digestHash common.Hash, keys ...*ecdsa.PrivateKey) (
+func signDigest(digestHash ethcmn.Hash, keys ...*ecdsa.PrivateKey) (
 	v []uint8,
-	r []common.Hash,
-	s []common.Hash,
+	r []ethcmn.Hash,
+	s []ethcmn.Hash,
 	err error,
 ) {
 	// The produced signature is in the [R || S || V] format where V is 0 or 1.
@@ -96,9 +96,9 @@ func signDigest(digestHash common.Hash, keys ...*ecdsa.PrivateKey) (
 		}
 
 		sigV := sig[64] + 27
-		sigR := common.Hash{}
+		sigR := ethcmn.Hash{}
 		_ = copy(sigR[:], sig[:32])
-		sigS := common.Hash{}
+		sigS := ethcmn.Hash{}
 		_ = copy(sigS[:], sig[32:64])
 
 		v = append(v, sigV)

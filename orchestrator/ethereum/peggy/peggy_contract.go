@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
@@ -34,7 +34,7 @@ type Contract interface {
 	committer.EVMCommitter
 
 	// Address returns the Peggy contract address
-	Address() common.Address
+	Address() ethcmn.Address
 
 	// EncodeTransactionBatch encodes a batch into a tx byte data. This is specially helpful for estimating gas and
 	// detecting identical transactions in the mempool.
@@ -56,30 +56,30 @@ type Contract interface {
 
 	GetTxBatchNonce(
 		ctx context.Context,
-		erc20ContractAddress common.Address,
-		callerAddress common.Address,
+		erc20ContractAddress ethcmn.Address,
+		callerAddress ethcmn.Address,
 	) (*big.Int, error)
 
 	GetValsetNonce(
 		ctx context.Context,
-		callerAddress common.Address,
+		callerAddress ethcmn.Address,
 	) (*big.Int, error)
 
 	GetPeggyID(
 		ctx context.Context,
-		callerAddress common.Address,
-	) (common.Hash, error)
+		callerAddress ethcmn.Address,
+	) (ethcmn.Hash, error)
 
 	GetERC20Symbol(
 		ctx context.Context,
-		erc20ContractAddress common.Address,
-		callerAddress common.Address,
+		erc20ContractAddress ethcmn.Address,
+		callerAddress ethcmn.Address,
 	) (symbol string, err error)
 
 	GetERC20Decimals(
 		ctx context.Context,
-		erc20ContractAddress common.Address,
-		callerAddress common.Address,
+		erc20ContractAddress ethcmn.Address,
+		callerAddress ethcmn.Address,
 	) (decimals uint8, err error)
 
 	// SubscribeToPendingTxs starts a websocket connection to Alchemy's service that listens for new pending txs made
@@ -97,7 +97,7 @@ type peggyContract struct {
 	committer.EVMCommitter
 
 	logger             zerolog.Logger
-	peggyAddress       common.Address
+	peggyAddress       ethcmn.Address
 	ethPeggy           *wrappers.Peggy
 	pendingTxInputList PendingTxInputList
 
@@ -108,7 +108,7 @@ type peggyContract struct {
 func NewPeggyContract(
 	logger zerolog.Logger,
 	ethCommitter committer.EVMCommitter,
-	peggyAddress common.Address,
+	peggyAddress ethcmn.Address,
 	ethPeggy *wrappers.Peggy,
 ) (Contract, error) {
 	return &peggyContract{
@@ -119,15 +119,15 @@ func NewPeggyContract(
 	}, nil
 }
 
-func (s *peggyContract) Address() common.Address {
+func (s *peggyContract) Address() ethcmn.Address {
 	return s.peggyAddress
 }
 
 // Gets the latest transaction batch nonce
 func (s *peggyContract) GetTxBatchNonce(
 	ctx context.Context,
-	erc20ContractAddress common.Address,
-	callerAddress common.Address,
+	erc20ContractAddress ethcmn.Address,
+	callerAddress ethcmn.Address,
 ) (*big.Int, error) {
 
 	nonce, err := s.ethPeggy.LastBatchNonce(&bind.CallOpts{
@@ -145,7 +145,7 @@ func (s *peggyContract) GetTxBatchNonce(
 // Gets the latest validator set nonce
 func (s *peggyContract) GetValsetNonce(
 	ctx context.Context,
-	callerAddress common.Address,
+	callerAddress ethcmn.Address,
 ) (*big.Int, error) {
 
 	nonce, err := s.ethPeggy.StateLastValsetNonce(&bind.CallOpts{
@@ -163,8 +163,8 @@ func (s *peggyContract) GetValsetNonce(
 // Gets the peggyID
 func (s *peggyContract) GetPeggyID(
 	ctx context.Context,
-	callerAddress common.Address,
-) (common.Hash, error) {
+	callerAddress ethcmn.Address,
+) (ethcmn.Hash, error) {
 
 	peggyID, err := s.ethPeggy.StatePeggyId(&bind.CallOpts{
 		From:    callerAddress,
@@ -173,7 +173,7 @@ func (s *peggyContract) GetPeggyID(
 
 	if err != nil {
 		err = errors.Wrap(err, "StatePeggyId call failed")
-		return common.Hash{}, err
+		return ethcmn.Hash{}, err
 	}
 
 	return peggyID, nil
@@ -181,8 +181,8 @@ func (s *peggyContract) GetPeggyID(
 
 func (s *peggyContract) GetERC20Symbol(
 	ctx context.Context,
-	erc20ContractAddress common.Address,
-	callerAddress common.Address,
+	erc20ContractAddress ethcmn.Address,
+	callerAddress ethcmn.Address,
 ) (symbol string, err error) {
 
 	erc20Wrapper, err := wrappers.NewERC20(erc20ContractAddress, s.EVMCommitter.Provider())
@@ -207,8 +207,8 @@ func (s *peggyContract) GetERC20Symbol(
 
 func (s *peggyContract) GetERC20Decimals(
 	ctx context.Context,
-	tokenAddr common.Address,
-	callerAddr common.Address,
+	tokenAddr ethcmn.Address,
+	callerAddr ethcmn.Address,
 ) (uint8, error) {
 
 	s.mtx.Lock()
@@ -243,8 +243,8 @@ func (s *peggyContract) GetERC20Decimals(
 	return decimals, nil
 }
 
-func sigToVRS(sigHex string) (v uint8, r, s common.Hash) {
-	signatureBytes := common.FromHex(sigHex)
+func sigToVRS(sigHex string) (v uint8, r, s ethcmn.Hash) {
+	signatureBytes := ethcmn.FromHex(sigHex)
 	vParam := signatureBytes[64]
 	if vParam == byte(0) {
 		vParam = byte(27)
@@ -253,8 +253,8 @@ func sigToVRS(sigHex string) (v uint8, r, s common.Hash) {
 	}
 
 	v = vParam
-	r = common.BytesToHash(signatureBytes[0:32])
-	s = common.BytesToHash(signatureBytes[32:64])
+	r = ethcmn.BytesToHash(signatureBytes[0:32])
+	s = ethcmn.BytesToHash(signatureBytes[32:64])
 
 	return
 }

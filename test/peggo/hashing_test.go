@@ -8,7 +8,7 @@ import (
 	"github.com/InjectiveLabs/etherman/deployer"
 	"github.com/InjectiveLabs/etherman/sol"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
 	. "github.com/onsi/ginkgo"
@@ -51,8 +51,8 @@ var _ = Describe("Contract Tests", func() {
 
 		_ = Context("HashingTest contract deployment done", func() {
 			var (
-				peggyID     common.Hash
-				validators  []common.Address
+				peggyID     ethcmn.Hash
+				validators  []ethcmn.Address
 				powers      []*big.Int
 				valsetNonce *big.Int
 			)
@@ -106,7 +106,7 @@ var _ = Describe("Contract Tests", func() {
 			})
 
 			It("Ensure that checkpoint equals the off-chain version", func() {
-				var lastCheckpoint common.Hash
+				var lastCheckpoint ethcmn.Hash
 
 				out, outAbi, err := ContractDeployer.Call(context.Background(), hashingTestCallOpts,
 					"lastCheckpoint", noArgs,
@@ -142,13 +142,13 @@ var _ = Describe("Contract Tests", func() {
 var valsetConfirmABI, _ = abi.JSON(strings.NewReader(peggy.ValsetCheckpointABIJSON))
 
 func makeValsetCheckpoint(
-	peggyID common.Hash,
-	validators []common.Address,
+	peggyID ethcmn.Hash,
+	validators []ethcmn.Address,
 	powers []*big.Int,
 	valsetNonce *big.Int,
 	rewardAmount *big.Int,
-	rewardToken common.Address,
-) common.Hash {
+	rewardToken ethcmn.Address,
+) ethcmn.Hash {
 	methodName := formatBytes32String("checkpoint")
 
 	//TODO: check if we want to add a reward amount and a reward token here

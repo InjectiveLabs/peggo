@@ -77,14 +77,17 @@ lint:
 mocks:
 	@echo "--> Generating mocks"
 	@go run github.com/golang/mock/mockgen -destination=mocks/cosmos.go \
-			 -package=mocks github.com/umee-network/peggo/cmd/peggo/client \
-			  CosmosClient
+			-package=mocks github.com/umee-network/peggo/cmd/peggo/client \
+			CosmosClient
 	@go run github.com/golang/mock/mockgen -destination=mocks/evm_provider.go \
-			 -package=mocks github.com/umee-network/peggo/orchestrator/ethereum/provider \
-			  EVMProviderWithRet
+			-package=mocks github.com/umee-network/peggo/orchestrator/ethereum/provider \
+			EVMProviderWithRet
 	@go run github.com/golang/mock/mockgen -destination=mocks/peggy_queryclient.go \
-			 -package=mocks github.com/umee-network/umee/x/peggy/types \
-			  QueryClient
+			-package=mocks github.com/umee-network/umee/x/peggy/types \
+			QueryClient
+	@go run github.com/golang/mock/mockgen -destination=mocks/peggy/peggy_contract.go \
+			-package=peggy github.com/umee-network/peggo/orchestrator/ethereum/peggy \
+			Contract
 
 .PHONY: test-integration lint mocks
 

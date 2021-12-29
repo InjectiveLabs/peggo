@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
@@ -50,21 +50,21 @@ func TestIsPendingTxInput(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockEvmProvider := mocks.NewMockEVMProviderWithRet(mockCtrl)
-	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), common.HexToAddress("0x0")).Return(uint64(0), nil)
+	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), ethcmn.HexToAddress("0x0")).Return(uint64(0), nil)
 
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 	ethCommitter, _ := committer.NewEthCommitter(
 		logger,
-		common.Address{},
+		ethcmn.Address{},
 		1.0,
 		1.0,
 		nil,
 		mockEvmProvider,
 	)
 
-	ethPeggy, _ := wrappers.NewPeggy(common.Address{}, ethCommitter.Provider())
+	ethPeggy, _ := wrappers.NewPeggy(ethcmn.Address{}, ethCommitter.Provider())
 
-	peggyContract, _ := NewPeggyContract(logger, ethCommitter, common.Address{}, ethPeggy)
+	peggyContract, _ := NewPeggyContract(logger, ethCommitter, ethcmn.Address{}, ethPeggy)
 	peggyContract.IsPendingTxInput([]byte{}, time.Second)
 
 	// Add a TX
@@ -86,17 +86,17 @@ func TestIsPendingTxInput(t *testing.T) {
 // 	mockCtrl := gomock.NewController(t)
 // 	defer mockCtrl.Finish()
 // 	mockEvmProvider := mocks.NewMockEVMProviderWithRet(mockCtrl)
-// 	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), common.HexToAddress("0x0")).Return(uint64(0), nil)
+// 	mockEvmProvider.EXPECT().PendingNonceAt(gomock.Any(), ethcmn.HexToAddress("0x0")).Return(uint64(0), nil)
 
 // 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 // 	ethCommitter, _ := committer.NewEthCommitter(
 // 		logger,
-// 		common.Address{},
+// 		ethcmn.Address{},
 // 		1.0,
 // 		nil,
 // 		mockEvmProvider,
 // 	)
-// 	peggyContract, _ := NewPeggyContract(logger, ethCommitter, common.Address{})
+// 	peggyContract, _ := NewPeggyContract(logger, ethCommitter, ethcmn.Address{})
 
 // 	err := peggyContract.SubscribeToPendingTxs(context.Background(), "invalidURL")
 

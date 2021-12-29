@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
 func TestEncodeValsetConfirm(t *testing.T) {
-	peggyID := common.HexToHash("0x756d65652d706567677969640000000000000000000000000000000000000000")
+	peggyID := ethcmn.HexToHash("0x756d65652d706567677969640000000000000000000000000000000000000000")
 
 	valset := &types.Valset{
 		Nonce: 5,
@@ -30,7 +30,7 @@ func TestEncodeValsetConfirm(t *testing.T) {
 }
 
 func TestEncodeTxBatchConfirm(t *testing.T) {
-	peggyID := common.HexToHash("0x756d65652d706567677969640000000000000000000000000000000000000000")
+	peggyID := ethcmn.HexToHash("0x756d65652d706567677969640000000000000000000000000000000000000000")
 
 	txBatch := &types.OutgoingTxBatch{
 		Transactions: []*types.OutgoingTransferTx{

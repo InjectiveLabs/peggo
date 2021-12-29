@@ -4,19 +4,19 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/umee-network/umee/x/peggy/types"
 )
 
 type ValsetArgs struct {
-	Validators   []common.Address `protobuf:"bytes,2,rep,name=validators,proto3" json:"validators,omitempty"`
+	Validators   []ethcmn.Address `protobuf:"bytes,2,rep,name=validators,proto3" json:"validators,omitempty"`
 	Powers       []*big.Int       `protobuf:"varint,1,opt,name=powers,proto3" json:"powers,omitempty"`
 	ValsetNonce  *big.Int         `protobuf:"varint,3,opt,name=valsetNonce,proto3" json:"valsetNonce,omitempty"`
 	RewardAmount *big.Int         `protobuf:"bytes,4,opt,name=rewardAmount,json=rewardAmount,proto3" json:"rewardAmount"`
 	// the reward token in it's Ethereum hex address representation
 	// nolint: lll
-	RewardToken common.Address `protobuf:"bytes,5,opt,name=rewardToken,json=rewardToken,proto3" json:"rewardToken,omitempty"`
+	RewardToken ethcmn.Address `protobuf:"bytes,5,opt,name=rewardToken,json=rewardToken,proto3" json:"rewardToken,omitempty"`
 }
 
 func (s *peggyContract) EncodeValsetUpdate(
@@ -43,7 +43,7 @@ func (s *peggyContract) EncodeValsetUpdate(
 		Powers:       newPowers,
 		ValsetNonce:  newValsetNonce,
 		RewardAmount: newValset.RewardAmount.BigInt(),
-		RewardToken:  common.HexToAddress(newValset.RewardToken),
+		RewardToken:  ethcmn.HexToAddress(newValset.RewardToken),
 	}
 
 	// we need to use the old valset here because our signatures need to match the current
@@ -59,7 +59,7 @@ func (s *peggyContract) EncodeValsetUpdate(
 		Powers:       sigs.powers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: oldValset.RewardAmount.BigInt(),
-		RewardToken:  common.HexToAddress(oldValset.RewardToken),
+		RewardToken:  ethcmn.HexToAddress(oldValset.RewardToken),
 	}
 
 	s.logger.Debug().
@@ -84,12 +84,12 @@ func (s *peggyContract) EncodeValsetUpdate(
 }
 
 func validatorsAndPowers(valset *types.Valset) (
-	validators []common.Address,
+	validators []ethcmn.Address,
 	powers []*big.Int,
 ) {
 	for _, m := range valset.Members {
 		mPower := big.NewInt(0).SetUint64(m.Power)
-		validators = append(validators, common.HexToAddress(m.EthereumAddress))
+		validators = append(validators, ethcmn.HexToAddress(m.EthereumAddress))
 		powers = append(powers, mPower)
 	}
 

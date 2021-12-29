@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -65,7 +65,7 @@ const (
 // signature to confirm a validator set update on the Peggy Ethereum contract.
 // This value will then be signed before being submitted to Cosmos, verified,
 // and then relayed to Ethereum.
-func EncodeValsetConfirm(peggyID common.Hash, valset *types.Valset) common.Hash {
+func EncodeValsetConfirm(peggyID ethcmn.Hash, valset *types.Valset) ethcmn.Hash {
 	// error case here should not occur outside of testing since the above is a constant
 	contractAbi, err := abi.JSON(strings.NewReader(ValsetCheckpointABIJSON))
 	if err != nil {
@@ -76,14 +76,14 @@ func EncodeValsetConfirm(peggyID common.Hash, valset *types.Valset) common.Hash 
 	var checkpoint [32]uint8
 	copy(checkpoint[:], checkpointBytes)
 
-	memberAddresses := make([]common.Address, len(valset.Members))
+	memberAddresses := make([]ethcmn.Address, len(valset.Members))
 	convertedPowers := make([]*big.Int, len(valset.Members))
 	for i, m := range valset.Members {
-		memberAddresses[i] = common.HexToAddress(m.EthereumAddress)
+		memberAddresses[i] = ethcmn.HexToAddress(m.EthereumAddress)
 		convertedPowers[i] = big.NewInt(int64(m.Power))
 	}
 
-	rewardToken := common.HexToAddress(valset.RewardToken)
+	rewardToken := ethcmn.HexToAddress(valset.RewardToken)
 
 	if valset.RewardAmount.BigInt() == nil {
 		// this must be programmer error
@@ -124,7 +124,7 @@ func EncodeValsetConfirm(peggyID common.Hash, valset *types.Valset) common.Hash 
 // signature to confirm a transaction batch on the Peggy Ethereum contract. This
 // value will then be signed before being submitted to Cosmos, verified, and
 // then relayed to Ethereum.
-func EncodeTxBatchConfirm(peggyID common.Hash, batch *types.OutgoingTxBatch) common.Hash {
+func EncodeTxBatchConfirm(peggyID ethcmn.Hash, batch *types.OutgoingTxBatch) ethcmn.Hash {
 	abi, err := abi.JSON(strings.NewReader(OutgoingBatchTxConfirmABIJSON))
 	if err != nil {
 		panic(fmt.Sprintf("failed to JSON parse ABI: %s", err))
@@ -137,11 +137,11 @@ func EncodeTxBatchConfirm(peggyID common.Hash, batch *types.OutgoingTxBatch) com
 
 	// Run through the elements of the batch and serialize them
 	txAmounts := make([]*big.Int, len(batch.Transactions))
-	txDestinations := make([]common.Address, len(batch.Transactions))
+	txDestinations := make([]ethcmn.Address, len(batch.Transactions))
 	txFees := make([]*big.Int, len(batch.Transactions))
 	for i, tx := range batch.Transactions {
 		txAmounts[i] = tx.Erc20Token.Amount.BigInt()
-		txDestinations[i] = common.HexToAddress(tx.DestAddress)
+		txDestinations[i] = ethcmn.HexToAddress(tx.DestAddress)
 		txFees[i] = tx.Erc20Fee.Amount.BigInt()
 	}
 
@@ -156,15 +156,15 @@ func EncodeTxBatchConfirm(peggyID common.Hash, batch *types.OutgoingTxBatch) com
 		txDestinations,
 		txFees,
 		big.NewInt(int64(batch.BatchNonce)),
-		common.HexToAddress(batch.TokenContract),
+		ethcmn.HexToAddress(batch.TokenContract),
 		big.NewInt(int64(batch.BatchTimeout)),
 	)
 	if err != nil {
 		// This should never happen outside of test since any case that could crash on
 		// encoding should be filtered above.
-		return common.Hash{}
+		return ethcmn.Hash{}
 	}
 
 	hash := crypto.Keccak256Hash(abiEncodedBatch[4:])
-	return common.BytesToHash(hash.Bytes())
+	return ethcmn.BytesToHash(hash.Bytes())
 }

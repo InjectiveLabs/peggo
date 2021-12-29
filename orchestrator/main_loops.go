@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	"github.com/ethereum/go-ethereum/common"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/umee-network/peggo/orchestrator/loops"
 	"github.com/umee-network/umee/x/peggy/types"
 )
@@ -139,7 +139,7 @@ func (p *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 func (p *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 	logger := p.logger.With().Str("loop", "EthSignerMainLoop").Logger()
 
-	var peggyID common.Hash
+	var peggyID ethcmn.Hash
 	if err := retry.Do(func() (err error) {
 		peggyID, err = p.peggyContract.GetPeggyID(ctx, p.peggyContract.FromAddress())
 		return err
@@ -279,7 +279,7 @@ func (p *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 
 			for _, unbatchedToken := range unbatchedTokensWithFees {
 				unbatchedToken := unbatchedToken
-				tokenAddr := common.HexToAddress(unbatchedToken.Token)
+				tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
 
 				denom, err := p.ERC20ToDenom(ctx, tokenAddr)
 				if err != nil {
@@ -313,7 +313,7 @@ func (p *peggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 // ERC20ToDenom attempts to return the denomination that maps to an ERC20 token
 // contract on the Cosmos chain. First, we check the cache. If the token address
 // does not exist in the cache, we query the Cosmos chain and cache the result.
-func (p *peggyOrchestrator) ERC20ToDenom(ctx context.Context, tokenAddr common.Address) (string, error) {
+func (p *peggyOrchestrator) ERC20ToDenom(ctx context.Context, tokenAddr ethcmn.Address) (string, error) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
