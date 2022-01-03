@@ -155,6 +155,7 @@ export function handleSendToCosmosEvent(event: SendToCosmosEvent): void {
   deposit.amount = event.params._amount;
   deposit.destination = getInjectiveAddress(event.params._destination);
   deposit.sender = event.params._sender;
+  deposit.eventNonce = event.params._eventNonce.toI32();
   deposit.timestamp = event.block.timestamp.toI32();
   deposit.blockHeight = event.block.number.toI32();
 
@@ -267,6 +268,7 @@ export function handleSubmitBatch(call: SubmitBatchCall): void {
     );
     withdrawal.fee = fees[i];
     withdrawal.tokenContract = call.inputs._tokenContract;
+    withdrawal.eventNonce = call.inputs._batchNonce.toI32();
     withdrawal.timestamp = call.block.timestamp.toI32();
     withdrawal.blockHeight = call.block.number.toI32();
 
