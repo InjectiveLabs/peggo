@@ -11,7 +11,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.42.1
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/knadh/koanf v1.3.3
+	github.com/knadh/koanf v1.4.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/ory/dockertest/v3 v3.8.1
