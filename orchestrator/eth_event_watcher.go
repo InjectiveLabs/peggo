@@ -7,13 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
 
-	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/umee-network/umee/x/peggy/types"
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
+	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
-// CheckForEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
+// CheckForEvents checks for events such as a deposit to the Gravity Ethereum contract or a validator set update
 // or a transaction batch update. It then responds to these events by performing actions on the Cosmos chain if required
-func (p *peggyOrchestrator) CheckForEvents(
+func (p *gravityOrchestrator) CheckForEvents(
 	ctx context.Context,
 	startingBlock uint64,
 	ethBlockConfirmationDelay uint64,
@@ -36,15 +36,15 @@ func (p *peggyOrchestrator) CheckForEvents(
 		currentBlock = startingBlock + p.ethBlocksPerLoop
 	}
 
-	peggyFilterer, err := wrappers.NewPeggyFilterer(p.peggyContract.Address(), p.ethProvider)
+	gravityFilterer, err := wrappers.NewGravityFilterer(p.gravityContract.Address(), p.ethProvider)
 	if err != nil {
-		err = errors.Wrap(err, "failed to init Peggy events filterer")
+		err = errors.Wrap(err, "failed to init Gravity events filterer")
 		return 0, err
 	}
 
-	var erc20DeployedEvents []*wrappers.PeggyERC20DeployedEvent
+	var erc20DeployedEvents []*wrappers.GravityERC20DeployedEvent
 	{
-		iter, err := peggyFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
+		iter, err := gravityFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
 			Start: startingBlock,
 			End:   &currentBlock,
 		}, nil)
@@ -75,13 +75,13 @@ func (p *peggyOrchestrator) CheckForEvents(
 		Int("num_events", len(erc20DeployedEvents)).
 		Msg("scanned ERC20Deployed events from Ethereum")
 
-	var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
+	var sendToCosmosEvents []*wrappers.GravitySendToCosmosEvent
 	{
 
-		iter, err := peggyFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
+		iter, err := gravityFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
 			Start: startingBlock,
 			End:   &currentBlock,
-		}, nil, nil, nil)
+		}, nil, nil)
 		if err != nil {
 			p.logger.Err(err).
 				Uint64("start", startingBlock).
@@ -109,9 +109,9 @@ func (p *peggyOrchestrator) CheckForEvents(
 		Int("num_events", len(sendToCosmosEvents)).
 		Msg("scanned SendToCosmos events from Ethereum")
 
-	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
+	var transactionBatchExecutedEvents []*wrappers.GravityTransactionBatchExecutedEvent
 	{
-		iter, err := peggyFilterer.FilterTransactionBatchExecutedEvent(&bind.FilterOpts{
+		iter, err := gravityFilterer.FilterTransactionBatchExecutedEvent(&bind.FilterOpts{
 			Start: startingBlock,
 			End:   &currentBlock,
 		}, nil, nil)
@@ -142,9 +142,9 @@ func (p *peggyOrchestrator) CheckForEvents(
 		Int("num_events", len(transactionBatchExecutedEvents)).
 		Msg("scanned TransactionBatchExecuted events from Ethereum")
 
-	var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
+	var valsetUpdatedEvents []*wrappers.GravityValsetUpdatedEvent
 	{
-		iter, err := peggyFilterer.FilterValsetUpdatedEvent(&bind.FilterOpts{
+		iter, err := gravityFilterer.FilterValsetUpdatedEvent(&bind.FilterOpts{
 			Start: startingBlock,
 			End:   &currentBlock,
 		}, nil)
@@ -180,8 +180,8 @@ func (p *peggyOrchestrator) CheckForEvents(
 	// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
 	// multi event block again. In theory we only send all events for every block and that will pass of fail
 	// atomically but lets not take that risk.
-	lastEventResp, err := p.cosmosQueryClient.LastEventByAddr(ctx, &types.QueryLastEventByAddrRequest{
-		Address: p.peggyBroadcastClient.AccFromAddress().String(),
+	lastEventResp, err := p.cosmosQueryClient.LastEventNonceByAddr(ctx, &types.QueryLastEventNonceByAddrRequest{
+		Address: p.gravityBroadcastClient.AccFromAddress().String(),
 	})
 
 	if err != nil {
@@ -193,21 +193,19 @@ func (p *peggyOrchestrator) CheckForEvents(
 		return 0, errors.New("no last event response returned")
 	}
 
-	lastClaimEvent := lastEventResp.LastClaimEvent
-
-	deposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastClaimEvent.EthereumEventNonce)
+	deposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastEventResp.EventNonce)
 	withdraws := filterTransactionBatchExecutedEventsByNonce(
 		transactionBatchExecutedEvents,
-		lastClaimEvent.EthereumEventNonce,
+		lastEventResp.EventNonce,
 	)
-	valsetUpdates := filterValsetUpdateEventsByNonce(valsetUpdatedEvents, lastClaimEvent.EthereumEventNonce)
-	deployedERC20Updates := filterERC20DeployedEventsByNonce(erc20DeployedEvents, lastClaimEvent.EthereumEventNonce)
+	valsetUpdates := filterValsetUpdateEventsByNonce(valsetUpdatedEvents, lastEventResp.EventNonce)
+	deployedERC20Updates := filterERC20DeployedEventsByNonce(erc20DeployedEvents, lastEventResp.EventNonce)
 
 	if len(deposits) > 0 || len(withdraws) > 0 || len(valsetUpdates) > 0 || len(deployedERC20Updates) > 0 {
 
-		if err := p.peggyBroadcastClient.SendEthereumClaims(
+		if err := p.gravityBroadcastClient.SendEthereumClaims(
 			ctx,
-			lastClaimEvent.EthereumEventNonce,
+			lastEventResp.EventNonce,
 			deposits,
 			withdraws,
 			valsetUpdates,
@@ -223,10 +221,10 @@ func (p *peggyOrchestrator) CheckForEvents(
 }
 
 func filterSendToCosmosEventsByNonce(
-	events []*wrappers.PeggySendToCosmosEvent,
+	events []*wrappers.GravitySendToCosmosEvent,
 	nonce uint64,
-) []*wrappers.PeggySendToCosmosEvent {
-	res := make([]*wrappers.PeggySendToCosmosEvent, 0, len(events))
+) []*wrappers.GravitySendToCosmosEvent {
+	res := make([]*wrappers.GravitySendToCosmosEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -238,10 +236,10 @@ func filterSendToCosmosEventsByNonce(
 }
 
 func filterTransactionBatchExecutedEventsByNonce(
-	events []*wrappers.PeggyTransactionBatchExecutedEvent,
+	events []*wrappers.GravityTransactionBatchExecutedEvent,
 	nonce uint64,
-) []*wrappers.PeggyTransactionBatchExecutedEvent {
-	res := make([]*wrappers.PeggyTransactionBatchExecutedEvent, 0, len(events))
+) []*wrappers.GravityTransactionBatchExecutedEvent {
+	res := make([]*wrappers.GravityTransactionBatchExecutedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -253,10 +251,10 @@ func filterTransactionBatchExecutedEventsByNonce(
 }
 
 func filterValsetUpdateEventsByNonce(
-	events []*wrappers.PeggyValsetUpdatedEvent,
+	events []*wrappers.GravityValsetUpdatedEvent,
 	nonce uint64,
-) []*wrappers.PeggyValsetUpdatedEvent {
-	res := make([]*wrappers.PeggyValsetUpdatedEvent, 0, len(events))
+) []*wrappers.GravityValsetUpdatedEvent {
+	res := make([]*wrappers.GravityValsetUpdatedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -267,10 +265,10 @@ func filterValsetUpdateEventsByNonce(
 }
 
 func filterERC20DeployedEventsByNonce(
-	events []*wrappers.PeggyERC20DeployedEvent,
+	events []*wrappers.GravityERC20DeployedEvent,
 	nonce uint64,
-) []*wrappers.PeggyERC20DeployedEvent {
-	res := make([]*wrappers.PeggyERC20DeployedEvent, 0, len(events))
+) []*wrappers.GravityERC20DeployedEvent {
+	res := make([]*wrappers.GravityERC20DeployedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {

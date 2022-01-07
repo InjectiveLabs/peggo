@@ -17,8 +17,8 @@ import (
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "peggo",
-		Short: "Peggo is a companion executable for orchestrating a Peggy validator",
-		Long: `Peggo is a companion executable for orchestrating a Peggy validator.
+		Short: "Peggo is a companion executable for orchestrating a Gravity validator",
+		Long: `Peggo is a companion executable for orchestrating a Gravity validator.
 
 Inputs in the CLI commands can be provided via flags or environment variables. If
 using the later, prefix the environment variable with PEGGO_ and the named of the

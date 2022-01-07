@@ -6,11 +6,11 @@ import (
 	retry "github.com/avast/retry-go"
 	"github.com/pkg/errors"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/umee-network/peggo/orchestrator/loops"
-	"github.com/umee-network/umee/x/peggy/types"
 )
 
-func (s *peggyRelayer) Start(ctx context.Context) error {
+func (s *gravityRelayer) Start(ctx context.Context) error {
 	logger := s.logger.With().Str("loop", "RelayerMainLoop").Logger()
 
 	if s.valsetRelayEnabled {
@@ -31,8 +31,6 @@ func (s *peggyRelayer) Start(ctx context.Context) error {
 			currentValset, err = s.FindLatestValset(ctx)
 			if err != nil {
 				return errors.New("failed to find latest valset")
-			} else if currentValset == nil {
-				return errors.New("latest valset not found")
 			}
 
 			return nil
@@ -48,7 +46,7 @@ func (s *peggyRelayer) Start(ctx context.Context) error {
 		if s.valsetRelayEnabled {
 			pg.Go(func() error {
 				return retry.Do(func() error {
-					return s.RelayValsets(ctx, currentValset)
+					return s.RelayValsets(ctx, *currentValset)
 				}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 					logger.Err(err).Uint("retry", n).Msg("failed to relay valsets; retrying...")
 				}))
@@ -59,12 +57,12 @@ func (s *peggyRelayer) Start(ctx context.Context) error {
 			pg.Go(func() error {
 				return retry.Do(func() error {
 
-					possibleBatches, err := s.getBatchesAndSignatures(ctx, currentValset)
+					possibleBatches, err := s.getBatchesAndSignatures(ctx, *currentValset)
 					if err != nil {
 						return err
 					}
 
-					return s.RelayBatches(ctx, currentValset, possibleBatches)
+					return s.RelayBatches(ctx, *currentValset, possibleBatches)
 				}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 					logger.Err(err).Uint("retry", n).Msg("failed to relay tx batches; retrying...")
 				}))

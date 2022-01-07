@@ -1,4 +1,4 @@
-## Peggo Testsuite
+# Peggo Testsuite
 
 Welcome to the PegGo testing framework. The goal of this suite is aligned with the overall project goal - to move stuff onto common ground and iterate faster.
 By using the same lang for module, orchestrator and test we can achieve the full test coverage of all logical branches.
@@ -23,7 +23,7 @@ We care about:
 You can specify any remote EVM endpoint to run the test against, but the best and most stable way to test the stuff is to run a Ganache or Hardhat instance. Hardhat is used solely as a JSON-RPC node provider.
 
 Preferred Solc compiler toolkit:
-* https://github.com/crytic/solc-select
+* [solc-select](https://github.com/crytic/solc-select)
 
 Run `solc-select use 0.8.2` before starting any tests.
 
@@ -33,13 +33,13 @@ Hardhat is a newer alternative to Ganache that has convenient initialization via
 
 Running the init script will install node_modules inside `./test/ethereum` dir.
 
-```
+```shell
 $ ./test/ethereum/hardhat-init.sh
 ```
 
 After init is done, the following command can be used to launch a Hardhat server instance:
 
-```
+```shell
 $ ./test/ethereum/hardhat.sh
 ```
 
@@ -56,7 +56,7 @@ also check different blocktime conditions, one might want to run Geth itself.
 
 Running this script will init a persistent data storage for the private network.
 
-```
+```shell
 $ ./test/ethereum/geth-init.sh
 ```
 
@@ -70,7 +70,7 @@ Chain options can be tweaked in `./test/ethereum/geth/genesis.json`
 
 After init is done, the following command can be used to launch a full Geth node instance:
 
-```
+```shell
 $ ./test/ethereum/geth.sh
 ```
 
@@ -83,15 +83,15 @@ Running options can be set via ENV variables:
 
 ### Cosmos Daemon
 
-This testsuite supports different Cosmos backends, basically any app that has `peggy` module built-in will do. We expect that the generic app is Cosmos-SDK compatible and has very similar CLI interface to `gaiad`. There is a script that would launch an isolated full 3-node network, running natively on the host machine. Just make sure to provide the target executable as an argument.
+This testsuite supports different Cosmos backends, basically any app that has `gravity` module built-in will do. We expect that the generic app is Cosmos-SDK compatible and has very similar CLI interface to `gaiad`. There is a script that would launch an isolated full 3-node network, running natively on the host machine. Just make sure to provide the target executable as an argument.
 
-```
+```shell
 $ CHAIN_ID=888 DENOM=inj ./test/cosmos/multinode.sh injectived
 $ CHAIN_ID=somm DENOM=samoleans STAKE_DENOM=stake SCALE_FACTOR=000000 ./test/cosmos/multinode.sh sommelier
 ```
 
 Full list of the supported ENV variables:
-* `CHAIN_ID` - specifies Cosmos Chain ID, like `peggy-1`
+* `CHAIN_ID` - specifies Cosmos Chain ID, like `gravity-1`
 * `CHAIN_DIR` - is a prefix for all data dirs and logs, will be removed if `CLEANUP=1`
 * `DENOM` - Cosmos coin denom, the default coin of the network. Examples: `uatom`, `aphoton`, `samoleans` etc
 * `STAKE_DENOM` - Cosmos coin denom that is used for staking and governance. On the Cosmos Hub it's `stake`. Defaults to value of `DENOM` in the script.
@@ -107,7 +107,9 @@ The script imports 3 validator accounts and 1 user account, specified by mnemoni
 
 ### Misc: Patching Geth
 
-Geth by default scales difficulty of the blocks to hit the target block pace. So even if your network starts with `difficulty=1` in genesis, the difficulty will be higher in the next blocks and waiting times would be very high. Especially that DAG regeneration phases. A solution to this in local setup would be to either use `clique` consensus for PoA-style block producing, or just patch the Geth code, so the difficulty won't grow.
+Geth by default scales difficulty of the blocks to hit the target block pace. So even if your network starts with `difficulty=1` in genesis, the difficulty will be higher in the next blocks and waiting
+times would be very high. Especially that DAG regeneration phases. A solution to this in local setup would be to either use `clique` consensus for PoA-style block producing, or just patch the Geth
+code, so the difficulty won't grow.
 
 Just clone the `go-ethereum` repo, apply this patch:
 

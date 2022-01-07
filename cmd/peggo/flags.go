@@ -39,7 +39,6 @@ const (
 	flagCoinGeckoAPI            = "coingecko-api"
 	flagEthGasPrice             = "eth-gas-price"
 	flagEthGasLimit             = "eth-gas-limit"
-	flagPowerThreshold          = "power-threshold"
 	flagAutoApprove             = "auto-approve"
 	flagEthBlocksPerLoop        = "eth-blocks-per-loop"
 	flagEthPendingTXWait        = "eth-pending-tx-wait"
@@ -81,7 +80,6 @@ func ethereumKeyOptsFlagSet() *pflag.FlagSet {
 	fs.String(flagEthPassphrase, "", "Specify the passphrase to unlock the private key from armor; If empty then STDIN is used")
 	fs.String(flagEthPK, "", "Provide the Ethereum private key of the validator in hex")
 	fs.Bool(flagEthUseLedger, false, "Use the Ethereum app on hardware ledger to sign transactions")
-
 	return fs
 }
 

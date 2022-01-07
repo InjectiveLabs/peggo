@@ -10,13 +10,13 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/umee-network/peggo/mocks"
-	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/umee-network/umee/x/peggy/types"
+	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
 func TestSendValsetConfirm(t *testing.T) {
@@ -33,7 +33,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			return []byte{}, nil
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -41,7 +41,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -58,7 +58,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -66,7 +66,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -85,7 +85,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			return []byte{}, nil
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -93,7 +93,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.Valset{
+		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
 			RewardAmount: sdk.NewInt(0),
 		})
 
@@ -116,7 +116,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			return []byte{}, nil
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -124,7 +124,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
 
 		assert.Nil(t, err)
 	})
@@ -139,7 +139,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -147,7 +147,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
 
 		assert.EqualError(t, err, "failed to sign validator address")
 	})
@@ -164,7 +164,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			return []byte{}, nil
 		}
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -172,7 +172,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockPersonalSignFn,
 		)
 
-		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, ethcmn.Hash{}, &types.OutgoingTxBatch{})
+		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
 
 		assert.EqualError(t, err, "broadcasting MsgConfirmBatch failed: some error during broadcast")
 	})
@@ -185,7 +185,7 @@ type hasBiggerNonce struct {
 }
 
 func (m *hasBiggerNonce) Matches(input interface{}) bool {
-	deposit, ok := input.(*types.MsgDepositClaim)
+	deposit, ok := input.(*types.MsgSendToCosmosClaim)
 	if ok {
 		if deposit.EventNonce > m.currentNonce {
 			m.currentNonce = deposit.EventNonce
@@ -195,7 +195,7 @@ func (m *hasBiggerNonce) Matches(input interface{}) bool {
 		return false
 	}
 
-	withdraw, ok := input.(*types.MsgWithdrawClaim)
+	withdraw, ok := input.(*types.MsgBatchSendToEthClaim)
 	if ok {
 		if withdraw.EventNonce > m.currentNonce {
 			m.currentNonce = withdraw.EventNonce
@@ -240,7 +240,7 @@ func TestSendEthereumClaims(t *testing.T) {
 
 	mockCosmos.EXPECT().SyncBroadcastMsg(HasBiggerNonce(0)).Return(&sdk.TxResponse{}, nil).Times(1)
 
-	s := NewPeggyBroadcastClient(
+	s := NewGravityBroadcastClient(
 		zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 		nil,
 		mockCosmos,
@@ -248,7 +248,7 @@ func TestSendEthereumClaims(t *testing.T) {
 		nil,
 	)
 
-	deposits := []*wrappers.PeggySendToCosmosEvent{
+	deposits := []*wrappers.GravitySendToCosmosEvent{
 		{
 			EventNonce: big.NewInt(2),
 			Amount:     big.NewInt(123),
@@ -259,7 +259,7 @@ func TestSendEthereumClaims(t *testing.T) {
 		},
 	}
 
-	withdraws := []*wrappers.PeggyTransactionBatchExecutedEvent{
+	withdraws := []*wrappers.GravityTransactionBatchExecutedEvent{
 		{
 			EventNonce: big.NewInt(1),
 			BatchNonce: big.NewInt(0),
@@ -270,7 +270,7 @@ func TestSendEthereumClaims(t *testing.T) {
 		},
 	}
 
-	valsetUpdates := []*wrappers.PeggyValsetUpdatedEvent{
+	valsetUpdates := []*wrappers.GravityValsetUpdatedEvent{
 		{
 			EventNonce:     big.NewInt(4),
 			NewValsetNonce: big.NewInt(0),
@@ -288,7 +288,7 @@ func TestSendEthereumClaims(t *testing.T) {
 		},
 	}
 
-	erc20Deployed := []*wrappers.PeggyERC20DeployedEvent{
+	erc20Deployed := []*wrappers.GravityERC20DeployedEvent{
 		{
 			EventNonce: big.NewInt(8),
 		},
@@ -313,14 +313,14 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 
 	mockCosmos.EXPECT().SyncBroadcastMsg(HasBiggerNonce(0)).Return(&sdk.TxResponse{}, nil).Times(1)
 
-	s := peggyBroadcastClient{
+	s := gravityBroadcastClient{
 		daemonQueryClient: nil,
 		broadcastClient:   mockCosmos,
 	}
 
 	// We have events with nonces 1, 2, 3, 4, 5, 6, 7, 9.
 	// So we are missing the 8, meaning events above that won't be relayed
-	deposits := []*wrappers.PeggySendToCosmosEvent{
+	deposits := []*wrappers.GravitySendToCosmosEvent{
 		{
 			EventNonce: big.NewInt(2),
 			Amount:     big.NewInt(123),
@@ -331,7 +331,7 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 		},
 	}
 
-	withdraws := []*wrappers.PeggyTransactionBatchExecutedEvent{
+	withdraws := []*wrappers.GravityTransactionBatchExecutedEvent{
 		{
 			EventNonce: big.NewInt(1),
 			BatchNonce: big.NewInt(0),
@@ -342,7 +342,7 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 		},
 	}
 
-	valsetUpdates := []*wrappers.PeggyValsetUpdatedEvent{
+	valsetUpdates := []*wrappers.GravityValsetUpdatedEvent{
 		{
 			EventNonce:     big.NewInt(4),
 			NewValsetNonce: big.NewInt(0),
@@ -360,7 +360,7 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 		},
 	}
 
-	erc20Deployed := []*wrappers.PeggyERC20DeployedEvent{
+	erc20Deployed := []*wrappers.GravityERC20DeployedEvent{
 		{
 			EventNonce: big.NewInt(7),
 		},
@@ -386,7 +386,7 @@ func TestSendRequestBatch(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(nil)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,
@@ -407,7 +407,7 @@ func TestSendRequestBatch(t *testing.T) {
 		mockCosmos.EXPECT().QueueBroadcastMsg(gomock.Any()).Return(errors.New("some error during broadcast"))
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{})
 
-		s := NewPeggyBroadcastClient(
+		s := NewGravityBroadcastClient(
 			zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}),
 			nil,
 			mockCosmos,

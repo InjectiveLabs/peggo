@@ -5,27 +5,26 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/umee-network/peggo/cmd/peggo/client"
+	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
-	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
-	umeeapp "github.com/umee-network/umee/app"
-	"github.com/umee-network/umee/x/peggy/types"
+	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
-type PeggyBroadcastClient interface {
+type GravityBroadcastClient interface {
 	AccFromAddress() sdk.AccAddress
 
 	// SendValsetConfirm broadcasts in a confirmation for a specific validator set for a specific block height.
 	SendValsetConfirm(
 		ctx context.Context,
 		ethFrom ethcmn.Address,
-		peggyID ethcmn.Hash,
-		valset *types.Valset,
+		gravityID string,
+		valset types.Valset,
 	) error
 
 	// SendBatchConfirm broadcasts in a confirmation for a specific transaction batch set for a specific block height
@@ -33,17 +32,17 @@ type PeggyBroadcastClient interface {
 	SendBatchConfirm(
 		ctx context.Context,
 		ethFrom ethcmn.Address,
-		peggyID ethcmn.Hash,
-		batch *types.OutgoingTxBatch,
+		gravityID string,
+		batch types.OutgoingTxBatch,
 	) error
 
 	SendEthereumClaims(
 		ctx context.Context,
 		lastClaimEvent uint64,
-		deposits []*wrappers.PeggySendToCosmosEvent,
-		withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-		erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
+		deposits []*wrappers.GravitySendToCosmosEvent,
+		withdraws []*wrappers.GravityTransactionBatchExecutedEvent,
+		valsetUpdates []*wrappers.GravityValsetUpdatedEvent,
+		erc20Deployed []*wrappers.GravityERC20DeployedEvent,
 		loopDuration time.Duration,
 	) error
 
@@ -55,7 +54,7 @@ type PeggyBroadcastClient interface {
 }
 
 type (
-	peggyBroadcastClient struct {
+	gravityBroadcastClient struct {
 		logger            zerolog.Logger
 		daemonQueryClient types.QueryClient
 		broadcastClient   client.CosmosClient
@@ -67,22 +66,22 @@ type (
 	// for Ethereum events. It is only used in SendEthereumClaims.
 	sortableEvent struct {
 		EventNonce         uint64
-		DepositEvent       *wrappers.PeggySendToCosmosEvent
-		WithdrawEvent      *wrappers.PeggyTransactionBatchExecutedEvent
-		ValsetUpdateEvent  *wrappers.PeggyValsetUpdatedEvent
-		ERC20DeployedEvent *wrappers.PeggyERC20DeployedEvent
+		DepositEvent       *wrappers.GravitySendToCosmosEvent
+		WithdrawEvent      *wrappers.GravityTransactionBatchExecutedEvent
+		ValsetUpdateEvent  *wrappers.GravityValsetUpdatedEvent
+		ERC20DeployedEvent *wrappers.GravityERC20DeployedEvent
 	}
 )
 
-func NewPeggyBroadcastClient(
+func NewGravityBroadcastClient(
 	logger zerolog.Logger,
 	queryClient types.QueryClient,
 	broadcastClient client.CosmosClient,
 	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
-) PeggyBroadcastClient {
-	return &peggyBroadcastClient{
-		logger:            logger.With().Str("module", "peggy_broadcast_client").Logger(),
+) GravityBroadcastClient {
+	return &gravityBroadcastClient{
+		logger:            logger.With().Str("module", "gravity_broadcast_client").Logger(),
 		daemonQueryClient: queryClient,
 		broadcastClient:   broadcastClient,
 		ethSignerFn:       ethSignerFn,
@@ -90,18 +89,18 @@ func NewPeggyBroadcastClient(
 	}
 }
 
-func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
+func (s *gravityBroadcastClient) AccFromAddress() sdk.AccAddress {
 	return s.broadcastClient.FromAddress()
 }
 
-func (s *peggyBroadcastClient) SendValsetConfirm(
+func (s *gravityBroadcastClient) SendValsetConfirm(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
-	peggyID ethcmn.Hash,
-	valset *types.Valset,
+	gravityID string,
+	valset types.Valset,
 ) error {
 
-	confirmHash := peggy.EncodeValsetConfirm(peggyID, valset)
+	confirmHash := gravity.EncodeValsetConfirm(gravityID, valset)
 	signature, err := s.ethPersonalSignFn(ethFrom, confirmHash.Bytes())
 	if err != nil {
 		err = errors.New("failed to sign validator address")
@@ -137,14 +136,14 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendBatchConfirm(
+func (s *gravityBroadcastClient) SendBatchConfirm(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
-	peggyID ethcmn.Hash,
-	batch *types.OutgoingTxBatch,
+	gravityID string,
+	batch types.OutgoingTxBatch,
 ) error {
 
-	confirmHash := peggy.EncodeTxBatchConfirm(peggyID, batch)
+	confirmHash := gravity.EncodeTxBatchConfirm(gravityID, batch)
 	signature, err := s.ethPersonalSignFn(ethFrom, confirmHash.Bytes())
 	if err != nil {
 		err = errors.New("failed to sign validator address")
@@ -174,13 +173,13 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendEthereumClaims(
+func (s *gravityBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
 	lastClaimEvent uint64,
-	deposits []*wrappers.PeggySendToCosmosEvent,
-	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
+	deposits []*wrappers.GravitySendToCosmosEvent,
+	withdraws []*wrappers.GravityTransactionBatchExecutedEvent,
+	valsetUpdates []*wrappers.GravityValsetUpdatedEvent,
+	erc20Deployed []*wrappers.GravityERC20DeployedEvent,
 	cosmosBlockTime time.Duration,
 ) error {
 	allevents := []sortableEvent{}
@@ -226,7 +225,7 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 	return s.broadcastEthereumEvents(allevents)
 }
 
-func (s *peggyBroadcastClient) SendRequestBatch(
+func (s *gravityBroadcastClient) SendRequestBatch(
 	ctx context.Context,
 	denom string,
 ) error {
@@ -241,8 +240,8 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	// -------------
 
 	msg := &types.MsgRequestBatch{
-		Denom:        denom,
-		Orchestrator: s.AccFromAddress().String(),
+		Denom:  denom,
+		Sender: s.AccFromAddress().String(),
 	}
 	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
 		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
@@ -252,7 +251,7 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	return nil
 }
 
-func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) error {
+func (s *gravityBroadcastClient) broadcastEthereumEvents(events []sortableEvent) error {
 	msgs := []sdk.Msg{}
 
 	// Use SliceStable so we always get the same order
@@ -271,21 +270,20 @@ func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) e
 	for _, ev := range events {
 		switch {
 		case ev.DepositEvent != nil:
-			recipientBz := ev.DepositEvent.Destination[:umeeapp.MaxAddrLen]
 
-			msgs = append(msgs, &types.MsgDepositClaim{
+			msgs = append(msgs, &types.MsgSendToCosmosClaim{
 				EventNonce:     ev.DepositEvent.EventNonce.Uint64(),
 				BlockHeight:    ev.DepositEvent.Raw.BlockNumber,
 				TokenContract:  ev.DepositEvent.TokenContract.Hex(),
 				Amount:         sdk.NewIntFromBigInt(ev.DepositEvent.Amount),
 				EthereumSender: ev.DepositEvent.Sender.Hex(),
-				CosmosReceiver: sdk.AccAddress(recipientBz).String(),
+				CosmosReceiver: ev.DepositEvent.Destination,
 				Orchestrator:   s.broadcastClient.FromAddress().String(),
 			})
 			evCounter["deposit"]++
 
 		case ev.WithdrawEvent != nil:
-			msgs = append(msgs, &types.MsgWithdrawClaim{
+			msgs = append(msgs, &types.MsgBatchSendToEthClaim{
 				EventNonce:    ev.WithdrawEvent.EventNonce.Uint64(),
 				BatchNonce:    ev.WithdrawEvent.BatchNonce.Uint64(),
 				BlockHeight:   ev.WithdrawEvent.Raw.BlockNumber,
@@ -295,9 +293,9 @@ func (s *peggyBroadcastClient) broadcastEthereumEvents(events []sortableEvent) e
 			evCounter["withdraw"]++
 
 		case ev.ValsetUpdateEvent != nil:
-			members := make([]*types.BridgeValidator, len(ev.ValsetUpdateEvent.Validators))
+			members := make([]types.BridgeValidator, len(ev.ValsetUpdateEvent.Validators))
 			for i, val := range ev.ValsetUpdateEvent.Validators {
-				members[i] = &types.BridgeValidator{
+				members[i] = types.BridgeValidator{
 					EthereumAddress: val.Hex(),
 					Power:           ev.ValsetUpdateEvent.Powers[i].Uint64(),
 				}

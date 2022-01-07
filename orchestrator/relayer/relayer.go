@@ -7,34 +7,34 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 	"github.com/umee-network/peggo/orchestrator/coingecko"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
+	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 
-	peggytypes "github.com/umee-network/umee/x/peggy/types"
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 )
 
-type PeggyRelayer interface {
+type GravityRelayer interface {
 	Start(ctx context.Context) error
 
-	FindLatestValset(ctx context.Context) (*peggytypes.Valset, error)
+	FindLatestValset(ctx context.Context) (*gravitytypes.Valset, error)
 
 	RelayBatches(
 		ctx context.Context,
-		currentValset *peggytypes.Valset,
+		currentValset gravitytypes.Valset,
 		possibleBatches map[ethcmn.Address][]SubmittableBatch,
 	) error
 
-	RelayValsets(ctx context.Context, currentValset *peggytypes.Valset) error
+	RelayValsets(ctx context.Context, currentValset gravitytypes.Valset) error
 
 	// SetPriceFeeder sets the (optional) price feeder used when performing profitable
 	// batch calculations.
 	SetPriceFeeder(*coingecko.PriceFeed)
 }
 
-type peggyRelayer struct {
+type gravityRelayer struct {
 	logger             zerolog.Logger
-	cosmosQueryClient  peggytypes.QueryClient
-	peggyContract      peggy.Contract
+	cosmosQueryClient  gravitytypes.QueryClient
+	gravityContract    gravity.Contract
 	ethProvider        provider.EVMProvider
 	valsetRelayEnabled bool
 	batchRelayEnabled  bool
@@ -49,22 +49,22 @@ type peggyRelayer struct {
 	lastSentValsetNonce uint64
 }
 
-func NewPeggyRelayer(
+func NewGravityRelayer(
 	logger zerolog.Logger,
-	peggyQueryClient peggytypes.QueryClient,
-	peggyContract peggy.Contract,
+	gravityQueryClient gravitytypes.QueryClient,
+	gravityContract gravity.Contract,
 	valsetRelayEnabled bool,
 	batchRelayEnabled bool,
 	loopDuration time.Duration,
 	pendingTxWait time.Duration,
 	profitMultiplier float64,
-	options ...func(PeggyRelayer),
-) PeggyRelayer {
-	relayer := &peggyRelayer{
-		logger:             logger.With().Str("module", "peggy_relayer").Logger(),
-		cosmosQueryClient:  peggyQueryClient,
-		peggyContract:      peggyContract,
-		ethProvider:        peggyContract.Provider(),
+	options ...func(GravityRelayer),
+) GravityRelayer {
+	relayer := &gravityRelayer{
+		logger:             logger.With().Str("module", "gravity_relayer").Logger(),
+		cosmosQueryClient:  gravityQueryClient,
+		gravityContract:    gravityContract,
+		ethProvider:        gravityContract.Provider(),
 		valsetRelayEnabled: valsetRelayEnabled,
 		batchRelayEnabled:  batchRelayEnabled,
 		loopDuration:       loopDuration,

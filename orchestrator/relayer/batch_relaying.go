@@ -5,14 +5,14 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
-	"github.com/umee-network/umee/x/peggy/types"
 )
 
 type SubmittableBatch struct {
-	Batch      *types.OutgoingTxBatch
-	Signatures []*types.MsgConfirmBatch
+	Batch      types.OutgoingTxBatch
+	Signatures []types.MsgConfirmBatch
 }
 
 // getBatchesAndSignatures retrieves the latest batches from the Cosmos module and then iterates through the signatures
@@ -21,9 +21,9 @@ type SubmittableBatch struct {
 // old enough that the signatures do not reflect the current validator set on Ethereum. In both the later and the former
 // case the correct solution is to wait through timeouts, new signatures, or a later valid batch being submitted old
 // batches will always be resolved.
-func (s *peggyRelayer) getBatchesAndSignatures(
+func (s *gravityRelayer) getBatchesAndSignatures(
 	ctx context.Context,
-	currentValset *types.Valset,
+	currentValset types.Valset,
 ) (map[ethcmn.Address][]SubmittableBatch, error) {
 	possibleBatches := map[ethcmn.Address][]SubmittableBatch{}
 
@@ -62,7 +62,7 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 
 		// This checks that the signatures for the batch are actually possible to submit to the chain.
 		// We only need to know if the signatures are good, we won't use the other returned value.
-		_, err = s.peggyContract.EncodeTransactionBatch(ctx, currentValset, batch, batchConfirms.Confirms)
+		_, err = s.gravityContract.EncodeTransactionBatch(ctx, currentValset, batch, batchConfirms.Confirms)
 
 		if err != nil {
 			// this batch is not ready to be relayed
@@ -103,9 +103,9 @@ func (s *peggyRelayer) getBatchesAndSignatures(
 // Keep in mind that many other relayers are making this same computation and some may have different standards for
 // their profit margin, therefore there may be a race not only to submit individual batches but also batches in
 // different orders.
-func (s *peggyRelayer) RelayBatches(
+func (s *gravityRelayer) RelayBatches(
 	ctx context.Context,
-	currentValset *types.Valset,
+	currentValset types.Valset,
 	possibleBatches map[ethcmn.Address][]SubmittableBatch,
 ) error {
 	// first get current block height to check for any timeouts
@@ -123,10 +123,10 @@ func (s *peggyRelayer) RelayBatches(
 		// iterating from oldest to newest, so submitting a batch earlier in the loop won't
 		// ever invalidate submitting a batch later in the loop. Another relayer could always
 		// do that though.
-		latestEthereumBatch, err := s.peggyContract.GetTxBatchNonce(
+		latestEthereumBatch, err := s.gravityContract.GetTxBatchNonce(
 			ctx,
 			tokenContract,
-			s.peggyContract.FromAddress(),
+			s.gravityContract.FromAddress(),
 		)
 		if err != nil {
 			s.logger.Err(err).Msg("failed to get latest Ethereum batch")
@@ -150,12 +150,12 @@ func (s *peggyRelayer) RelayBatches(
 				continue
 			}
 
-			txData, err := s.peggyContract.EncodeTransactionBatch(ctx, currentValset, batch.Batch, batch.Signatures)
+			txData, err := s.gravityContract.EncodeTransactionBatch(ctx, currentValset, batch.Batch, batch.Signatures)
 			if err != nil {
 				return err
 			}
 
-			estimatedGasCost, gasPrice, err := s.peggyContract.EstimateGas(ctx, s.peggyContract.Address(), txData)
+			estimatedGasCost, gasPrice, err := s.gravityContract.EstimateGas(ctx, s.gravityContract.Address(), txData)
 			if err != nil {
 				s.logger.Err(err).Msg("failed to estimate gas cost")
 				return err
@@ -168,7 +168,7 @@ func (s *peggyRelayer) RelayBatches(
 
 			// Checking in pending txs(mempool) if tx with same input is already submitted
 			// We have to check this at the last moment because any other relayer could have submitted.
-			if s.peggyContract.IsPendingTxInput(txData, s.pendingTxWait) {
+			if s.gravityContract.IsPendingTxInput(txData, s.pendingTxWait) {
 				s.logger.Debug().
 					Msg("Transaction with same batch input data is already present in mempool")
 				continue
@@ -179,13 +179,13 @@ func (s *peggyRelayer) RelayBatches(
 				Uint64("latest_ethereum_batch", latestEthereumBatch.Uint64()).
 				Msg("we have detected a newer profitable batch; sending an update")
 
-			txHash, err := s.peggyContract.SendTx(ctx, s.peggyContract.Address(), txData, estimatedGasCost, gasPrice)
+			txHash, err := s.gravityContract.SendTx(ctx, s.gravityContract.Address(), txData, estimatedGasCost, gasPrice)
 			if err != nil {
-				s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Peggy submitBatch) to EVM")
+				s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Gravity submitBatch) to EVM")
 				return err
 			}
 
-			s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Peggy submitBatch)")
+			s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Gravity submitBatch)")
 
 			// update our local tracker of the latest batch
 			s.lastSentBatchNonce = batch.Batch.BatchNonce
@@ -199,9 +199,9 @@ func (s *peggyRelayer) RelayBatches(
 // IsBatchProfitable gets the current prices in USD of ETH and the ERC20 token and compares the value of the estimated
 // gas cost of the transaction to the fees paid by the batch. If the estimated gas cost is greater than the batch's
 // fees, the batch is not profitable and should not be submitted.
-func (s *peggyRelayer) IsBatchProfitable(
+func (s *gravityRelayer) IsBatchProfitable(
 	ctx context.Context,
-	batch *types.OutgoingTxBatch,
+	batch types.OutgoingTxBatch,
 	ethGasCost uint64,
 	gasPrice *big.Int,
 	profitMultiplier float64,
@@ -223,10 +223,10 @@ func (s *peggyRelayer) IsBatchProfitable(
 	gasCostInUSDDec := decimal.NewFromBigInt(totalETHcost, -18).Mul(usdEthPriceDec)
 
 	// Then we get the fees of the batch in USD
-	decimals, err := s.peggyContract.GetERC20Decimals(
+	decimals, err := s.gravityContract.GetERC20Decimals(
 		ctx,
 		ethcmn.HexToAddress(batch.TokenContract),
-		s.peggyContract.FromAddress(),
+		s.gravityContract.FromAddress(),
 	)
 	if err != nil {
 		s.logger.Err(err).Str("token_contract", batch.TokenContract).Msg("failed to get token decimals")

@@ -115,7 +115,7 @@ func (s *IntegrationTestSuite) TestUmeeTokenTransfers() {
 				// that sent the batch tx and got the gravity fee.
 				return b >= 300 && b <= 307
 			},
-			2*time.Minute,
+			5*time.Minute,
 			5*time.Second,
 			"unexpected balance: %d", latestBalance,
 		)

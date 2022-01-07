@@ -82,11 +82,11 @@ mocks:
 	@go run github.com/golang/mock/mockgen -destination=mocks/evm_provider.go \
 			-package=mocks github.com/umee-network/peggo/orchestrator/ethereum/provider \
 			EVMProviderWithRet
-	@go run github.com/golang/mock/mockgen -destination=mocks/peggy_queryclient.go \
-			-package=mocks github.com/umee-network/umee/x/peggy/types \
+	@go run github.com/golang/mock/mockgen -destination=mocks/gravity_queryclient.go \
+			-package=mocks github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types \
 			QueryClient
-	@go run github.com/golang/mock/mockgen -destination=mocks/peggy/peggy_contract.go \
-			-package=peggy github.com/umee-network/peggo/orchestrator/ethereum/peggy \
+	@go run github.com/golang/mock/mockgen -destination=mocks/gravity/gravity_contract.go \
+			-package=gravity github.com/umee-network/peggo/orchestrator/ethereum/gravity \
 			Contract
 
 .PHONY: test-integration lint mocks
@@ -97,7 +97,7 @@ mocks:
 
 gen: solidity-wrappers
 
-SOLIDITY_DIR = solidity
+SOLIDITY_DIR = ../Gravity-Bridge/solidity
 solidity-wrappers: $(SOLIDITY_DIR)/contracts/*.sol
 	cd $(SOLIDITY_DIR)/contracts/ ; \
 	for file in $(^F) ; do \

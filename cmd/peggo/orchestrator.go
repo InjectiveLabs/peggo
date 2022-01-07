@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
@@ -20,18 +21,18 @@ import (
 	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/cosmos"
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
+	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 	"github.com/umee-network/peggo/orchestrator/relayer"
-	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
-	peggytypes "github.com/umee-network/umee/x/peggy/types"
+	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
 func getOrchestratorCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "orchestrator",
+		Use:   "orchestrator [gravity-addr]",
+		Args:  cobra.ExactArgs(1),
 		Short: "Starts the orchestrator",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			konfig, err := parseServerConfig(cmd)
@@ -101,14 +102,14 @@ func getOrchestratorCmd() *cobra.Command {
 			gRPCConn := daemonClient.QueryClient()
 			waitForService(ctx, gRPCConn)
 
-			peggyQuerier := peggytypes.NewQueryClient(gRPCConn)
+			gravityQuerier := gravitytypes.NewQueryClient(gRPCConn)
 
-			peggyParams, err := getPeggyParams(gRPCConn)
+			gravityParams, err := getGravityParams(gRPCConn)
 			if err != nil {
-				return fmt.Errorf("failed to query for Peggy params: %w", err)
+				return fmt.Errorf("failed to query for Gravity params: %w", err)
 			}
 
-			ethChainID := peggyParams.BridgeChainId
+			ethChainID := gravityParams.BridgeChainId
 			ethKeyFromAddress, signerFn, personalSignFn, err := initEthereumAccountsManager(logger, ethChainID, konfig)
 			if err != nil {
 				return fmt.Errorf("failed to initialize Ethereum account: %w", err)
@@ -137,22 +138,22 @@ func getOrchestratorCmd() *cobra.Command {
 				return fmt.Errorf("failed to create Ethereum committer: %w", err)
 			}
 
-			peggyBroadcaster := cosmos.NewPeggyBroadcastClient(
+			gravityBroadcaster := cosmos.NewGravityBroadcastClient(
 				logger,
-				peggyQuerier,
+				gravityQuerier,
 				daemonClient,
 				signerFn,
 				personalSignFn,
 			)
 
-			peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
+			gravityAddr := ethcmn.HexToAddress(args[0])
 
-			ethPeggy, err := wrappers.NewPeggy(peggyAddress, ethCommitter.Provider())
+			ethGravity, err := wrappers.NewGravity(gravityAddr, ethCommitter.Provider())
 			if err != nil {
-				return fmt.Errorf("failed to create a new instance of Peggy: %w", err)
+				return fmt.Errorf("failed to create a new instance of Gravity: %w", err)
 			}
 
-			peggyContract, err := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, ethPeggy)
+			gravityContract, err := gravity.NewGravityContract(logger, ethCommitter, gravityAddr, ethGravity)
 			if err != nil {
 				return fmt.Errorf("failed to create Ethereum committer: %w", err)
 			}
@@ -162,22 +163,22 @@ func getOrchestratorCmd() *cobra.Command {
 				BaseURL: coingeckoAPI,
 			})
 
-			// peggyParams.AverageBlockTime and peggyParams.AverageEthereumBlockTime are in milliseconds.
-			averageCosmosBlockTime := time.Duration(peggyParams.AverageBlockTime) * time.Millisecond
-			averageEthBlockTime := time.Duration(peggyParams.AverageEthereumBlockTime) * time.Millisecond
+			// gravityParams.AverageBlockTime and gravityParams.AverageEthereumBlockTime are in milliseconds.
+			averageCosmosBlockTime := time.Duration(gravityParams.AverageBlockTime) * time.Millisecond
+			averageEthBlockTime := time.Duration(gravityParams.AverageEthereumBlockTime) * time.Millisecond
 
 			// We multiply the relayer loop multiplier by the ETH block time.
-			// peggyParams.AverageEthereumBlockTime is in milliseconds.
+			// gravityParams.AverageEthereumBlockTime is in milliseconds.
 			ethBlockTimeF64 := float64(averageEthBlockTime.Milliseconds())
 			relayerLoopMultiplier := konfig.Float64(flagRelayerLoopMultiplier)
 
 			// Here we cast the float64 to a Duration (int64); as we are dealing with ms, we'll lose as much as 1ms.
 			relayerLoopDuration := time.Duration(ethBlockTimeF64*relayerLoopMultiplier) * time.Millisecond
 
-			relayer := relayer.NewPeggyRelayer(
+			relayer := relayer.NewGravityRelayer(
 				logger,
-				peggyQuerier,
-				peggyContract,
+				gravityQuerier,
+				gravityContract,
 				konfig.Bool(flagRelayValsets),
 				konfig.Bool(flagRelayBatches),
 				relayerLoopDuration,
@@ -202,11 +203,11 @@ func getOrchestratorCmd() *cobra.Command {
 			// Here we cast the float64 to a Duration (int64); as we are dealing with ms, we'll lose as much as 1ms.
 			batchRequesterLoopDuration := time.Duration(cosmosBlockTimeF64*requesterLoopMultiplier) * time.Millisecond
 
-			orch := orchestrator.NewPeggyOrchestrator(
+			orch := orchestrator.NewGravityOrchestrator(
 				logger,
-				peggyQuerier,
-				peggyBroadcaster,
-				peggyContract,
+				gravityQuerier,
+				gravityBroadcaster,
+				gravityContract,
 				ethKeyFromAddress,
 				signerFn,
 				personalSignFn,
@@ -224,11 +225,11 @@ func getOrchestratorCmd() *cobra.Command {
 				return startOrchestrator(errCtx, logger, orch)
 			})
 
-			// If we have the alchemy WS endpoint, start listening for txs against the Peggy contract.
+			// If we have the alchemy WS endpoint, start listening for txs against the Gravity Bridge contract.
 			alchemyWS := konfig.String(flagEthAlchemyWS)
 			if alchemyWS != "" {
 				g.Go(func() error {
-					return peggyContract.SubscribeToPendingTxs(errCtx, alchemyWS)
+					return gravityContract.SubscribeToPendingTxs(errCtx, alchemyWS)
 				})
 			}
 
@@ -270,7 +271,7 @@ func trapSignal(cancel context.CancelFunc) {
 	}()
 }
 
-func startOrchestrator(ctx context.Context, logger zerolog.Logger, orch orchestrator.PeggyOrchestrator) error {
+func startOrchestrator(ctx context.Context, logger zerolog.Logger, orch orchestrator.GravityOrchestrator) error {
 	srvErrCh := make(chan error, 1)
 	go func() {
 		logger.Info().Msg("starting orchestrator...")

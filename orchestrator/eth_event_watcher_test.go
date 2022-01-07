@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -20,12 +21,10 @@ import (
 	"github.com/umee-network/peggo/mocks"
 	"github.com/umee-network/peggo/orchestrator/cosmos"
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
-	wrappers "github.com/umee-network/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/umee-network/umee/x/peggy/types"
+	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
+	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
-// TODO: This function will require quite some effort to get it tested.
 func TestCheckForEvents(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
@@ -34,7 +33,7 @@ func TestCheckForEvents(t *testing.T) {
 		defer mockCtrl.Finish()
 
 		fromAddress := ethcmn.HexToAddress("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
-		peggyAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
+		gravityAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
 		logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		lastBlock := uint64(95)
@@ -51,14 +50,14 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
 				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
-						Address:     peggyAddress,
+						Address:     gravityAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
@@ -78,8 +77,8 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(95),
-				Addresses: []ethcmn.Address{peggyAddress},
-				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0xd7767894d73c589daeca9643f445f03d7be61aad2950c117e7cbff4176fca7e4")}, {}, {}, {}},
+				Addresses: []ethcmn.Address{gravityAddress},
+				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x9e9794dbf94b0a0aa31a480f5b38550eda7f89115ac8fbf4953fa4dd219900c9")}, {}, {}},
 			})).
 			Return(
 				[]ethtypes.Log{},
@@ -92,7 +91,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x02c7e81975f8edb86e2a0c038b7b86a49c744236abf0f6177ff5afc6986ab708")}, {}, {}},
 			})).
 			Return(
@@ -106,7 +105,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x76d08978c024a4bf8cbb30c67fd78fcaa1827cbc533e4e175f36d07e64ccf96a")}, {}},
 			})).
 			Return(
@@ -124,7 +123,7 @@ func TestCheckForEvents(t *testing.T) {
 			ethProvider,
 		)
 
-		peggyContract, _ := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, nil)
+		gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
@@ -132,10 +131,9 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		// TODO: making this more specific might be useful for testing?
 		mockCosmos.EXPECT().SyncBroadcastMsg(gomock.Any()).Return(&sdk.TxResponse{}, nil).AnyTimes()
 
-		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
+		gravityBroadcastClient := cosmos.NewGravityBroadcastClient(
 			logger,
 			nil,
 			mockCosmos,
@@ -144,20 +142,17 @@ func TestCheckForEvents(t *testing.T) {
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
-		mockQClient.EXPECT().LastEventByAddr(gomock.Any(), &types.QueryLastEventByAddrRequest{
-			Address: peggyBroadcastClient.AccFromAddress().String(),
-		}).Return(&types.QueryLastEventByAddrResponse{
-			LastClaimEvent: &types.LastClaimEvent{
-				EthereumEventNonce:  1,
-				EthereumEventHeight: 123,
-			},
+		mockQClient.EXPECT().LastEventNonceByAddr(gomock.Any(), &types.QueryLastEventNonceByAddrRequest{
+			Address: gravityBroadcastClient.AccFromAddress().String(),
+		}).Return(&types.QueryLastEventNonceByAddrResponse{
+			EventNonce: 1,
 		}, nil)
 
-		orch := NewPeggyOrchestrator(
+		orch := NewGravityOrchestrator(
 			logger,
 			mockQClient,
-			peggyBroadcastClient,
-			peggyContract,
+			gravityBroadcastClient,
+			gravityContract,
 			fromAddress,
 			nil,
 			nil,
@@ -179,7 +174,7 @@ func TestCheckForEvents(t *testing.T) {
 		defer mockCtrl.Finish()
 
 		fromAddress := ethcmn.HexToAddress("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
-		peggyAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
+		gravityAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
 		logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		lastBlock := uint64(95)
@@ -196,7 +191,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
@@ -213,7 +208,7 @@ func TestCheckForEvents(t *testing.T) {
 			ethProvider,
 		)
 
-		peggyContract, _ := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, nil)
+		gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
@@ -221,7 +216,7 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
+		gravityBroadcastClient := cosmos.NewGravityBroadcastClient(
 			logger,
 			nil,
 			mockCosmos,
@@ -231,11 +226,11 @@ func TestCheckForEvents(t *testing.T) {
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
 
-		orch := NewPeggyOrchestrator(
+		orch := NewGravityOrchestrator(
 			logger,
 			mockQClient,
-			peggyBroadcastClient,
-			peggyContract,
+			gravityBroadcastClient,
+			gravityContract,
 			fromAddress,
 			nil,
 			nil,
@@ -257,7 +252,7 @@ func TestCheckForEvents(t *testing.T) {
 		defer mockCtrl.Finish()
 
 		fromAddress := ethcmn.HexToAddress("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
-		peggyAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
+		gravityAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
 		logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		lastBlock := uint64(95)
@@ -274,14 +269,14 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
 				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
-						Address:     peggyAddress,
+						Address:     gravityAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
@@ -301,8 +296,8 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(95),
-				Addresses: []ethcmn.Address{peggyAddress},
-				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0xd7767894d73c589daeca9643f445f03d7be61aad2950c117e7cbff4176fca7e4")}, {}, {}, {}},
+				Addresses: []ethcmn.Address{gravityAddress},
+				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x9e9794dbf94b0a0aa31a480f5b38550eda7f89115ac8fbf4953fa4dd219900c9")}, {}, {}},
 			})).
 			Return(
 				nil,
@@ -319,7 +314,7 @@ func TestCheckForEvents(t *testing.T) {
 			ethProvider,
 		)
 
-		peggyContract, _ := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, nil)
+		gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
@@ -327,7 +322,7 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
+		gravityBroadcastClient := cosmos.NewGravityBroadcastClient(
 			logger,
 			nil,
 			mockCosmos,
@@ -336,11 +331,11 @@ func TestCheckForEvents(t *testing.T) {
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
-		orch := NewPeggyOrchestrator(
+		orch := NewGravityOrchestrator(
 			logger,
 			mockQClient,
-			peggyBroadcastClient,
-			peggyContract,
+			gravityBroadcastClient,
+			gravityContract,
 			fromAddress,
 			nil,
 			nil,
@@ -362,7 +357,7 @@ func TestCheckForEvents(t *testing.T) {
 		defer mockCtrl.Finish()
 
 		fromAddress := ethcmn.HexToAddress("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
-		peggyAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
+		gravityAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
 		logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		lastBlock := uint64(95)
@@ -379,14 +374,14 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
 				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
-						Address:     peggyAddress,
+						Address:     gravityAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
@@ -406,8 +401,8 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(95),
-				Addresses: []ethcmn.Address{peggyAddress},
-				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0xd7767894d73c589daeca9643f445f03d7be61aad2950c117e7cbff4176fca7e4")}, {}, {}, {}},
+				Addresses: []ethcmn.Address{gravityAddress},
+				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x9e9794dbf94b0a0aa31a480f5b38550eda7f89115ac8fbf4953fa4dd219900c9")}, {}, {}},
 			})).
 			Return(
 				[]ethtypes.Log{},
@@ -420,7 +415,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x02c7e81975f8edb86e2a0c038b7b86a49c744236abf0f6177ff5afc6986ab708")}, {}, {}},
 			})).
 			Return(
@@ -438,7 +433,7 @@ func TestCheckForEvents(t *testing.T) {
 			ethProvider,
 		)
 
-		peggyContract, _ := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, nil)
+		gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
@@ -446,7 +441,7 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
+		gravityBroadcastClient := cosmos.NewGravityBroadcastClient(
 			logger,
 			nil,
 			mockCosmos,
@@ -455,11 +450,11 @@ func TestCheckForEvents(t *testing.T) {
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
-		orch := NewPeggyOrchestrator(
+		orch := NewGravityOrchestrator(
 			logger,
 			mockQClient,
-			peggyBroadcastClient,
-			peggyContract,
+			gravityBroadcastClient,
+			gravityContract,
 			fromAddress,
 			nil,
 			nil,
@@ -481,7 +476,7 @@ func TestCheckForEvents(t *testing.T) {
 		defer mockCtrl.Finish()
 
 		fromAddress := ethcmn.HexToAddress("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
-		peggyAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
+		gravityAddress := ethcmn.HexToAddress("0x3bdf8428734244c9e5d82c95d125081939d6d42d")
 		logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})
 
 		lastBlock := uint64(95)
@@ -498,14 +493,14 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7")}, {}},
 			})).
 			Return(
 				// The test data is from a real tx: https://goerli.etherscan.io/tx/0x09310b8dcc615b0baab5c0c41e9e7633f513c23532d0f191509d65e5a28b4ed7#eventlog
 				[]ethtypes.Log{
 					{
-						Address:     peggyAddress,
+						Address:     gravityAddress,
 						Topics:      []ethcmn.Hash{ethcmn.HexToHash("0x82fe3a4fa49c6382d0c085746698ddbbafe6c2bf61285b19410644b5b26287c7"), ethcmn.HexToHash("0x00000000000000000000000053cf531308195be45981e75d1c217a61358f2c27")},
 						Data:        hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000378000000000000000000000000000000000000000000000000000000000000000575756d65650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d6565000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004756d656500000000000000000000000000000000000000000000000000000000"),
 						BlockNumber: 3,
@@ -525,8 +520,8 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(95),
-				Addresses: []ethcmn.Address{peggyAddress},
-				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0xd7767894d73c589daeca9643f445f03d7be61aad2950c117e7cbff4176fca7e4")}, {}, {}, {}},
+				Addresses: []ethcmn.Address{gravityAddress},
+				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x9e9794dbf94b0a0aa31a480f5b38550eda7f89115ac8fbf4953fa4dd219900c9")}, {}, {}},
 			})).
 			Return(
 				[]ethtypes.Log{},
@@ -539,7 +534,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x02c7e81975f8edb86e2a0c038b7b86a49c744236abf0f6177ff5afc6986ab708")}, {}, {}},
 			})).
 			Return(
@@ -553,7 +548,7 @@ func TestCheckForEvents(t *testing.T) {
 			MatchFilterQuery(ethereum.FilterQuery{
 				FromBlock: new(big.Int).SetUint64(1),
 				ToBlock:   new(big.Int).SetUint64(lastBlock),
-				Addresses: []ethcmn.Address{peggyAddress},
+				Addresses: []ethcmn.Address{gravityAddress},
 				Topics:    [][]ethcmn.Hash{{ethcmn.HexToHash("0x76d08978c024a4bf8cbb30c67fd78fcaa1827cbc533e4e175f36d07e64ccf96a")}, {}},
 			})).
 			Return(
@@ -571,7 +566,7 @@ func TestCheckForEvents(t *testing.T) {
 			ethProvider,
 		)
 
-		peggyContract, _ := peggy.NewPeggyContract(logger, ethCommitter, peggyAddress, nil)
+		gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 		mockCosmos := mocks.NewMockCosmosClient(mockCtrl)
 		mockCosmos.EXPECT().FromAddress().Return(sdk.AccAddress{}).AnyTimes()
@@ -579,7 +574,7 @@ func TestCheckForEvents(t *testing.T) {
 			return []byte{}, errors.New("some error during signing")
 		}
 
-		peggyBroadcastClient := cosmos.NewPeggyBroadcastClient(
+		gravityBroadcastClient := cosmos.NewGravityBroadcastClient(
 			logger,
 			nil,
 			mockCosmos,
@@ -588,11 +583,11 @@ func TestCheckForEvents(t *testing.T) {
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
-		orch := NewPeggyOrchestrator(
+		orch := NewGravityOrchestrator(
 			logger,
 			mockQClient,
-			peggyBroadcastClient,
-			peggyContract,
+			gravityBroadcastClient,
+			gravityContract,
 			fromAddress,
 			nil,
 			nil,
@@ -612,7 +607,7 @@ func TestCheckForEvents(t *testing.T) {
 func TestFilterSendToCosmosEventsByNonce(t *testing.T) {
 	// In testEv we'll add 2 valid and 1 past event.
 	// This should result in only 2 events after the filter.
-	testEv := []*wrappers.PeggySendToCosmosEvent{
+	testEv := []*wrappers.GravitySendToCosmosEvent{
 		{EventNonce: big.NewInt(3)},
 		{EventNonce: big.NewInt(4)},
 		{EventNonce: big.NewInt(5)},
@@ -625,7 +620,7 @@ func TestFilterSendToCosmosEventsByNonce(t *testing.T) {
 func TestFilterTransactionBatchExecutedEventsByNonce(t *testing.T) {
 	// In testEv we'll add 2 valid and 1 past event.
 	// This should result in only 2 events after the filter.
-	testEv := []*wrappers.PeggyTransactionBatchExecutedEvent{
+	testEv := []*wrappers.GravityTransactionBatchExecutedEvent{
 		{EventNonce: big.NewInt(3)},
 		{EventNonce: big.NewInt(4)},
 		{EventNonce: big.NewInt(5)},
@@ -638,7 +633,7 @@ func TestFilterTransactionBatchExecutedEventsByNonce(t *testing.T) {
 func TestFilterValsetUpdateEventsByNonce(t *testing.T) {
 	// In testEv we'll add 2 valid and 1 past event.
 	// This should result in only 2 events after the filter.
-	testEv := []*wrappers.PeggyValsetUpdatedEvent{
+	testEv := []*wrappers.GravityValsetUpdatedEvent{
 		{EventNonce: big.NewInt(3)},
 		{EventNonce: big.NewInt(4)},
 		{EventNonce: big.NewInt(5)},
@@ -651,7 +646,7 @@ func TestFilterValsetUpdateEventsByNonce(t *testing.T) {
 func TestFilterERC20DeployedEventsByNonce(t *testing.T) {
 	// In testEv we'll add 2 valid and 1 past event.
 	// This should result in only 2 events after the filter.
-	testEv := []*wrappers.PeggyERC20DeployedEvent{
+	testEv := []*wrappers.GravityERC20DeployedEvent{
 		{EventNonce: big.NewInt(3)},
 		{EventNonce: big.NewInt(4)},
 		{EventNonce: big.NewInt(5)},

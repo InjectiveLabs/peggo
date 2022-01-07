@@ -5,67 +5,68 @@ import (
 	"sync"
 	"time"
 
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 	sidechain "github.com/umee-network/peggo/orchestrator/cosmos"
+	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"
-	"github.com/umee-network/peggo/orchestrator/ethereum/peggy"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 	"github.com/umee-network/peggo/orchestrator/relayer"
-	peggytypes "github.com/umee-network/umee/x/peggy/types"
 )
 
-type PeggyOrchestrator interface {
+type GravityOrchestrator interface {
 	Start(ctx context.Context) error
 	CheckForEvents(ctx context.Context, startingBlock, ethBlockConfirmationDelay uint64) (currentBlock uint64, err error)
-	GetLastCheckedBlock(ctx context.Context) (uint64, error)
+	GetLastCheckedBlock(ctx context.Context, ethBlockConfirmationDelay uint64) (uint64, error)
 	EthOracleMainLoop(ctx context.Context) error
 	EthSignerMainLoop(ctx context.Context) error
 	BatchRequesterLoop(ctx context.Context) error
 	RelayerMainLoop(ctx context.Context) error
 }
 
-type peggyOrchestrator struct {
+type gravityOrchestrator struct {
 	logger                     zerolog.Logger
-	cosmosQueryClient          peggytypes.QueryClient
-	peggyBroadcastClient       sidechain.PeggyBroadcastClient
-	peggyContract              peggy.Contract
+	cosmosQueryClient          gravitytypes.QueryClient
+	gravityBroadcastClient     sidechain.GravityBroadcastClient
+	gravityContract            gravity.Contract
 	ethProvider                provider.EVMProvider
 	ethFrom                    ethcmn.Address
 	ethSignerFn                keystore.SignerFn
 	ethPersonalSignFn          keystore.PersonalSignFn
-	relayer                    relayer.PeggyRelayer
+	relayer                    relayer.GravityRelayer
 	cosmosBlockTime            time.Duration
 	ethereumBlockTime          time.Duration
 	batchRequesterLoopDuration time.Duration
+	startingEthBlock           uint64
 	ethBlocksPerLoop           uint64
 
 	mtx             sync.Mutex
 	erc20DenomCache map[string]string
 }
 
-func NewPeggyOrchestrator(
+func NewGravityOrchestrator(
 	logger zerolog.Logger,
-	cosmosQueryClient peggytypes.QueryClient,
-	peggyBroadcastClient sidechain.PeggyBroadcastClient,
-	peggyContract peggy.Contract,
+	cosmosQueryClient gravitytypes.QueryClient,
+	gravityBroadcastClient sidechain.GravityBroadcastClient,
+	gravityContract gravity.Contract,
 	ethFrom ethcmn.Address,
 	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
-	relayer relayer.PeggyRelayer,
+	relayer relayer.GravityRelayer,
 	cosmosBlockTime time.Duration,
 	ethereumBlockTime time.Duration,
 	batchRequesterLoopDuration time.Duration,
 	ethBlocksPerLoop int64,
-	options ...func(PeggyOrchestrator),
-) PeggyOrchestrator {
+	options ...func(GravityOrchestrator),
+) GravityOrchestrator {
 
-	orch := &peggyOrchestrator{
+	orch := &gravityOrchestrator{
 		logger:                     logger.With().Str("module", "orchestrator").Logger(),
 		cosmosQueryClient:          cosmosQueryClient,
-		peggyBroadcastClient:       peggyBroadcastClient,
-		peggyContract:              peggyContract,
-		ethProvider:                peggyContract.Provider(),
+		gravityBroadcastClient:     gravityBroadcastClient,
+		gravityContract:            gravityContract,
+		ethProvider:                gravityContract.Provider(),
 		ethFrom:                    ethFrom,
 		ethSignerFn:                ethSignerFn,
 		ethPersonalSignFn:          ethPersonalSignFn,
@@ -74,6 +75,7 @@ func NewPeggyOrchestrator(
 		ethereumBlockTime:          ethereumBlockTime,
 		batchRequesterLoopDuration: batchRequesterLoopDuration,
 		ethBlocksPerLoop:           uint64(ethBlocksPerLoop),
+		startingEthBlock:           uint64(6149808),
 	}
 
 	for _, option := range options {
