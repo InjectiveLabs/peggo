@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -28,7 +29,6 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 
-	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/umee-network/umee/app"
 )
 
@@ -198,14 +198,14 @@ func (s *IntegrationTestSuite) initGenesis() {
 	s.Require().NoError(cdc.UnmarshalJSON(appGenState[gravitytypes.ModuleName], &gravityGenState))
 
 	gravityGenState.Params.BridgeChainId = uint64(ethChainID)
-	gravityGenState.DelegateKeys = []gravitytypes.MsgSetOrchestratorAddress{}
+	gravityGenState.DelegateKeys = make([]gravitytypes.MsgSetOrchestratorAddress, len(s.chain.validators))
 
-	for i := range s.chain.validators {
-		gravityGenState.DelegateKeys = append(gravityGenState.DelegateKeys, gravitytypes.MsgSetOrchestratorAddress{
-			Validator:    sdk.ValAddress(s.chain.validators[i].keyInfo.GetAddress()).String(),
-			Orchestrator: s.chain.validators[i].keyInfo.GetAddress().String(),
-			EthAddress:   s.chain.validators[i].ethereumKey.address,
-		})
+	for i, val := range s.chain.validators {
+		gravityGenState.DelegateKeys[i] = gravitytypes.MsgSetOrchestratorAddress{
+			Validator:    sdk.ValAddress(val.keyInfo.GetAddress()).String(),
+			Orchestrator: val.keyInfo.GetAddress().String(),
+			EthAddress:   val.ethereumKey.address,
+		}
 	}
 
 	bz, err := cdc.MarshalJSON(&gravityGenState)
@@ -445,7 +445,7 @@ func (s *IntegrationTestSuite) runValidators() {
 }
 
 func (s *IntegrationTestSuite) runContractDeployment() {
-	s.T().Log("starting contract deployer container...")
+	s.T().Log("starting Gravity Bridge contract deployer container...")
 
 	resource, err := s.dkrPool.RunWithOptions(
 		&dockertest.RunOptions{
@@ -532,7 +532,7 @@ func (s *IntegrationTestSuite) runContractDeployment() {
 
 	s.Require().NoError(s.dkrPool.RemoveContainerByName(container.Name))
 
-	s.T().Logf("deployed Peggy (Gravity Bridge) contract: %s", gravityContractAddr)
+	s.T().Logf("deployed Gravity Bridge contract: %s", gravityContractAddr)
 	s.gravityContractAddr = gravityContractAddr
 }
 
@@ -597,7 +597,6 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 	for _, resource := range s.orchResources {
 		s.T().Logf("waiting for orchestrator to be healthy: %s", resource.Container.ID)
 
-		// TODO: temporary to find out what's failing
 		var (
 			outBuf bytes.Buffer
 			errBuf bytes.Buffer
