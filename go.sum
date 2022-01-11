@@ -1382,8 +1382,8 @@ github.com/ultraware/funlen v0.0.3 h1:5ylVWm8wsNwH5aWo9438pwvsK0QiqVuUrt9bn7S/iL
 github.com/ultraware/funlen v0.0.3/go.mod h1:Dp4UiAus7Wdb9KUZsYWZEWiRzGuM2kXM1lPbfaF6xhA=
 github.com/ultraware/whitespace v0.0.4 h1:If7Va4cM03mpgrNH9k49/VOicWpGoG70XPBFFODYDsg=
 github.com/ultraware/whitespace v0.0.4/go.mod h1:aVMh/gQve5Maj9hQ/hg+F75lr/X5A89uZnzAmWSineA=
-github.com/umee-network/umee v0.0.0-20220105184533-97e69a1b1695 h1:Ee12E1T/EqVVnoJaI6LXhu5xVBuIljv73pOJzczbkwk=
-github.com/umee-network/umee v0.0.0-20220105184533-97e69a1b1695/go.mod h1:H+M91vZMKp6L4JQtVLAo34YfVobpsYiz1bcyU/cjFzs=
+github.com/umee-network/umee v0.6.0-rc0 h1:DJesA5gbH5Mkr3LwLud2oeKLAw+J4BnP2ryObyHRXpI=
+github.com/umee-network/umee v0.6.0-rc0/go.mod h1:EIOeDL9KqWquciMpG0o5Y2VHHJYQHu2qW7mpwd0TFMA=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
