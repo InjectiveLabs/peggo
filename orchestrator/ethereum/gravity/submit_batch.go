@@ -34,8 +34,10 @@ func (s *gravityContract) EncodeTransactionBatch(
 
 	sigs, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {
-		err = errors.Wrap(err, "confirmations check failed")
-		return nil, err
+		s.logger.Debug().
+			AnErr("err", err).
+			Msg("confirmations check failed")
+		return nil, nil
 	}
 
 	amounts, destinations, fees := getBatchCheckpointValues(batch)
@@ -146,10 +148,11 @@ func checkAndRepackSigs(valset types.Valset, confirms []genericConfirm) (*Repack
 			sigs.s = append(sigs.s, [32]byte{})
 		}
 	}
-	if gravityPowerToPercent(powerOfGoodSigs) < 66 {
-		err = ErrInsufficientVotingPowerToPass
+
+	if isEnoughPower(powerOfGoodSigs) {
 		return sigs, err
 	}
 
+	err = ErrInsufficientVotingPowerToPass
 	return sigs, err
 }

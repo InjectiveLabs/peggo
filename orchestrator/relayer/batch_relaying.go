@@ -155,6 +155,10 @@ func (s *gravityRelayer) RelayBatches(
 				return err
 			}
 
+			if txData == nil {
+				continue
+			}
+
 			estimatedGasCost, gasPrice, err := s.gravityContract.EstimateGas(ctx, s.gravityContract.Address(), txData)
 			if err != nil {
 				s.logger.Err(err).Msg("failed to estimate gas cost")

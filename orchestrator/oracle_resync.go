@@ -107,10 +107,36 @@ func (p *gravityOrchestrator) GetLastCheckedBlock(
 
 		iterTXBatchExec.Close()
 
-		// this reverse solves a very specific bug, we use the properties of the first valsets for edgecase
+		iterErc20Deploy, err := gravityFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
+			Start: endSearch,
+			End:   &currentBlock,
+		}, nil)
+		if err != nil {
+			p.logger.Err(err).
+				Uint64("start", endSearch).
+				Uint64("end", currentBlock).
+				Msg("failed to scan past ERC20Deployed events from Ethereum")
+
+			if !isUnknownBlockErr(err) {
+				err = errors.Wrap(err, "failed to scan past ERC20Deployed events from Ethereum")
+				return 0, err
+			} else if iterErc20Deploy == nil {
+				return 0, errors.New("no iterator returned")
+			}
+		}
+
+		for iterErc20Deploy.Next() {
+			if iterErc20Deploy.Event.EventNonce.Uint64() == lastEventNonce {
+				return iterErc20Deploy.Event.Raw.BlockNumber, nil
+			}
+		}
+
+		iterErc20Deploy.Close()
+
+		// This reverse solves a very specific bug, we use the properties of the first valsets for edgecase
 		// handling here, but events come in chronological order, so if we don't reverse the iterator
 		// we will encounter the first validator sets first and exit early and incorrectly.
-		// note that reversing everything won't actually get you that much of a performance gain
+		// Note that reversing everything won't actually get you that much of a performance gain
 		// because this only involves events within the searching block range.
 		var valsetUpdatedEvents []*wrappers.GravityValsetUpdatedEvent
 		{
@@ -139,7 +165,7 @@ func (p *gravityOrchestrator) GetLastCheckedBlock(
 			iter.Close()
 		}
 
-		// there's no easy way to reverse the list, so we have to do it manually
+		// There's no easy way to reverse the list, so we have to do it manually.
 		for i := 0; i < len(valsetUpdatedEvents)/2; i++ {
 			j := len(valsetUpdatedEvents) - i - 1
 			valsetUpdatedEvents[i], valsetUpdatedEvents[j] = valsetUpdatedEvents[j], valsetUpdatedEvents[i]
@@ -152,35 +178,11 @@ func (p *gravityOrchestrator) GetLastCheckedBlock(
 			if commonCase || bootstrapping {
 				return valset.Raw.BlockNumber, nil
 			} else if valset.NewValsetNonce.Uint64() == 0 && lastEventNonce > 1 {
+				// If another iterator is added below the valset iterator, this panic will be triggered. Add new
+				// iterators above.
 				p.logger.Panic().Msg("could not find the last event relayed")
 			}
 		}
-
-		iterErc20Deploy, err := gravityFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
-			Start: endSearch,
-			End:   &currentBlock,
-		}, nil)
-		if err != nil {
-			p.logger.Err(err).
-				Uint64("start", endSearch).
-				Uint64("end", currentBlock).
-				Msg("failed to scan past ERC20Deployed events from Ethereum")
-
-			if !isUnknownBlockErr(err) {
-				err = errors.Wrap(err, "failed to scan past ERC20Deployed events from Ethereum")
-				return 0, err
-			} else if iterErc20Deploy == nil {
-				return 0, errors.New("no iterator returned")
-			}
-		}
-
-		for iterErc20Deploy.Next() {
-			if iterErc20Deploy.Event.EventNonce.Uint64() == lastEventNonce {
-				return iterErc20Deploy.Event.Raw.BlockNumber, nil
-			}
-		}
-
-		iterErc20Deploy.Close()
 
 		currentBlock = endSearch
 	}

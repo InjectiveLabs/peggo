@@ -41,8 +41,10 @@ func (s *gravityContract) EncodeValsetUpdate(
 	// members of the validator set in the contract.
 	sigs, err := checkValsetSigsAndRepack(oldValset, confirms)
 	if err != nil {
-		err = errors.Wrap(err, "confirmations check failed")
-		return nil, err
+		s.logger.Debug().
+			AnErr("err", err).
+			Msg("confirmations check failed")
+		return nil, nil
 	}
 	currentValsetNonce := new(big.Int).SetUint64(oldValset.Nonce)
 	currentValsetArgs := wrappers.ValsetArgs{

@@ -161,6 +161,7 @@ func TestCheckForEvents(t *testing.T) {
 			time.Second,
 			time.Second,
 			100,
+			0,
 		)
 
 		currentBlock, err := orch.CheckForEvents(context.Background(), 1, 5)
@@ -239,6 +240,7 @@ func TestCheckForEvents(t *testing.T) {
 			time.Second,
 			time.Second,
 			100,
+			0,
 		)
 
 		currentBlock, err := orch.CheckForEvents(context.Background(), 1, 5)
@@ -344,6 +346,7 @@ func TestCheckForEvents(t *testing.T) {
 			time.Second,
 			time.Second,
 			100,
+			0,
 		)
 
 		currentBlock, err := orch.CheckForEvents(context.Background(), 1, 5)
@@ -463,6 +466,7 @@ func TestCheckForEvents(t *testing.T) {
 			time.Second,
 			time.Second,
 			100,
+			0,
 		)
 
 		currentBlock, err := orch.CheckForEvents(context.Background(), 1, 5)
@@ -596,6 +600,7 @@ func TestCheckForEvents(t *testing.T) {
 			time.Second,
 			time.Second,
 			100,
+			0,
 		)
 
 		currentBlock, err := orch.CheckForEvents(context.Background(), 1, 5)

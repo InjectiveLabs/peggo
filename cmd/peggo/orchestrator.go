@@ -216,6 +216,7 @@ func getOrchestratorCmd() *cobra.Command {
 				averageEthBlockTime,
 				batchRequesterLoopDuration,
 				konfig.Int64(flagEthBlocksPerLoop),
+				konfig.Int64(flagBridgeStartHeight),
 			)
 
 			ctx, cancel = context.WithCancel(context.Background())
@@ -250,6 +251,7 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Float64(flagRelayerLoopMultiplier, 3.0, "Multiplier for the relayer loop duration (in ETH blocks)")
 	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")
 	cmd.Flags().String(flagCosmosFeeGranter, "", "Set an (optional) fee granter address that will pay for Cosmos fees (feegrant must exist)")
+	cmd.Flags().Int64(flagBridgeStartHeight, 0, "Set an (optional) height to wait for the bridge to be available")
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())

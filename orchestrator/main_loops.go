@@ -18,11 +18,11 @@ const (
 
 	// Run every approximately 5 Ethereum blocks to allow time to receive new blocks.
 	// If we run this faster we wouldn't be getting new blocks, which is not efficient.
-	ethOracleLoopMultiplier = 1
+	ethOracleLoopMultiplier = 5
 
 	// Run every approximately 3 Cosmos blocks; so we sign batches and valset updates ASAP but not run these requests
 	// too often that we make too many requests to Cosmos.
-	ethSignerLoopMultiplier = 1
+	ethSignerLoopMultiplier = 3
 )
 
 // Start combines the all major roles required to make
@@ -73,12 +73,36 @@ func (p *gravityOrchestrator) EthOracleMainLoop(ctx context.Context) (err error)
 		return err
 	}
 
+	// Wait until the contract is available
+	if p.bridgeStartHeight != 0 {
+		for {
+			latestHeader, err := p.ethProvider.HeaderByNumber(ctx, nil)
+			if err != nil {
+				logger.Err(err).Msg("failed to get latest header, loop exits")
+				return err
+			}
+
+			currentBlock := latestHeader.Number.Uint64() - getEthBlockDelay(gravityParams.BridgeChainId)
+
+			if currentBlock < p.bridgeStartHeight {
+				wait := p.ethereumBlockTime * time.Duration(p.bridgeStartHeight-currentBlock)
+				logger.Error().
+					Uint64("current_block", currentBlock).
+					Uint64("start_height", p.bridgeStartHeight).
+					Uint64("blocks_left", p.bridgeStartHeight-currentBlock).
+					Dur("wait_time", wait).
+					Msg("waiting for contract to be available")
+				time.Sleep(wait)
+				continue
+			}
+
+			logger.Info().Msg("contract is available; oracle loop starts")
+			break
+		}
+	}
+
 	if err := retry.Do(func() (err error) {
 		lastCheckedBlock, err = p.GetLastCheckedBlock(ctx, getEthBlockDelay(gravityParams.BridgeChainId))
-		if lastCheckedBlock == 0 {
-			lastCheckedBlock = p.startingEthBlock
-		}
-
 		return err
 	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 		logger.Err(err).Uint("retry", n).Msg("failed to get last checked block; retrying...")
@@ -343,13 +367,16 @@ func (p *gravityOrchestrator) ERC20ToDenom(ctx context.Context, tokenAddr ethcmn
 
 // getEthBlockDelay returns the right amount of Ethereum blocks to wait until we
 // consider a block final. This depends on the chain we are talking to.
-// Copying from https://github.com/althea-net/cosmos-gravity-bridge/blob/main/orchestrator/orchestrator/src/ethereum_event_watcher.rs#L222
+// Copying from https://github.com/Gravity-Bridge/Gravity-Bridge/blob/main/orchestrator/orchestrator/src/ethereum_event_watcher.rs#L248
+// DO NOT MODIFY. Changing any of these values puts the network in DANGER and
+// does not provide any advantage over other validators. This is a safety
+// mechanism to prevent relaying an event that is not yet considered final.
 func getEthBlockDelay(chainID uint64) uint64 {
 	switch chainID {
 	// Mainline Ethereum, Ethereum classic, or the Ropsten, Kotti, Mordor testnets
 	// all POW Chains
 	case 1, 3, 6, 7:
-		return 6
+		return 13
 
 	// Dev, our own Gravity Ethereum testnet, and Hardhat respectively
 	// all single signer chains with no chance of any reorgs
@@ -364,6 +391,6 @@ func getEthBlockDelay(chainID uint64) uint64 {
 
 	// assume the safe option (POW) where we don't know
 	default:
-		return 6
+		return 13
 	}
 }

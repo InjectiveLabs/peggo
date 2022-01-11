@@ -45,6 +45,7 @@ const (
 	flagProfitMultiplier        = "profit-multiplier"
 	flagRelayerLoopMultiplier   = "relayer-loop-multiplier"
 	flagRequesterLoopMultiplier = "requester-loop-multiplier"
+	flagBridgeStartHeight       = "bridge-start-height"
 )
 
 func cosmosFlagSet() *pflag.FlagSet {

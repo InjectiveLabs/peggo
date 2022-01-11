@@ -54,8 +54,8 @@ func TestERC20ToDenom(t *testing.T) {
 }
 
 func TestGetEthBlockDelay(t *testing.T) {
-	assert.Equal(t, uint64(6), getEthBlockDelay(1))
+	assert.Equal(t, uint64(13), getEthBlockDelay(1))
 	assert.Equal(t, uint64(0), getEthBlockDelay(2018))
 	assert.Equal(t, uint64(10), getEthBlockDelay(5))
-	assert.Equal(t, uint64(6), getEthBlockDelay(1235))
+	assert.Equal(t, uint64(13), getEthBlockDelay(1235))
 }

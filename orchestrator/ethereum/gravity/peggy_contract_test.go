@@ -17,12 +17,6 @@ import (
 	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
-func TestGravityPowerToPercent(t *testing.T) {
-	percent := gravityPowerToPercent(big.NewInt(213192100))
-	assert.Equal(t, percent, float32(4.9637656))
-
-}
-
 func TestGetTxBatchNonce(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

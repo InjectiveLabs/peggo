@@ -2,7 +2,6 @@ package gravity
 
 import (
 	"context"
-	"math"
 	"math/big"
 	"strings"
 	"sync"
@@ -14,15 +13,12 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/shopspring/decimal"
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
 	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
-// The total power in the Gravity bridge is normalized to u32 max every
-// time a validator set is created. This value of up to u32 max is then
-// stored in a i64 to prevent overflow during computation.
-const totalGravityPower int64 = math.MaxUint32
+// gravityPowerToPass is a mirror of constant_powerThreshold in Gravity.sol
+const gravityPowerToPass int64 = 2863311530
 
 var (
 	gravityABI, _ = abi.JSON(strings.NewReader(wrappers.GravityABI))
@@ -259,9 +255,7 @@ func sigToVRS(sigHex string) (v uint8, r, s ethcmn.Hash) {
 	return
 }
 
-// gravityPowerToPercent takes in an amount of power in the Gravity Bridge, returns a percentage of total
-func gravityPowerToPercent(total *big.Int) float32 {
-	d := decimal.NewFromBigInt(total, 0)
-	f, _ := d.Div(decimal.NewFromInt(totalGravityPower)).Shift(2).Float64()
-	return float32(f)
+// isEnoughPower compares a power value to the power required to pass (a constant)
+func isEnoughPower(total *big.Int) bool {
+	return total.Cmp(big.NewInt(gravityPowerToPass)) == 1
 }

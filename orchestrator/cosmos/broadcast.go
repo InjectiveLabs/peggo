@@ -65,11 +65,11 @@ type (
 	// sortableEvent exists with the only purpose to make a nicer sortable slice
 	// for Ethereum events. It is only used in SendEthereumClaims.
 	sortableEvent struct {
-		EventNonce         uint64
-		DepositEvent       *wrappers.GravitySendToCosmosEvent
-		WithdrawEvent      *wrappers.GravityTransactionBatchExecutedEvent
-		ValsetUpdateEvent  *wrappers.GravityValsetUpdatedEvent
-		ERC20DeployedEvent *wrappers.GravityERC20DeployedEvent
+		EventNonce                    uint64
+		SendToCosmosEvent             *wrappers.GravitySendToCosmosEvent
+		TransactionBatchExecutedEvent *wrappers.GravityTransactionBatchExecutedEvent
+		ValsetUpdateEvent             *wrappers.GravityValsetUpdatedEvent
+		ERC20DeployedEvent            *wrappers.GravityERC20DeployedEvent
 	}
 )
 
@@ -189,8 +189,8 @@ func (s *gravityBroadcastClient) SendEthereumClaims(
 	for _, ev := range deposits {
 		if ev.EventNonce.Uint64() > lastClaimEvent {
 			allevents = append(allevents, sortableEvent{
-				EventNonce:   ev.EventNonce.Uint64(),
-				DepositEvent: ev,
+				EventNonce:        ev.EventNonce.Uint64(),
+				SendToCosmosEvent: ev,
 			})
 		}
 	}
@@ -198,8 +198,8 @@ func (s *gravityBroadcastClient) SendEthereumClaims(
 	for _, ev := range withdraws {
 		if ev.EventNonce.Uint64() > lastClaimEvent {
 			allevents = append(allevents, sortableEvent{
-				EventNonce:    ev.EventNonce.Uint64(),
-				WithdrawEvent: ev,
+				EventNonce:                    ev.EventNonce.Uint64(),
+				TransactionBatchExecutedEvent: ev,
 			})
 		}
 	}
@@ -269,28 +269,28 @@ func (s *gravityBroadcastClient) broadcastEthereumEvents(events []sortableEvent)
 	// iterate through events and send them sequentially.
 	for _, ev := range events {
 		switch {
-		case ev.DepositEvent != nil:
+		case ev.SendToCosmosEvent != nil:
 
 			msgs = append(msgs, &types.MsgSendToCosmosClaim{
-				EventNonce:     ev.DepositEvent.EventNonce.Uint64(),
-				BlockHeight:    ev.DepositEvent.Raw.BlockNumber,
-				TokenContract:  ev.DepositEvent.TokenContract.Hex(),
-				Amount:         sdk.NewIntFromBigInt(ev.DepositEvent.Amount),
-				EthereumSender: ev.DepositEvent.Sender.Hex(),
-				CosmosReceiver: ev.DepositEvent.Destination,
+				EventNonce:     ev.SendToCosmosEvent.EventNonce.Uint64(),
+				BlockHeight:    ev.SendToCosmosEvent.Raw.BlockNumber,
+				TokenContract:  ev.SendToCosmosEvent.TokenContract.Hex(),
+				Amount:         sdk.NewIntFromBigInt(ev.SendToCosmosEvent.Amount),
+				EthereumSender: ev.SendToCosmosEvent.Sender.Hex(),
+				CosmosReceiver: ev.SendToCosmosEvent.Destination,
 				Orchestrator:   s.broadcastClient.FromAddress().String(),
 			})
-			evCounter["deposit"]++
+			evCounter["send_to_cosmos"]++
 
-		case ev.WithdrawEvent != nil:
+		case ev.TransactionBatchExecutedEvent != nil:
 			msgs = append(msgs, &types.MsgBatchSendToEthClaim{
-				EventNonce:    ev.WithdrawEvent.EventNonce.Uint64(),
-				BatchNonce:    ev.WithdrawEvent.BatchNonce.Uint64(),
-				BlockHeight:   ev.WithdrawEvent.Raw.BlockNumber,
-				TokenContract: ev.WithdrawEvent.Token.Hex(),
+				EventNonce:    ev.TransactionBatchExecutedEvent.EventNonce.Uint64(),
+				BatchNonce:    ev.TransactionBatchExecutedEvent.BatchNonce.Uint64(),
+				BlockHeight:   ev.TransactionBatchExecutedEvent.Raw.BlockNumber,
+				TokenContract: ev.TransactionBatchExecutedEvent.Token.Hex(),
 				Orchestrator:  s.AccFromAddress().String(),
 			})
-			evCounter["withdraw"]++
+			evCounter["transaction_batch_executed"]++
 
 		case ev.ValsetUpdateEvent != nil:
 			members := make([]types.BridgeValidator, len(ev.ValsetUpdateEvent.Validators))
@@ -329,8 +329,8 @@ func (s *gravityBroadcastClient) broadcastEthereumEvents(events []sortableEvent)
 	}
 
 	s.logger.Info().
-		Int("num_deposit", evCounter["deposit"]).
-		Int("num_withdraw", evCounter["withdraw"]).
+		Int("num_send_to_cosmos", evCounter["send_to_cosmos"]).
+		Int("num_transaction_batch_executed", evCounter["transaction_batch_executed"]).
 		Int("num_valset_update", evCounter["valset_update"]).
 		Int("num_erc20_deploy", evCounter["erc20_deploy"]).
 		Int("num_total_claims", len(events)).
