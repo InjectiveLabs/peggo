@@ -495,7 +495,7 @@ Transaction: %s
 func buildTransactOpts(konfig *koanf.Koanf, ethClient *ethclient.Client) (*bind.TransactOpts, error) {
 	ethPrivKeyHexStr := konfig.String(flagEthPK)
 
-	privKey, err := ethcrypto.HexToECDSA(ethPrivKeyHexStr)
+	privKey, err := ethcrypto.ToECDSA(ethcmn.FromHex(ethPrivKeyHexStr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode private key: %w", err)
 	}

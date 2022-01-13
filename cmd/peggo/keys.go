@@ -263,7 +263,7 @@ func initEthereumAccountsManager(
 		return ethKeyFromAddress, signerFn, personalSignFn, nil
 
 	case len(ethPrivKey) > 0:
-		ethPk, err := ethcrypto.HexToECDSA(ethPrivKey)
+		ethPk, err := ethcrypto.ToECDSA(ethcmn.FromHex(ethPrivKey))
 		if err != nil {
 			return emptyEthAddress, nil, nil, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
 		}
