@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD024 -->
 <!--
 Changelog Guiding Principles:
 
@@ -40,6 +41,15 @@ Ref: https://keepachangelog.com/en/1.0.0/
 # Changelog
 
 ## [Unreleased]
+
+### Features
+
+- [#118] Target the [Gravity Bridge](https://github.com/Gravity-Bridge/Gravity-Bridge) module.
+
+### Improvements
+
+- [#123] Cleanup after GB implementation. Updates and fixes to match Gravity.sol
+- [#125] Enable running tests with Ganache. Use gentx for gravity keys.
 
 ## [v0.1.1](https://github.com/umee-network/peggo/releases/tag/v0.1.1) - 2021-12-22
 
