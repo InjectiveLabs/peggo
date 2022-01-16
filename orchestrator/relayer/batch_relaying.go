@@ -112,6 +112,8 @@ func (s *gravityRelayer) RelayBatches(
 	lastEthereumHeader, err := s.ethProvider.HeaderByNumber(ctx, nil)
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get last ethereum header")
+		// Here we do return an error because we want to make sure that we don't keep trying to submit batches without
+		// knowing the block height.
 		return err
 	}
 
@@ -133,7 +135,7 @@ func (s *gravityRelayer) RelayBatches(
 			return err
 		}
 
-		// now we iterate through batches per token type
+		// Now we iterate through batches per token type.
 		for _, batch := range batches {
 			if batch.Batch.BatchTimeout < ethBlockHeight {
 				s.logger.Debug().
@@ -145,14 +147,15 @@ func (s *gravityRelayer) RelayBatches(
 				continue
 			}
 
-			// if the batch is newer than the latest Ethereum batch, we can submit it
+			// If the batch is newer than the latest Ethereum batch, we can submit it.
 			if batch.Batch.BatchNonce <= latestEthereumBatch.Uint64() {
 				continue
 			}
 
 			txData, err := s.gravityContract.EncodeTransactionBatch(ctx, currentValset, batch.Batch, batch.Signatures)
 			if err != nil {
-				return err
+				s.logger.Err(err).Msg("failed to encode transaction batch")
+				continue
 			}
 
 			if txData == nil {
@@ -162,7 +165,9 @@ func (s *gravityRelayer) RelayBatches(
 			estimatedGasCost, gasPrice, err := s.gravityContract.EstimateGas(ctx, s.gravityContract.Address(), txData)
 			if err != nil {
 				s.logger.Err(err).Msg("failed to estimate gas cost")
-				return err
+				// Here we shouldn't return, as it could be just another "nonce must be greater than the current nonce"
+				// error. We should continue to the next batch as this could make this orch retry with no good reason.
+				continue
 			}
 
 			// If the batch is not profitable, move on to the next one.
@@ -186,12 +191,12 @@ func (s *gravityRelayer) RelayBatches(
 			txHash, err := s.gravityContract.SendTx(ctx, s.gravityContract.Address(), txData, estimatedGasCost, gasPrice)
 			if err != nil {
 				s.logger.Err(err).Str("tx_hash", txHash.Hex()).Msg("failed to sign and submit (Gravity submitBatch) to EVM")
-				return err
+				continue
 			}
 
 			s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Gravity submitBatch)")
 
-			// update our local tracker of the latest batch
+			// Update our local tracker of the latest batch.
 			s.lastSentBatchNonce = batch.Batch.BatchNonce
 		}
 

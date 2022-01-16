@@ -391,48 +391,6 @@ func sendToCosmosCmd() *cobra.Command {
 				return fmt.Errorf("failed to dial Ethereum RPC node: %w", err)
 			}
 
-			// query for the name and symbol on-chain via the token's metadata
-			cosmosChainID := konfig.String(flagCosmosChainID)
-			clientCtx, err := client.NewClientContext(cosmosChainID, "", nil)
-			if err != nil {
-				return err
-			}
-
-			tmRPCEndpoint := konfig.String(flagTendermintRPC)
-			cosmosGRPC := konfig.String(flagCosmosGRPC)
-
-			tmRPC, err := rpchttp.New(tmRPCEndpoint, "/websocket")
-			if err != nil {
-				return fmt.Errorf("failed to create Tendermint RPC client: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "Connected to Tendermint RPC: %s\n", tmRPCEndpoint)
-			clientCtx = clientCtx.WithClient(tmRPC).WithNodeURI(tmRPCEndpoint)
-
-			logger, err := getLogger(cmd)
-			if err != nil {
-				return err
-			}
-
-			daemonClient, err := client.NewCosmosClient(clientCtx, logger, cosmosGRPC)
-			if err != nil {
-				return err
-			}
-
-			// TODO: Clean this up to be more ergonomic and clean. We can probably
-			// encapsulate all of this into a single utility function that gracefully
-			// checks for the gRPC status/health.
-			//
-			// Ref: https://github.com/umee-network/peggo/issues/2
-			fmt.Fprintln(os.Stderr, "Waiting for cosmos gRPC service...")
-			time.Sleep(time.Second)
-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-
-			gRPCConn := daemonClient.QueryClient()
-			waitForService(ctx, gRPCConn)
-
 			gravityAddr := args[0]
 
 			gravityContract, err := getGravityContract(ethRPC, gravityAddr)

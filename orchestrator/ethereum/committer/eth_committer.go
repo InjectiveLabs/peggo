@@ -173,8 +173,8 @@ func (e *ethCommitter) SendTx(
 				err := errors.New("failed to sign transaction")
 				e.nonceCache.Incr(e.fromAddress)
 				return err
-			case strings.Contains(err.Error(), "nonce is too low"),
-				strings.Contains(err.Error(), "nonce is too high"),
+			case strings.Contains(err.Error(), "nonce too low"),
+				strings.Contains(err.Error(), "nonce too high"),
 				strings.Contains(err.Error(), "the tx doesn't have the correct nonce"):
 
 				if resyncUsed {

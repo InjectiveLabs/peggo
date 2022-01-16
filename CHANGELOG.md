@@ -51,6 +51,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 - [#123] Cleanup after GB implementation. Updates and fixes to match Gravity.sol
 - [#125] Enable running tests with Ganache. Use gentx for gravity keys.
 
+### Bug fixes
+
+- [#128] Fix "nonce too low" error and other issues related to relaying.
+
 ## [v0.1.1](https://github.com/umee-network/peggo/releases/tag/v0.1.1) - 2021-12-22
 
 ### Bug Fixes
