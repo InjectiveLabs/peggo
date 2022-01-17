@@ -42,6 +42,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## [v0.2.0](https://github.com/umee-network/peggo/releases/tag/v0.2.0) - 2022-01-17
+
 ### Features
 
 - [#118] Target the [Gravity Bridge](https://github.com/Gravity-Bridge/Gravity-Bridge) module.
