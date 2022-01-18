@@ -42,6 +42,11 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Improvements
+
+- [#132] Add `cosmos-msgs-per-tx` flag to set how many messages (Ethereum claims)
+  will be sent in each Cosmos transaction.
+
 ## [v0.2.0](https://github.com/umee-network/peggo/releases/tag/v0.2.0) - 2022-01-17
 
 ### Features

@@ -60,6 +60,7 @@ type (
 		broadcastClient   client.CosmosClient
 		ethSignerFn       keystore.SignerFn
 		ethPersonalSignFn keystore.PersonalSignFn
+		msgsPerTx         int
 	}
 
 	// sortableEvent exists with the only purpose to make a nicer sortable slice
@@ -79,6 +80,7 @@ func NewGravityBroadcastClient(
 	broadcastClient client.CosmosClient,
 	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
+	msgsPerTx int,
 ) GravityBroadcastClient {
 	return &gravityBroadcastClient{
 		logger:            logger.With().Str("module", "gravity_broadcast_client").Logger(),
@@ -86,6 +88,7 @@ func NewGravityBroadcastClient(
 		broadcastClient:   broadcastClient,
 		ethSignerFn:       ethSignerFn,
 		ethPersonalSignFn: ethPersonalSignFn,
+		msgsPerTx:         msgsPerTx,
 	}
 }
 
@@ -336,8 +339,8 @@ func (s *gravityBroadcastClient) broadcastEthereumEvents(events []sortableEvent)
 		Int("num_total_claims", len(events)).
 		Msg("oracle observed events; sending claims")
 
-	// We send the messages in batches of 10, so that we don't hit any limits
-	msgSets := splitMsgs(msgs, 10)
+	// We send the messages in batches, so that we don't hit any limits
+	msgSets := splitMsgs(msgs, s.msgsPerTx)
 
 	for _, msgSet := range msgSets {
 		txResponse, err := s.broadcastClient.SyncBroadcastMsg(msgSet...)

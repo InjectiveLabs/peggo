@@ -144,6 +144,7 @@ func getOrchestratorCmd() *cobra.Command {
 				daemonClient,
 				signerFn,
 				personalSignFn,
+				konfig.Int(flagCosmosMsgsPerTx),
 			)
 
 			gravityAddr := ethcmn.HexToAddress(args[0])
@@ -252,6 +253,7 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")
 	cmd.Flags().String(flagCosmosFeeGranter, "", "Set an (optional) fee granter address that will pay for Cosmos fees (feegrant must exist)")
 	cmd.Flags().Int64(flagBridgeStartHeight, 0, "Set an (optional) height to wait for the bridge to be available")
+	cmd.Flags().Int(flagCosmosMsgsPerTx, 10, "Set a maximum number of messages to send per transaction (used for claims)")
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())

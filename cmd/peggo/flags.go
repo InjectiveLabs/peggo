@@ -25,6 +25,7 @@ const (
 	flagCosmosPK                = "cosmos-pk"
 	flagCosmosUseLedger         = "cosmos-use-ledger"
 	flagCosmosFeeGranter        = "cosmos-fee-granter"
+	flagCosmosMsgsPerTx         = "cosmos-msgs-per-tx"
 	flagEthKeystoreDir          = "eth-keystore-dir"
 	flagEthFrom                 = "eth-from"
 	flagEthPassphrase           = "eth-passphrase"

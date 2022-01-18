@@ -139,6 +139,7 @@ func TestCheckForEvents(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
@@ -223,6 +224,7 @@ func TestCheckForEvents(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
@@ -330,6 +332,7 @@ func TestCheckForEvents(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
@@ -450,6 +453,7 @@ func TestCheckForEvents(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)
@@ -584,6 +588,7 @@ func TestCheckForEvents(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		mockQClient := mocks.NewMockQueryClient(mockCtrl)

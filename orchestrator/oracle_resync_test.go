@@ -140,6 +140,7 @@ func TestGetLastCheckedBlock(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		orch := NewGravityOrchestrator(

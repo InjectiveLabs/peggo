@@ -39,6 +39,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
@@ -64,6 +65,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
@@ -91,6 +93,7 @@ func TestSendValsetConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendValsetConfirm(context.Background(), ethcmn.Address{}, "", types.Valset{
@@ -122,6 +125,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
@@ -145,6 +149,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
@@ -170,6 +175,7 @@ func TestSendBatchConfirm(t *testing.T) {
 			mockCosmos,
 			nil,
 			mockPersonalSignFn,
+			10,
 		)
 
 		err := s.SendBatchConfirm(context.Background(), ethcmn.Address{}, "", types.OutgoingTxBatch{})
@@ -246,6 +252,7 @@ func TestSendEthereumClaims(t *testing.T) {
 		mockCosmos,
 		nil,
 		nil,
+		10,
 	)
 
 	deposits := []*wrappers.GravitySendToCosmosEvent{
@@ -316,6 +323,7 @@ func TestSendEthereumClaimsIgnoreNonSequentialNonces(t *testing.T) {
 	s := gravityBroadcastClient{
 		daemonQueryClient: nil,
 		broadcastClient:   mockCosmos,
+		msgsPerTx:         10,
 	}
 
 	// We have events with nonces 1, 2, 3, 4, 5, 6, 7, 9.
@@ -392,6 +400,7 @@ func TestSendRequestBatch(t *testing.T) {
 			mockCosmos,
 			nil,
 			nil,
+			10,
 		)
 
 		err := s.SendRequestBatch(context.Background(), "uumee")
@@ -413,6 +422,7 @@ func TestSendRequestBatch(t *testing.T) {
 			mockCosmos,
 			nil,
 			nil,
+			10,
 		)
 
 		err := s.SendRequestBatch(context.Background(), "uumee")
