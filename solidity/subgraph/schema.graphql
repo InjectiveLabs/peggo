@@ -13,6 +13,7 @@ type Deposit @entity {
   sender: Bytes!
   destination: String!
   amount: BigInt!
+  eventNonce: Int!
   timestamp: Int!
   blockHeight: Int!
 }
@@ -36,6 +37,7 @@ type Withdrawal @entity {
   destination: String!
   fee: BigInt!
   tokenContract: Bytes!
+  eventNonce: Int!
   timestamp: Int!
   blockHeight: Int!
 }
