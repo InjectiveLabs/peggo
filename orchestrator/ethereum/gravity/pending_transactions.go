@@ -25,6 +25,10 @@ type RPCTransaction struct {
 // AddPendingTxInput adds pending submitBatch and updateBatch calls to the Gravity contract to the list of pending
 // transactions, any other transaction is ignored.
 func (p *PendingTxInputList) AddPendingTxInput(pendingTx *RPCTransaction) {
+	if len(pendingTx.Input) < 4 {
+		// Return if transaction doesn't contain enough data (method IDs are 4 bytes long).
+		return
+	}
 
 	submitBatchMethod := gravityABI.Methods["submitBatch"]
 	valsetUpdateMethod := gravityABI.Methods["updateValset"]

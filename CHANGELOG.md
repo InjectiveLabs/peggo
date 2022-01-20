@@ -46,6 +46,13 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - [#132] Add `cosmos-msgs-per-tx` flag to set how many messages (Ethereum claims)
   will be sent in each Cosmos transaction.
+- [#134] Improve valset relaying by changing how we search for the last valid
+  valset update.
+
+### Bug Fixes
+
+- [#134] Fix logs, CLI help and a panic when a non-function call transaction was
+ received during the TX pending check.
 
 ## [v0.2.0](https://github.com/umee-network/peggo/releases/tag/v0.2.0) - 2022-01-17
 

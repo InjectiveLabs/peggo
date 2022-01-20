@@ -55,12 +55,6 @@ func (s *gravityContract) EncodeValsetUpdate(
 		RewardToken:  ethcmn.HexToAddress(oldValset.RewardToken),
 	}
 
-	s.logger.Debug().
-		Interface("current_validators", sigs.validators).
-		Interface("current_powers", sigs.powers).
-		Interface("current_valset_nonce", currentValsetNonce).
-		Msg("sending updateValset Ethereum TX")
-
 	sigArray := []wrappers.Signature{}
 	for i := range sigs.v {
 		sigArray = append(sigArray, wrappers.Signature{

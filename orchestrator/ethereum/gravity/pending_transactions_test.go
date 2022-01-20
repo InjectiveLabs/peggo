@@ -28,6 +28,11 @@ func TestAddPendingTxInput(t *testing.T) {
 		Input: hexutil.MustDecode("0xaca6b1c100000000"),
 	})
 
+	// add a tx with no data
+	txList.AddPendingTxInput(&RPCTransaction{
+		Input: hexutil.MustDecode("0x00"),
+	})
+
 	// try to add a sendToCosmos tx
 	txList.AddPendingTxInput(&RPCTransaction{
 		Input: hexutil.MustDecode("0x0f21235700000000"),

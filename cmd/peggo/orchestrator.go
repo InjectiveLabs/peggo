@@ -51,13 +51,13 @@ func getOrchestratorCmd() *cobra.Command {
 				return fmt.Errorf("cannot use Ledger for orchestrator")
 			}
 
-			valAddress, cosmosKeyring, err := initCosmosKeyring(konfig)
+			orchAddress, cosmosKeyring, err := initCosmosKeyring(konfig)
 			if err != nil {
 				return fmt.Errorf("failed to initialize Cosmos keyring: %w", err)
 			}
 
 			cosmosChainID := konfig.String(flagCosmosChainID)
-			clientCtx, err := client.NewClientContext(cosmosChainID, valAddress.String(), cosmosKeyring)
+			clientCtx, err := client.NewClientContext(cosmosChainID, orchAddress.String(), cosmosKeyring)
 			if err != nil {
 				return err
 			}
@@ -189,7 +189,7 @@ func getOrchestratorCmd() *cobra.Command {
 			)
 
 			logger = logger.With().
-				Str("relayer_validator_addr", sdk.ValAddress(valAddress).String()).
+				Str("relayer_orchestrator_addr", orchAddress.String()).
 				Str("relayer_ethereum_addr", ethKeyFromAddress.String()).
 				Logger()
 
