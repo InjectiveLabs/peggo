@@ -3,7 +3,7 @@ module github.com/umee-network/peggo
 go 1.17
 
 require (
-	github.com/Gravity-Bridge/Gravity-Bridge/module v0.0.0-20220105165903-e165ecda7fb2
+	github.com/Gravity-Bridge/Gravity-Bridge/module v1.3.5
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/cosmos/cosmos-sdk v0.45.0
 	github.com/cosmos/go-bip39 v1.0.0
@@ -22,7 +22,7 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.14
-	github.com/umee-network/umee v0.6.0-rc0
+	github.com/umee-network/umee v0.7.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
 	google.golang.org/grpc v1.43.0
