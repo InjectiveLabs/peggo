@@ -42,6 +42,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## [v0.2.1](https://github.com/umee-network/peggo/releases/tag/v0.2.1) - 2022-01-31
+
 ### Improvements
 
 - [#132] Add `cosmos-msgs-per-tx` flag to set how many messages (Ethereum claims)
