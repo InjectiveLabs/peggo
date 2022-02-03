@@ -3,7 +3,7 @@ module github.com/umee-network/peggo
 go 1.17
 
 require (
-	github.com/Gravity-Bridge/Gravity-Bridge/module v1.3.5
+	github.com/Gravity-Bridge/Gravity-Bridge/module v1.4.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/cosmos/cosmos-sdk v0.45.0
 	github.com/cosmos/go-bip39 v1.0.0
