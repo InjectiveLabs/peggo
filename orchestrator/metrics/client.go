@@ -71,7 +71,7 @@ func Init(addr string, prefix string, cfg *StatterConfig) error {
 
 	statter, err := statsd.New(
 		addr,
-		statsd.WithNamespace("injective-trading-bot"),
+		statsd.WithNamespace("peggo"),
 		statsd.WithWriteTimeout(time.Duration(10) * time.Second),
 		statsd.WithTags(config.BaseTags()),
 	)
