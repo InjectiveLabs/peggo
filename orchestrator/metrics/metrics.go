@@ -42,9 +42,9 @@ func reportFunc(fn, action string, tags ...Tags) {
 	if client == nil {
 		return
 	}
-	tagSpec := joinTags(tags...)
-	tagSpec += ",func_name=" + fn
-	client.Increment(fmt.Sprintf("func.%v", action) + tagSpec)
+	tagArray := joinTags(tags...)
+	tagArray = append(tagArray, "func_name:"+fn)
+	client.Incr(fmt.Sprintf("func.%v", action), tagArray, 0.77)
 }
 
 type StopTimerFunc func()
@@ -57,8 +57,10 @@ func ReportFuncTiming(tags ...Tags) StopTimerFunc {
 	}
 	t := time.Now()
 	fn := funcName()
-	tagSpec := joinTags(tags...)
-	tagSpec += ",func_name=" + fn
+	tagArray := joinTags(tags...)
+	tagArray = append(tagArray, "func_name:"+fn)
+
+	fmt.Println(tagArray)
 
 	doneC := make(chan struct{})
 	go func(name string, start time.Time) {
@@ -71,7 +73,8 @@ func ReportFuncTiming(tags ...Tags) StopTimerFunc {
 
 			err := fmt.Errorf("detected stuck function: %s stuck for %v", name, time.Since(start))
 			log.WithError(err).Warningln("detected stuck function")
-			client.Increment("func.stuck" + tagSpec)
+			client.Incr("func.stuck", tagArray, 1)
+
 		}
 	}(fn, t)
 
@@ -81,7 +84,7 @@ func ReportFuncTiming(tags ...Tags) StopTimerFunc {
 
 		clientMux.RLock()
 		defer clientMux.RUnlock()
-		client.Timing("func.timing"+tagSpec, int(d/time.Millisecond))
+		client.Timing("func.timing", d, tagArray, 1)
 	}
 }
 
@@ -92,8 +95,8 @@ func ReportClosureFuncTiming(name string, tags ...Tags) StopTimerFunc {
 		return func() {}
 	}
 	t := time.Now()
-	tagSpec := joinTags(tags...)
-	tagSpec += ",func_name=" + name
+	tagArray := joinTags(tags...)
+	tagArray = append(tagArray, "func_name:"+name)
 
 	doneC := make(chan struct{})
 	go func(name string, start time.Time) {
@@ -106,7 +109,8 @@ func ReportClosureFuncTiming(name string, tags ...Tags) StopTimerFunc {
 
 			err := fmt.Errorf("detected stuck function: %s stuck for %v", name, time.Since(start))
 			log.WithError(err).Warningln("detected stuck function")
-			client.Increment("func.stuck" + tagSpec)
+			client.Incr("func.stuck", tagArray, 1)
+
 		}
 	}(name, t)
 
@@ -116,7 +120,8 @@ func ReportClosureFuncTiming(name string, tags ...Tags) StopTimerFunc {
 
 		clientMux.RLock()
 		defer clientMux.RUnlock()
-		client.Timing("func.timing"+tagSpec, int(d/time.Millisecond))
+		client.Timing("func.timing", d, tagArray, 1)
+
 	}
 }
 
@@ -140,13 +145,16 @@ func (t Tags) With(k, v string) Tags {
 	return t
 }
 
-func joinTags(tags ...Tags) string {
+func joinTags(tags ...Tags) []string {
 	if len(tags) == 0 {
-		return ""
+		return []string{}
 	}
-	var str string
+	tagArray := make([]string, len(tags))
+	i := 0
 	for k, v := range tags[0] {
-		str += fmt.Sprintf(",%s=%s", k, v)
+		tag := fmt.Sprintf("%s:%s", k, v)
+		tagArray[i] = tag
+		i += 1
 	}
-	return str
+	return tagArray
 }

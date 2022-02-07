@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alexcesaro/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 )
@@ -24,23 +24,23 @@ func (m *StatterConfig) BaseTags() []string {
 	var baseTags []string
 
 	if len(config.EnvName) > 0 {
-		baseTags = append(baseTags, "env", config.EnvName)
+		baseTags = append(baseTags, "env:" + config.EnvName)
 	}
-	// if len(config.HostName) > 0 {
-	// 	baseTags = append(baseTags, "machine", config.HostName)
-	// }
+	if len(config.HostName) > 0 {
+		baseTags = append(baseTags, "machine:" + config.HostName)
+	}
 
 	return baseTags
 }
 
 type Statter interface {
-	Count(bucket string, n interface{})
-	Increment(bucket string)
-	Gauge(bucket string, value interface{})
-	Timing(bucket string, value interface{})
-	Histogram(bucket string, value interface{})
-	Unique(bucket string, value string)
-	Close()
+	Count(name string, value int64, tags []string, rate float64) error
+	Incr(name string, tags []string, rate float64) error
+	Decr(name string, tags []string, rate float64) error
+	Gauge(name string, value float64, tags []string, rate float64) error
+	Timing(name string, value time.Duration, tags []string, rate float64) error
+	Histogram(name string, value float64, tags []string, rate float64) error
+	Close() error
 }
 
 func Close() {
@@ -68,13 +68,14 @@ func Init(addr string, prefix string, cfg *StatterConfig) error {
 		clientMux.Unlock()
 		return nil
 	}
+
 	statter, err := statsd.New(
-		statsd.Address(addr),
-		statsd.Prefix(prefix),
-		statsd.ErrorHandler(errHandler),
-		statsd.TagsFormat(statsd.InfluxDB),
-		statsd.Tags(config.BaseTags()...),
+		addr,
+		statsd.WithNamespace("injective-trading-bot"),
+		statsd.WithWriteTimeout(time.Duration(10) * time.Second),
+		statsd.WithTags(config.BaseTags()),
 	)
+
 	if err != nil {
 		err = errors.Wrap(err, "statsd init failed")
 		return err
@@ -116,51 +117,66 @@ type mockStatter struct {
 	noop   bool
 }
 
-func (s *mockStatter) Count(bucket string, n interface{}) {
+func (s *mockStatter) Count(name string, value int64, tags []string, rate float64) error {
 	if s.noop {
-		return
+		return nil
 	}
-	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", bucket, n)
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", name, value)
+	return nil
 }
 
-func (s *mockStatter) Increment(bucket string) {
+func (s *mockStatter) Incr(name string, tags []string, rate float64) error {
 	if s.noop {
-		return
+		return nil
 	}
-	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s", bucket)
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s", name)
+	return nil
 }
 
-func (s *mockStatter) Gauge(bucket string, value interface{}) {
+func (s *mockStatter) Decr(name string, tags []string, rate float64) error {
 	if s.noop {
-		return
+		return nil
+	}
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s", name)
+	return nil
+}
+
+func (s *mockStatter) Gauge(name string, value float64, tags []string, rate float64) error {
+	if s.noop {
+		return nil
+	}
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", name, value)
+	return nil
+}
+
+func (s *mockStatter) Timing(name string, value time.Duration, tags []string, rate float64) error {
+	if s.noop {
+		return nil
+	}
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", name, value)
+	return nil
+}
+
+func (s *mockStatter) Histogram(name string, value float64, tags []string, rate float64) error {
+	if s.noop {
+		return nil
+	}
+	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", name, value)
+	return nil
+}
+
+func (s *mockStatter) Unique(bucket string, value string) error {
+	if s.noop {
+		return nil
 	}
 	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", bucket, value)
+	return nil
 }
 
-func (s *mockStatter) Timing(bucket string, value interface{}) {
+func (s *mockStatter) Close() error {
 	if s.noop {
-		return
-	}
-	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", bucket, value)
-}
-
-func (s *mockStatter) Histogram(bucket string, value interface{}) {
-	if s.noop {
-		return
-	}
-	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", bucket, value)
-}
-
-func (s *mockStatter) Unique(bucket string, value string) {
-	if s.noop {
-		return
-	}
-	log.WithFields(log.WithFn(s.fields)).Debugf("Bucket %s: %v", bucket, value)
-}
-
-func (s *mockStatter) Close() {
-	if s.noop {
-		return
+		return nil
 	}
 	log.WithFields(log.WithFn(s.fields)).Debugf("closed at %s", time.Now())
+	return nil
 }
