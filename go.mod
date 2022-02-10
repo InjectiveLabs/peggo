@@ -3,6 +3,7 @@ module github.com/InjectiveLabs/peggo
 go 1.16
 
 require (
+	github.com/DataDog/datadog-go/v5 v5.0.2 // indirect
 	github.com/DataDog/zstd v1.4.8 // indirect
 	github.com/InjectiveLabs/etherman v1.7.0
 	github.com/InjectiveLabs/sdk-go v1.23.4
