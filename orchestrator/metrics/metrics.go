@@ -64,10 +64,13 @@ func ReportFuncTiming(tags ...Tags) StopTimerFunc {
 
 	doneC := make(chan struct{})
 	go func(name string, start time.Time) {
+		timeout := time.NewTimer(config.StuckFunctionTimeout)
+		defer timeout.Stop()
+
 		select {
 		case <-doneC:
 			return
-		case <-time.NewTicker(config.StuckFunctionTimeout).C:
+		case <-timeout.C:
 			clientMux.RLock()
 			defer clientMux.RUnlock()
 
@@ -100,10 +103,13 @@ func ReportClosureFuncTiming(name string, tags ...Tags) StopTimerFunc {
 
 	doneC := make(chan struct{})
 	go func(name string, start time.Time) {
+		timeout := time.NewTimer(config.StuckFunctionTimeout)
+		defer timeout.Stop()
+
 		select {
 		case <-doneC:
 			return
-		case <-time.NewTicker(config.StuckFunctionTimeout).C:
+		case <-timeout.C:
 			clientMux.RLock()
 			defer clientMux.RUnlock()
 
