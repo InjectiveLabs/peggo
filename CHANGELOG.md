@@ -42,6 +42,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Improvements
+
+- [#172] Add fallback token addresses (to aid price lookup)
+
 ## [v0.2.3](https://github.com/umee-network/peggo/releases/tag/v0.2.3) - 2022-02-07
 
 ### Improvements

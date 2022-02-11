@@ -220,7 +220,7 @@ func (s *gravityRelayer) IsBatchProfitable(
 	}
 
 	// First we get the cost of the transaction in USD
-	usdEthPrice, err := s.priceFeeder.QueryETHUSDPrice()
+	usdEthPrice, err := s.priceFeeder.QueryUSDPriceByCoinID("ethereum")
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get ETH price")
 		return false
@@ -247,7 +247,7 @@ func (s *gravityRelayer) IsBatchProfitable(
 		Str("token_contract", batch.TokenContract).
 		Msg("got token decimals")
 
-	usdTokenPrice, err := s.priceFeeder.QueryUSDPrice(ethcmn.HexToAddress(batch.TokenContract))
+	usdTokenPrice, err := s.priceFeeder.QueryTokenUSDPrice(ethcmn.HexToAddress(batch.TokenContract))
 	if err != nil {
 		return false
 	}

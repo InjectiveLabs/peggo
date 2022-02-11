@@ -14,7 +14,7 @@ import (
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).Level(zerolog.DebugLevel).With().Timestamp().Logger()
 
-func TestQueryETHUSDPrice(t *testing.T) {
+func TestQueryUSDPriceByCoinID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 
 		expected := `{"ethereum": {"usd": 4271.57}}`
@@ -24,7 +24,7 @@ func TestQueryETHUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		price, err := coingeckoFeed.QueryETHUSDPrice()
+		price, err := coingeckoFeed.QueryUSDPriceByCoinID("ethereum")
 		assert.NoError(t, err)
 		assert.Equal(t, 4271.57, price)
 	})
@@ -36,7 +36,7 @@ func TestQueryETHUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		_, err := coingeckoFeed.QueryETHUSDPrice()
+		_, err := coingeckoFeed.QueryUSDPriceByCoinID("ethereum")
 		assert.EqualError(t, err, "failed to parse response body from "+svr.URL+"/simple/price?ids=ethereum&vs_currencies=usd: EOF")
 	})
 
@@ -49,13 +49,13 @@ func TestQueryETHUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		price, err := coingeckoFeed.QueryETHUSDPrice()
-		assert.EqualError(t, err, "failed to get price for Ethereum")
+		price, err := coingeckoFeed.QueryUSDPriceByCoinID("ethereum")
+		assert.EqualError(t, err, "failed to get price for ethereum")
 		assert.Equal(t, 0.0, price)
 	})
 }
 
-func TestQueryUSDPrice(t *testing.T) {
+func TestQueryTokenUSDPrice(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		expected := `{"0xdac17f958d2ee523a2206206994597c13d831ec7":{"usd":0.998233}}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +64,7 @@ func TestQueryUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		price, err := coingeckoFeed.QueryUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
+		price, err := coingeckoFeed.QueryTokenUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
 		assert.NoError(t, err)
 		assert.Equal(t, 0.998233, price)
 	})
@@ -76,7 +76,7 @@ func TestQueryUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		_, err := coingeckoFeed.QueryUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
+		_, err := coingeckoFeed.QueryTokenUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
 		assert.EqualError(t, err, "failed to parse response body from "+svr.URL+"/simple/token_price/ethereum?contract_addresses=0xdac17f958d2ee523a2206206994597c13d831ec7&vs_currencies=usd: EOF")
 	})
 
@@ -88,7 +88,7 @@ func TestQueryUSDPrice(t *testing.T) {
 		defer svr.Close()
 		coingeckoFeed := NewCoingeckoPriceFeed(logger, 100, &Config{BaseURL: svr.URL})
 
-		price, err := coingeckoFeed.QueryUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
+		price, err := coingeckoFeed.QueryTokenUSDPrice(ethcmn.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"))
 		assert.EqualError(t, err, "failed to get price for token 0xdAC17F958D2ee523a2206206994597C13D831ec7")
 		assert.Equal(t, 0.0, price)
 	})
