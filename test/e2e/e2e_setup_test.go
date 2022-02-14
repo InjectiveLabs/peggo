@@ -540,12 +540,11 @@ func (s *IntegrationTestSuite) runContractDeployment() {
 			NetworkID:  s.dkrNet.Network.ID,
 			Repository: "umeenet/peggo",
 			// NOTE: container names are prefixed with '/'
+			Env: []string{"PEGGO_ETH_PK=" + ethMinerPK},
 			Entrypoint: []string{
 				"peggo",
 				"bridge",
 				"deploy-gravity",
-				"--eth-pk",
-				ethMinerPK,
 				"--eth-rpc",
 				fmt.Sprintf("http://%s:8545", s.ethResource.Container.Name[1:]),
 				"--cosmos-grpc",
@@ -641,13 +640,12 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 				Name:       s.chain.orchestrators[i].instanceName(),
 				NetworkID:  s.dkrNet.Network.ID,
 				Repository: "umeenet/peggo",
+				Env:        []string{"PEGGO_ETH_PK=" + orch.ethereumKey.privateKey},
 				// NOTE: container names are prefixed with '/'
 				Entrypoint: []string{
 					"peggo",
 					"orchestrator",
 					s.gravityContractAddr,
-					"--eth-pk",
-					orch.ethereumKey.privateKey,
 					"--eth-rpc",
 					fmt.Sprintf("http://%s:8545", s.ethResource.Container.Name[1:]),
 					"--cosmos-chain-id",

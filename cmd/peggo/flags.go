@@ -82,6 +82,7 @@ func ethereumKeyOptsFlagSet() *pflag.FlagSet {
 	fs.String(flagEthPassphrase, "", "Specify the passphrase to unlock the private key from armor; If empty then STDIN is used")
 	fs.String(flagEthPK, "", "Provide the Ethereum private key of the orchestrator in hex")
 	fs.Bool(flagEthUseLedger, false, "Use the Ethereum app on hardware ledger to sign transactions")
+	_ = fs.MarkDeprecated(flagEthPK, "use the env var $PEGGO_ETH_PK instead")
 	return fs
 }
 
@@ -102,6 +103,7 @@ func bridgeFlagSet() *pflag.FlagSet {
 	fs.String(flagEthPK, "", "Provide the Ethereum private key of the orchestrator in hex")
 	fs.Int64(flagEthGasPrice, 0, "The Ethereum gas price to include in the transaction; If zero, gas price will be estimated")
 	fs.Int64(flagEthGasLimit, 6000000, "The Ethereum gas limit to include in the transaction")
+	_ = fs.MarkDeprecated(flagEthPK, "use the env var $PEGGO_ETH_PK instead")
 
 	return fs
 }

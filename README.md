@@ -58,8 +58,8 @@ $ umeed tx gravity set-orchestrator-address \
 ### Run the orchestrator
 
 ```shell
+export PEGGO_ETH_PK={ethereum private key}
 $ peggo orchestrator {gravityAddress} \
-  --eth-pk=$ETH_PK \
   --eth-rpc=$ETH_RPC \
   --relay-batches=true \
   --relay-valsets=true \
