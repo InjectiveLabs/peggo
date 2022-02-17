@@ -42,9 +42,12 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## [v0.2.4](https://github.com/umee-network/peggo/releases/tag/v0.2.4) - 2022-02-16
+
 ### Improvements
 
 - [#172] Add fallback token addresses (to aid price lookup)
+- [#185] Add fallback token addresses (to aid price lookup) for Umee
 
 ### Deprecated
 
