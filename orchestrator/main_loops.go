@@ -5,9 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/avast/retry-go"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+
 	"github.com/umee-network/peggo/orchestrator/loops"
 )
 

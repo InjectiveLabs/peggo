@@ -4,10 +4,11 @@ import (
 	"context"
 	"sort"
 
-	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
+	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+
 	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 

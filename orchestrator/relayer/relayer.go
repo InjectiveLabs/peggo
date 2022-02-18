@@ -6,11 +6,12 @@ import (
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
+
 	"github.com/umee-network/peggo/orchestrator/coingecko"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 
-	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
+	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 )
 
 type GravityRelayer interface {

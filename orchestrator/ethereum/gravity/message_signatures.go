@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 )
 
 // EncodeValsetConfirm takes the required input data and produces the required

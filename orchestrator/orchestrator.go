@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
-	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
+	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+
 	sidechain "github.com/umee-network/peggo/orchestrator/cosmos"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"

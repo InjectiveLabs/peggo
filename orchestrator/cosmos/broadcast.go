@@ -5,11 +5,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 	"github.com/umee-network/peggo/cmd/peggo/client"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"

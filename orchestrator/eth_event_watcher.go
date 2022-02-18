@@ -7,7 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
 
-	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
+	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+
 	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
 
