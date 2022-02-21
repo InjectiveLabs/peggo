@@ -25,7 +25,7 @@ func TestNewGravityRelayer(t *testing.T) {
 	relayer := NewGravityRelayer(logger,
 		mockQClient,
 		mockGravityContract,
-		true,
+		ValsetRelayModeMinimum,
 		true,
 		time.Minute,
 		time.Minute,

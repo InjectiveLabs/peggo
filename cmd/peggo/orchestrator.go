@@ -177,11 +177,23 @@ func getOrchestratorCmd() *cobra.Command {
 			// Here we cast the float64 to a Duration (int64); as we are dealing with ms, we'll lose as much as 1ms.
 			relayerLoopDuration := time.Duration(ethBlockTimeF64*relayerLoopMultiplier) * time.Millisecond
 
+			relayValsets := konfig.Bool(flagRelayValsets)
+			valsetRelayMode, err := validateRelayValsetsMode(konfig.String(flagValsetRelayMode))
+			if err != nil {
+				return err
+			}
+
+			// If relayValsets is true then the user didn't specify a value for 'valset-relay-mode',
+			// so we'll default to "minimum".
+			if relayValsets && valsetRelayMode == relayer.ValsetRelayModeNone {
+				valsetRelayMode = relayer.ValsetRelayModeMinimum
+			}
+
 			relayer := relayer.NewGravityRelayer(
 				logger,
 				gravityQuerier,
 				gravityContract,
-				konfig.Bool(flagRelayValsets),
+				valsetRelayMode,
 				konfig.Bool(flagRelayBatches),
 				relayerLoopDuration,
 				konfig.Duration(flagEthPendingTXWait),
@@ -244,6 +256,7 @@ func getOrchestratorCmd() *cobra.Command {
 	}
 
 	cmd.Flags().Bool(flagRelayValsets, false, "Relay validator set updates to Ethereum")
+	cmd.Flags().String(flagValsetRelayMode, relayer.ValsetRelayModeNone.String(), "Set an (optional) relaying mode for valset updates to Ethereum. Possible values: none, minimum, all")
 	cmd.Flags().Bool(flagRelayBatches, false, "Relay transaction batches to Ethereum")
 	cmd.Flags().Int64(flagEthBlocksPerLoop, 2000, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
@@ -259,6 +272,7 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().AddFlagSet(cosmosKeyringFlagSet())
 	cmd.Flags().AddFlagSet(ethereumKeyOptsFlagSet())
 	cmd.Flags().AddFlagSet(ethereumOptsFlagSet())
+	_ = cmd.Flags().MarkDeprecated(flagRelayValsets, "use --valset-relay-mode instead")
 
 	return cmd
 }
@@ -292,5 +306,18 @@ func startOrchestrator(ctx context.Context, logger zerolog.Logger, orch orchestr
 			logger.Error().Err(err).Msg("failed to start orchestrator")
 			return err
 		}
+	}
+}
+
+func validateRelayValsetsMode(mode string) (relayer.ValsetRelayMode, error) {
+	switch mode {
+	case relayer.ValsetRelayModeNone.String():
+		return relayer.ValsetRelayModeNone, nil
+	case relayer.ValsetRelayModeMinimum.String():
+		return relayer.ValsetRelayModeMinimum, nil
+	case relayer.ValsetRelayModeAll.String():
+		return relayer.ValsetRelayModeAll, nil
+	default:
+		return relayer.ValsetRelayModeNone, fmt.Errorf("invalid relay valsets mode: %s", mode)
 	}
 }

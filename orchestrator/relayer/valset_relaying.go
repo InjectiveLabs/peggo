@@ -10,8 +10,13 @@ import (
 // RelayValsets checks the last validator set on Ethereum, if it's lower than our latest validator
 // set then we should package and submit the update as an Ethereum transaction
 func (s *gravityRelayer) RelayValsets(ctx context.Context, currentValset types.Valset) error {
-	// we should determine if we need to relay one
-	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
+	// This works by checking if the latest valset update can be sent by the current valset stored on Ethereum.
+	// If so, there's no need to relay anything, given that the current valset on Eth shares enough signers with the
+	// latest valset on Cosmos.
+	// If the latest valset on Cosmos (latestValsets.Valsets[0]) can't be sent by the current valset on Ethereum,
+	// then we need to relay the latest valid valset on Cosmos; that means the one that shares enough signers with
+	// the valset stored on Ethereum.
+
 	latestValsets, err := s.cosmosQueryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
 		err = errors.Wrap(err, "failed to fetch latest valsets from cosmos")
@@ -20,7 +25,8 @@ func (s *gravityRelayer) RelayValsets(ctx context.Context, currentValset types.V
 		return errors.New("no valsets found")
 	}
 
-	latestCosmosConfirmed, latestCosmosSigs, err := s.findLatestValidValset(
+	// latestValidValset means the latest valset that can be sent using the current valset on Ethereum.
+	latestValidValset, latestValidValsetSigs, err := s.findLatestValidValset(
 		ctx,
 		currentValset,
 		latestValsets.Valsets[0].Nonce,
@@ -31,19 +37,19 @@ func (s *gravityRelayer) RelayValsets(ctx context.Context, currentValset types.V
 		return err
 	}
 
-	if latestCosmosConfirmed == nil && err == nil {
+	if latestValidValset == nil && err == nil {
 		s.logger.Info().Msg("no valset updates to relay")
 		return nil
 	}
 
-	if s.lastSentValsetNonce >= latestCosmosConfirmed.Nonce {
+	if s.lastSentValsetNonce >= latestValidValset.Nonce {
 		s.logger.Debug().Msg("already relayed this valset; skipping")
 		return nil
 	}
 
 	s.logger.Debug().
 		Uint64("current_eth_valset_nonce", currentValset.Nonce).
-		Uint64("latest_cosmos_confirmed_nonce", latestCosmosConfirmed.Nonce).
+		Uint64("latest_cosmos_confirmed_nonce", latestValidValset.Nonce).
 		Msg("found latest valsets")
 
 	latestEthereumValsetNonce, err := s.gravityContract.GetValsetNonce(ctx, s.gravityContract.FromAddress())
@@ -53,21 +59,27 @@ func (s *gravityRelayer) RelayValsets(ctx context.Context, currentValset types.V
 	}
 
 	// Check if latestCosmosConfirmed already submitted by other validators in mean time
-	if latestCosmosConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
+	if latestValidValset.Nonce <= latestEthereumValsetNonce.Uint64() {
 		// This valset update is already confirmed.
 		return nil
 	}
 
+	// We might not need to relay this valset update unless the user explicitly specified it.
+	if s.valsetRelayMode == ValsetRelayModeMinimum && latestValidValset.Nonce == latestValsets.Valsets[0].Nonce {
+		s.logger.Debug().Msg("not relaying because nonces match")
+		return nil
+	}
+
 	s.logger.Info().
-		Uint64("latest_cosmos_confirmed_nonce", latestCosmosConfirmed.Nonce).
+		Uint64("latest_cosmos_confirmed_nonce", latestValidValset.Nonce).
 		Uint64("latest_ethereum_valset_nonce", latestEthereumValsetNonce.Uint64()).
 		Msg("detected latest cosmos valset nonce, but latest valset on Ethereum is different. Sending update to Ethereum")
 
 	txData, err := s.gravityContract.EncodeValsetUpdate(
 		ctx,
 		currentValset,
-		*latestCosmosConfirmed,
-		latestCosmosSigs,
+		*latestValidValset,
+		latestValidValsetSigs,
 	)
 	if err != nil {
 		s.logger.Err(err).Msg("failed to encode valset update")
@@ -109,7 +121,7 @@ func (s *gravityRelayer) RelayValsets(ctx context.Context, currentValset types.V
 	s.logger.Info().Str("tx_hash", txHash.Hex()).Msg("sent Tx (Gravity updateValset)")
 
 	// update our local tracker of the latest valset
-	s.lastSentValsetNonce = latestCosmosConfirmed.Nonce
+	s.lastSentValsetNonce = latestValidValset.Nonce
 
 	return nil
 }

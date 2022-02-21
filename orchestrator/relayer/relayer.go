@@ -14,6 +14,21 @@ import (
 	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 )
 
+// ValsetRelayMode defines an enumerated validator set relay mode.
+type ValsetRelayMode int64
+
+// Allowed validator set relay modes
+const (
+	ValsetRelayModeNone ValsetRelayMode = iota
+	ValsetRelayModeMinimum
+	ValsetRelayModeAll
+)
+
+// String gets the string representation of the validator set relay mode.
+func (d ValsetRelayMode) String() string {
+	return [...]string{"none", "minimum", "all"}[d]
+}
+
 type GravityRelayer interface {
 	Start(ctx context.Context) error
 
@@ -33,16 +48,16 @@ type GravityRelayer interface {
 }
 
 type gravityRelayer struct {
-	logger             zerolog.Logger
-	cosmosQueryClient  gravitytypes.QueryClient
-	gravityContract    gravity.Contract
-	ethProvider        provider.EVMProvider
-	valsetRelayEnabled bool
-	batchRelayEnabled  bool
-	loopDuration       time.Duration
-	priceFeeder        *coingecko.PriceFeed
-	pendingTxWait      time.Duration
-	profitMultiplier   float64
+	logger            zerolog.Logger
+	cosmosQueryClient gravitytypes.QueryClient
+	gravityContract   gravity.Contract
+	ethProvider       provider.EVMProvider
+	valsetRelayMode   ValsetRelayMode
+	batchRelayEnabled bool
+	loopDuration      time.Duration
+	priceFeeder       *coingecko.PriceFeed
+	pendingTxWait     time.Duration
+	profitMultiplier  float64
 
 	// Store locally the last tx this validator made to avoid sending duplicates
 	// or invalid txs.
@@ -54,7 +69,7 @@ func NewGravityRelayer(
 	logger zerolog.Logger,
 	gravityQueryClient gravitytypes.QueryClient,
 	gravityContract gravity.Contract,
-	valsetRelayEnabled bool,
+	valsetRelayMode ValsetRelayMode,
 	batchRelayEnabled bool,
 	loopDuration time.Duration,
 	pendingTxWait time.Duration,
@@ -62,15 +77,15 @@ func NewGravityRelayer(
 	options ...func(GravityRelayer),
 ) GravityRelayer {
 	relayer := &gravityRelayer{
-		logger:             logger.With().Str("module", "gravity_relayer").Logger(),
-		cosmosQueryClient:  gravityQueryClient,
-		gravityContract:    gravityContract,
-		ethProvider:        gravityContract.Provider(),
-		valsetRelayEnabled: valsetRelayEnabled,
-		batchRelayEnabled:  batchRelayEnabled,
-		loopDuration:       loopDuration,
-		pendingTxWait:      pendingTxWait,
-		profitMultiplier:   profitMultiplier,
+		logger:            logger.With().Str("module", "gravity_relayer").Logger(),
+		cosmosQueryClient: gravityQueryClient,
+		gravityContract:   gravityContract,
+		ethProvider:       gravityContract.Provider(),
+		valsetRelayMode:   valsetRelayMode,
+		batchRelayEnabled: batchRelayEnabled,
+		loopDuration:      loopDuration,
+		pendingTxWait:     pendingTxWait,
+		profitMultiplier:  profitMultiplier,
 	}
 
 	for _, option := range options {

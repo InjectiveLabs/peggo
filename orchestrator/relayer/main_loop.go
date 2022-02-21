@@ -14,7 +14,7 @@ import (
 func (s *gravityRelayer) Start(ctx context.Context) error {
 	logger := s.logger.With().Str("loop", "RelayerMainLoop").Logger()
 
-	if s.valsetRelayEnabled {
+	if s.valsetRelayMode != ValsetRelayModeNone {
 		logger.Info().Msg("valset relay enabled; starting to relay valsets to Ethereum")
 	}
 
@@ -44,7 +44,7 @@ func (s *gravityRelayer) Start(ctx context.Context) error {
 		}
 
 		var pg loops.ParanoidGroup
-		if s.valsetRelayEnabled {
+		if s.valsetRelayMode != ValsetRelayModeNone {
 			pg.Go(func() error {
 				return retry.Do(func() error {
 					return s.RelayValsets(ctx, *currentValset)

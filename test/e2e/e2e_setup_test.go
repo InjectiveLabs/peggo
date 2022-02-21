@@ -659,7 +659,7 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 					"--cosmos-from",
 					s.chain.orchestrators[i].keyInfo.GetName(),
 					"--relay-batches=true",
-					"--relay-valsets=true",
+					"--valset-relay-mode=minimum",
 					"--profit-multiplier=0.0",
 					"--relayer-loop-multiplier=1.0",
 					"--requester-loop-multiplier=1.0",

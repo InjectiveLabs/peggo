@@ -142,12 +142,9 @@ func (s *gravityRelayer) checkIfValsetsDiffer(cosmosValset, ethereumValset *type
 		return
 	}
 
+	// Do not check if nonces are not equal.
+	// We queried cosmosValset using ethereumValset.Nonce so it is not necessary.
 	if cosmosValset.Nonce != ethereumValset.Nonce {
-
-		s.logger.Error().
-			Uint64("eth_valset_nonce", ethereumValset.Nonce).
-			Uint64("cosmos_valset_nonce", cosmosValset.Nonce).
-			Msg("cosmos does have a wrong valset nonce, differs from Ethereum chain. Possible bridge hijacking!")
 		return
 	}
 

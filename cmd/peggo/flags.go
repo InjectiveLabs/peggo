@@ -36,6 +36,7 @@ const (
 	flagEthGasLimitAdjustment   = "eth-gas-limit-adjustment"
 	flagEthAlchemyWS            = "eth-alchemy-ws"
 	flagRelayValsets            = "relay-valsets"
+	flagValsetRelayMode         = "valset-relay-mode"
 	flagRelayBatches            = "relay-batches"
 	flagCoinGeckoAPI            = "coingecko-api"
 	flagEthGasPrice             = "eth-gas-price"

@@ -62,7 +62,7 @@ export PEGGO_ETH_PK={ethereum private key}
 $ peggo orchestrator {gravityAddress} \
   --eth-rpc=$ETH_RPC \
   --relay-batches=true \
-  --relay-valsets=true \
+  --valset-relay-mode=minimum \
   --cosmos-chain-id=... \
   --cosmos-grpc="tcp://..." \
   --tendermint-rpc="http://..." \
