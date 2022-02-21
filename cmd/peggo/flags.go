@@ -35,7 +35,6 @@ const (
 	flagEthGasAdjustment        = "eth-gas-price-adjustment"
 	flagEthGasLimitAdjustment   = "eth-gas-limit-adjustment"
 	flagEthAlchemyWS            = "eth-alchemy-ws"
-	flagRelayValsets            = "relay-valsets"
 	flagValsetRelayMode         = "valset-relay-mode"
 	flagRelayBatches            = "relay-batches"
 	flagCoinGeckoAPI            = "coingecko-api"
@@ -81,9 +80,7 @@ func ethereumKeyOptsFlagSet() *pflag.FlagSet {
 	fs.String(flagEthKeystoreDir, "", "Specify the Ethereum keystore directory (Geth-format) prefix")
 	fs.String(flagEthFrom, "", "Specify the Ethereum from address; If specified, it must exist in the keystore, ledger or match the privkey")
 	fs.String(flagEthPassphrase, "", "Specify the passphrase to unlock the private key from armor; If empty then STDIN is used")
-	fs.String(flagEthPK, "", "Provide the Ethereum private key of the orchestrator in hex")
 	fs.Bool(flagEthUseLedger, false, "Use the Ethereum app on hardware ledger to sign transactions")
-	_ = fs.MarkDeprecated(flagEthPK, "use the env var $PEGGO_ETH_PK instead")
 	return fs
 }
 
@@ -101,10 +98,8 @@ func bridgeFlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
 
 	fs.String(flagEthRPC, "http://localhost:8545", "Specify the RPC address of an Ethereum node")
-	fs.String(flagEthPK, "", "Provide the Ethereum private key of the orchestrator in hex")
 	fs.Int64(flagEthGasPrice, 0, "The Ethereum gas price to include in the transaction; If zero, gas price will be estimated")
 	fs.Int64(flagEthGasLimit, 6000000, "The Ethereum gas limit to include in the transaction")
-	_ = fs.MarkDeprecated(flagEthPK, "use the env var $PEGGO_ETH_PK instead")
 
 	return fs
 }
