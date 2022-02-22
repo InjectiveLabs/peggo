@@ -42,10 +42,16 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## [v0.2.5](https://github.com/umee-network/peggo/releases/tag/v0.2.5) - 2022-02-21
+
 ### Features
 
 - [#189] Add the flag `--valset-relay-mode` which allows a finer control over
   how valsets will be relayed.
+
+### Improvements
+
+- [#201] Add ERC20 mappings for Umee's new tokens.
 
 ### Deprecated
 
