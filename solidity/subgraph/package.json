@@ -11,7 +11,7 @@
     "codegen:mainnet": "yarn graph codegen subgraph.mainnet.yaml",
     "create:development": "yarn graph create injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020",
     "deploy:development": "yarn graph deploy injectivelabs/injective-peggo-mainnet --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
-    "deploy:devnet": "graph deploy --product hosted-service injectivelabs/injective-peggo-kovan subgraph.devnet.yaml",
+    "deploy:devnet": "graph deploy --product hosted-service davidtian719/injective-peggo-devnet subgraph.devnet.yaml",
     "deploy:kovan": "graph deploy --product hosted-service injectivelabs/injective-peggo-kovan subgraph.kovan.yaml",
     "deploy:kovan:local": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.kovan.yaml",
     "deploy:mainnet": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet subgraph.mainnet.yaml",
