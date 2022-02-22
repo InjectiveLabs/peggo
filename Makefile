@@ -1,5 +1,6 @@
-BUILD_DIR ?= $(CURDIR)/build
-COMMIT    := $(shell git log -1 --format='%H')
+BUILD_DIR   ?= $(CURDIR)/build
+SDK_VERSION := $(shell go list -m github.com/cosmos/cosmos-sdk | sed 's:.* ::')
+COMMIT      := $(shell git log -1 --format='%H')
 
 ###############################################################################
 ##                                  Version                                  ##
@@ -18,7 +19,8 @@ endif
 ###############################################################################
 
 ldflags = -X github.com/umee-network/peggo/cmd/peggo.Version=$(VERSION) \
-		  -X github.com/umee-network/peggo/cmd/peggo.Commit=$(COMMIT)
+		  -X github.com/umee-network/peggo/cmd/peggo.Commit=$(COMMIT) \
+		  -X github.com/umee-network/peggo/cmd/peggo.SDKVersion=$(SDK_VERSION)
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
 

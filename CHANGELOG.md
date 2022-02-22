@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD024 -->
+<!-- markdownlint-disable MD013 -->
 <!--
 Changelog Guiding Principles:
 
@@ -41,6 +42,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 # Changelog
 
 ## [Unreleased]
+
+### Bug Fixes
+
+- [#209](https://github.com/umee-network/peggo/pull/209) Fix the `version` command to display correctly.
 
 ## [v0.2.5](https://github.com/umee-network/peggo/releases/tag/v0.2.5) - 2022-02-21
 
