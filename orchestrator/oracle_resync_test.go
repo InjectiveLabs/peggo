@@ -158,6 +158,7 @@ func TestGetLastCheckedBlock(t *testing.T) {
 			time.Second,
 			100,
 			0,
+			nil,
 		)
 
 		block, err := orch.GetLastCheckedBlock(context.Background(), 0)

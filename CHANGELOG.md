@@ -43,6 +43,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Features
+
+[#216](https://github.com/umee-network/peggo/pull/216) Add profitability check on the batch requester loop.
+
 ### Bug Fixes
 
 - [#217](https://github.com/umee-network/peggo/pull/217) Add validation to user input Ethereum addresses.

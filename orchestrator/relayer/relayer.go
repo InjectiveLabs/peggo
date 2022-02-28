@@ -45,6 +45,8 @@ type GravityRelayer interface {
 	// SetPriceFeeder sets the (optional) price feeder used when performing profitable
 	// batch calculations.
 	SetPriceFeeder(*coingecko.PriceFeed)
+
+	GetProfitMultiplier() float64
 }
 
 type gravityRelayer struct {
@@ -93,4 +95,8 @@ func NewGravityRelayer(
 	}
 
 	return relayer
+}
+
+func (s *gravityRelayer) GetProfitMultiplier() float64 {
+	return s.profitMultiplier
 }

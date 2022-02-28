@@ -3,12 +3,16 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/avast/retry-go"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
 	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 
+	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/loops"
 )
 
@@ -25,6 +29,28 @@ const (
 	// too often that we make too many requests to Cosmos.
 	ethSignerLoopMultiplier = 3
 )
+
+// estimatedGasCosts has a list of gas costs for batches from 1 to 100 txs.
+// They are used to estimate how much it will cost to relay a batch before
+// it is "built" and signed.
+// At the moment these values come from Umee's testnet data. It's in the roamap
+// to add a dynamic registry in which gas costs are updated and divided by
+// type of token (not all ERC20 are created equal, some may do some extra checks
+// in transfers).
+var estimatedGasCosts = []int64{
+	575563, 582863, 591565, 600967, 611968, 621532, 630328, 642386, 653063,
+	661581, 668183, 678635, 685289, 696851, 704866, 708887, 712721, 721445,
+	727461, 734690, 742043, 752750, 760223, 767272, 769101, 773423, 784019,
+	798268, 802351, 806362, 807763, 814683, 828969, 831213, 843207, 847569,
+	870002, 873950, 875285, 877254, 882126, 887008, 911510, 911901, 918882,
+	919109, 920685, 927237, 933757, 935638, 936261, 947621, 948716, 965708,
+	970508, 976337, 995011, 998407, 999148, 1016724, 1024643, 1035313,
+	1044177, 1046768, 1053295, 1053903, 1059293, 1073982, 1078022, 1078123,
+	1082061, 1084901, 1094332, 1103762, 1108249, 1114666, 1126675, 1136556,
+	1146072, 1154187, 1157889, 1159855, 1171010, 1172318, 1173955, 1181863,
+	1188274, 1191781, 1194480, 1209858, 1226168, 1227017, 1228247, 1234944,
+	1238819, 1244511, 1256137, 1258859, 1261745, 1261934,
+}
 
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
@@ -282,6 +308,11 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 		// - broadcast Request batch
 		var pg loops.ParanoidGroup
 
+		usdEthPriceDec := decimal.NewFromFloat(0.0)
+		gasPrice := big.NewInt(0)
+		tokensPrices := make(map[string]decimal.Decimal)
+		tokensDecimals := make(map[string]uint8)
+
 		pg.Go(func() error {
 			var unbatchedTokensWithFees []types.BatchFees
 
@@ -294,6 +325,39 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 
 				unbatchedTokensWithFees = batchFeesResp.GetBatchFees()
 
+				if p.relayer.GetProfitMultiplier() > 0.0 {
+					gasPrice, err = p.ethProvider.SuggestGasPrice(context.Background())
+					if err != nil {
+						return fmt.Errorf("failed to get Ethereum gas estimate: %w", err)
+					}
+
+					usdEthPrice, err := p.priceFeeder.QueryUSDPriceByCoinID(coingecko.EthereumCoinID)
+					if err != nil {
+						return err
+					}
+
+					usdEthPriceDec = decimal.NewFromFloat(usdEthPrice)
+
+					for _, token := range unbatchedTokensWithFees {
+						if _, ok := tokensPrices[token.Token]; !ok {
+							price, err := p.priceFeeder.QueryTokenUSDPrice(ethcmn.HexToAddress(token.Token))
+							if err != nil {
+								return err
+							}
+
+							tokensPrices[token.Token] = decimal.NewFromFloat(price)
+
+							tokensDecimals[token.Token], err = p.gravityContract.GetERC20Decimals(
+								ctx,
+								ethcmn.HexToAddress(token.Token),
+								p.gravityContract.FromAddress(),
+							)
+							if err != nil {
+								return err
+							}
+						}
+					}
+				}
 				return
 			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 				logger.Err(err).Uint("retry", n).Msg("failed to get UnbatchedTokensWithFees; retrying...")
@@ -314,10 +378,35 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 					return nil
 				}
 
-				logger.Info().Str("token_contract", tokenAddr.String()).Str("denom", denom).Msg("sending batch request")
+				shouldRequestBatch := true
 
-				if err := p.gravityBroadcastClient.SendRequestBatch(ctx, denom); err != nil {
-					logger.Err(err).Msg("failed to send batch request")
+				if p.relayer.GetProfitMultiplier() > 0.0 {
+					// First we get the cost of the transaction in USD
+					totalETHcost := big.NewInt(0).Mul(gasPrice, big.NewInt(estimatedGasCosts[unbatchedToken.TxCount-1]))
+					// Ethereum decimals are 18 and that's a constant.
+					gasCostInUSDDec := decimal.NewFromBigInt(totalETHcost, -18).Mul(usdEthPriceDec)
+					// Decimals (uint8) can be safely casted into int32 because the max uint8 is 255 and the max int32 is 2147483647.
+					totalFeeInUSDDec := decimal.NewFromBigInt(
+						unbatchedToken.TotalFees.BigInt(),
+						-int32(tokensDecimals[unbatchedToken.Token]),
+					).Mul(tokensPrices[unbatchedToken.Token])
+
+					// Simplified: totalFee > (gasCost * profitMultiplier).
+					profitMult := decimal.NewFromFloat(p.relayer.GetProfitMultiplier())
+					shouldRequestBatch = totalFeeInUSDDec.GreaterThanOrEqual(gasCostInUSDDec.Mul(profitMult))
+				}
+
+				if shouldRequestBatch {
+					logger.Info().Str("token_contract", tokenAddr.String()).Str("denom", denom).Msg("sending batch request")
+
+					if err := p.gravityBroadcastClient.SendRequestBatch(ctx, denom); err != nil {
+						logger.Err(err).Msg("failed to send batch request")
+					}
+				} else {
+					logger.Debug().
+						Str("token_contract", tokenAddr.String()).
+						Str("denom", denom).
+						Msg("not profitable yet, skipping batch creation")
 				}
 			}
 

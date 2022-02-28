@@ -17,6 +17,7 @@ import (
 const (
 	maxRespTime        = 15 * time.Second
 	maxRespHeadersTime = 15 * time.Second
+	EthereumCoinID     = "ethereum"
 )
 
 var zeroPrice = float64(0)
@@ -98,7 +99,7 @@ func (cp *PriceFeed) QueryTokenUSDPrice(erc20Contract ethcmn.Address) (float64, 
 		return cp.QueryUSDPriceByCoinID(coinID)
 	}
 
-	u, err := url.ParseRequestURI(urlJoin(cp.config.BaseURL, "simple", "token_price", "ethereum"))
+	u, err := url.ParseRequestURI(urlJoin(cp.config.BaseURL, "simple", "token_price", EthereumCoinID))
 	if err != nil {
 		cp.logger.Fatal().Err(err).Msg("failed to parse URL")
 	}

@@ -8,6 +8,7 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+	"github.com/umee-network/peggo/orchestrator/coingecko"
 )
 
 type SubmittableBatch struct {
@@ -220,7 +221,7 @@ func (s *gravityRelayer) IsBatchProfitable(
 	}
 
 	// First we get the cost of the transaction in USD
-	usdEthPrice, err := s.priceFeeder.QueryUSDPriceByCoinID("ethereum")
+	usdEthPrice, err := s.priceFeeder.QueryUSDPriceByCoinID(coingecko.EthereumCoinID)
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get ETH price")
 		return false
