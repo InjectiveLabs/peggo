@@ -259,8 +259,11 @@ func deployERC20Cmd() *cobra.Command {
 			gRPCConn := daemonClient.QueryClient()
 			waitForService(ctx, gRPCConn)
 
-			gravityAddr := args[0]
+			if !ethcmn.IsHexAddress(args[0]) {
+				return fmt.Errorf("invalid gravity address: %s", args[0])
+			}
 
+			gravityAddr := ethcmn.HexToAddress(args[0])
 			gravityContract, err := getGravityContract(ethRPC, gravityAddr)
 			if err != nil {
 				return err
@@ -352,8 +355,11 @@ network starting.`,
 				return err
 			}
 
-			gravityAddr := args[0]
+			if !ethcmn.IsHexAddress(args[0]) {
+				return fmt.Errorf("invalid gravity address: %s", args[0])
+			}
 
+			gravityAddr := ethcmn.HexToAddress(args[0])
 			gravityContract, err := getGravityContract(ethRPC, gravityAddr)
 			if err != nil {
 				return err
@@ -409,18 +415,24 @@ func sendToCosmosCmd() *cobra.Command {
 				return fmt.Errorf("failed to dial Ethereum RPC node: %w", err)
 			}
 
-			gravityAddr := args[0]
+			if !ethcmn.IsHexAddress(args[0]) {
+				return fmt.Errorf("invalid gravity address: %s", args[0])
+			}
 
+			gravityAddr := ethcmn.HexToAddress(args[0])
 			gravityContract, err := getGravityContract(ethRPC, gravityAddr)
 			if err != nil {
 				return err
 			}
 
-			tokenAddrStr := args[1]
-			tokenAddr := ethcmn.HexToAddress(tokenAddrStr)
+			if !ethcmn.IsHexAddress(args[1]) {
+				return fmt.Errorf("invalid token address: %s", args[1])
+			}
+
+			tokenAddr := ethcmn.HexToAddress(args[1])
 
 			if konfig.Bool(flagAutoApprove) {
-				if err := approveERC20(konfig, ethRPC, tokenAddrStr, gravityAddr); err != nil {
+				if err := approveERC20(konfig, ethRPC, tokenAddr, gravityAddr); err != nil {
 					return err
 				}
 			}
@@ -549,8 +561,8 @@ func getGravityParams(gRPCConn *grpc.ClientConn) (*gravitytypes.Params, error) {
 	return &gravityParamsResp.Params, nil
 }
 
-func getGravityContract(ethRPC *ethclient.Client, gravityAddr string) (*wrappers.Gravity, error) {
-	contract, err := wrappers.NewGravity(ethcmn.HexToAddress(gravityAddr), ethRPC)
+func getGravityContract(ethRPC *ethclient.Client, gravityAddr ethcmn.Address) (*wrappers.Gravity, error) {
+	contract, err := wrappers.NewGravity(gravityAddr, ethRPC)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gravity contract instance: %w", err)
 	}
@@ -558,8 +570,8 @@ func getGravityContract(ethRPC *ethclient.Client, gravityAddr string) (*wrappers
 	return contract, nil
 }
 
-func approveERC20(konfig *koanf.Koanf, ethRPC *ethclient.Client, erc20AddrStr, gravityAddrStr string) error {
-	contract, err := wrappers.NewERC20(ethcmn.HexToAddress(erc20AddrStr), ethRPC)
+func approveERC20(konfig *koanf.Koanf, ethRPC *ethclient.Client, erc20Addr, gravityAddr ethcmn.Address) error {
+	contract, err := wrappers.NewERC20(erc20Addr, ethRPC)
 	if err != nil {
 		return fmt.Errorf("failed to create ERC20 contract instance: %w", err)
 	}
@@ -568,8 +580,6 @@ func approveERC20(konfig *koanf.Koanf, ethRPC *ethclient.Client, erc20AddrStr, g
 	if err != nil {
 		return err
 	}
-
-	gravityAddr := ethcmn.HexToAddress(gravityAddrStr)
 
 	// Check if the allowance remaining is greater than half of a Uint256 - it's
 	// as good a test as any. If so, we skip approving Gravity as the spender and

@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- [#217](https://github.com/umee-network/peggo/pull/217) Add validation to user input Ethereum addresses.
 - [#209](https://github.com/umee-network/peggo/pull/209) Fix the `version` command to display correctly.
 - [#205](https://github.com/umee-network/peggo/pull/205) Make sure users are warned when using unencrypted non-local urls in flags.
 

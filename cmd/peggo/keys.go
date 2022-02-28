@@ -271,6 +271,10 @@ func initEthereumAccountsManager(
 		ethAddressFromPk := ethcrypto.PubkeyToAddress(ethPk.PublicKey)
 
 		if len(ethKeyFrom) > 0 {
+			if !ethcmn.IsHexAddress(ethKeyFrom) {
+				return emptyEthAddress, nil, nil, fmt.Errorf("invalid eth-from address: %s", ethKeyFrom)
+			}
+
 			addr := ethcmn.HexToAddress(ethKeyFrom)
 			if addr == (ethcmn.Address{}) {
 				return emptyEthAddress, nil, nil, fmt.Errorf("failed to parse Ethereum from address: %s", ethKeyFrom)
@@ -294,6 +298,10 @@ func initEthereumAccountsManager(
 	case len(ethKeystoreDir) > 0:
 		if len(ethKeyFrom) == 0 {
 			return emptyEthAddress, nil, nil, errors.New("cannot use Ethereum keystore without from address specified")
+		}
+
+		if !ethcmn.IsHexAddress(ethKeyFrom) {
+			return emptyEthAddress, nil, nil, fmt.Errorf("invalid eth-from address: %s", ethKeyFrom)
 		}
 
 		ethKeyFromAddress = ethcmn.HexToAddress(ethKeyFrom)

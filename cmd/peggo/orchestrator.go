@@ -155,6 +155,9 @@ func getOrchestratorCmd() *cobra.Command {
 				konfig.Int(flagCosmosMsgsPerTx),
 			)
 
+			if !ethcmn.IsHexAddress(args[0]) {
+				return fmt.Errorf("invalid gravity address: %s", args[0])
+			}
 			gravityAddr := ethcmn.HexToAddress(args[0])
 
 			ethGravity, err := wrappers.NewGravity(gravityAddr, ethCommitter.Provider())
