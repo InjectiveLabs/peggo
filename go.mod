@@ -15,7 +15,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.26.1
 	github.com/shopspring/decimal v1.3.1
-	github.com/sirkon/goproxy v1.4.8
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
@@ -282,6 +281,8 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
 	github.com/btcsuite/btcutil => github.com/btcsuite/btcutil v1.0.2
 	github.com/bugsnag/panicwrap => github.com/bugsnag/panicwrap v1.3.4
+	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.7
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.3
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
