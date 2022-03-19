@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
+	"github.com/InjectiveLabs/metrics"
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
@@ -12,6 +12,7 @@ import (
 
 func initMetrics(c *cli.Cmd) {
 	var (
+		statsdAgent    *string
 		statsdPrefix   *string
 		statsdAddr     *string
 		statsdStuckDur *string
@@ -21,6 +22,7 @@ func initMetrics(c *cli.Cmd) {
 
 	initStatsdOptions(
 		c,
+		&statsdAgent,
 		&statsdPrefix,
 		&statsdAddr,
 		&statsdStuckDur,
@@ -36,6 +38,7 @@ func initMetrics(c *cli.Cmd) {
 			for {
 				hostname, _ := os.Hostname()
 				err := metrics.Init(*statsdAddr, checkStatsdPrefix(*statsdPrefix), &metrics.StatterConfig{
+					Agent:                *statsdAgent,
 					EnvName:              *envName,
 					HostName:             hostname,
 					StuckFunctionTimeout: duration(*statsdStuckDur, 30*time.Minute),
