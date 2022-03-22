@@ -11,9 +11,9 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 )
 
 // NewEthCommitter returns an instance of EVMCommitter, which

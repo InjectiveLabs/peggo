@@ -8,11 +8,11 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
 
+	"github.com/InjectiveLabs/metrics"
 	sidechain "github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
 )
 

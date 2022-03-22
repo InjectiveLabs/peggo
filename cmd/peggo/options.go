@@ -224,12 +224,20 @@ func initEthereumKeyOptions(
 // initStatsdOptions sets options for StatsD metrics.
 func initStatsdOptions(
 	cmd *cli.Cmd,
+	statsdAgent **string,
 	statsdPrefix **string,
 	statsdAddr **string,
 	statsdStuckDur **string,
 	statsdMocking **string,
 	statsdDisabled **string,
 ) {
+	*statsdAgent = cmd.String(cli.StringOpt{
+		Name:   "statsd-agent",
+		Desc:   "Specify StatsD agent.",
+		EnvVar: "PEGGO_STATSD_AGENT",
+		Value:  "telegraf",
+	})
+
 	*statsdPrefix = cmd.String(cli.StringOpt{
 		Name:   "statsd-prefix",
 		Desc:   "Specify StatsD compatible metrics prefix.",

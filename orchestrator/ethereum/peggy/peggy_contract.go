@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )

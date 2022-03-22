@@ -2,8 +2,8 @@ package tmclient
 
 import (
 	"context"
+	"github.com/InjectiveLabs/metrics"
 	"strings"
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 
 	log "github.com/xlab/suplog"
 
@@ -22,7 +22,7 @@ type TendermintClient interface {
 
 type tmClient struct {
 	rpcClient rpcclient.Client
-	svcTags metrics.Tags
+	svcTags   metrics.Tags
 }
 
 func NewRPCClient(rpcNodeAddr string) TendermintClient {
