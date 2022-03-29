@@ -3,6 +3,7 @@ package relayer
 import (
 	"context"
 	"sort"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -81,12 +82,12 @@ func (s *gravityRelayer) FindLatestValset(ctx context.Context) (*types.Valset, e
 		// we could access just the latest element later.
 		sort.Sort(sort.Reverse(GravityValsetUpdatedEvents(valsetUpdatedEvents)))
 
-		s.logger.Debug().
-			Int("valset_updated_events_num", len(valsetUpdatedEvents)).
-			Msg("found ValsetUpdated events")
-
 		// we take only the first event if we find any at all.
 		if len(valsetUpdatedEvents) > 0 {
+			s.logger.Debug().
+				Int("valset_updated_events_num", len(valsetUpdatedEvents)).
+				Msg("found ValsetUpdated events")
+
 			event := valsetUpdatedEvents[0]
 			valset := &types.Valset{
 				Nonce:        event.NewValsetNonce.Uint64(),
@@ -160,7 +161,7 @@ func (s *gravityRelayer) checkIfValsetsDiffer(cosmosValset, ethereumValset *type
 	BridgeValidators(ethereumValset.Members).Sort()
 
 	for idx, member := range cosmosValset.Members {
-		if ethereumValset.Members[idx].EthereumAddress != member.EthereumAddress {
+		if !strings.EqualFold(ethereumValset.Members[idx].EthereumAddress, member.EthereumAddress) {
 			s.logger.Error().Msg("valsets are different, a sorting error?")
 		}
 		if ethereumValset.Members[idx].Power != member.Power {
