@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,6 +19,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 	"github.com/umee-network/peggo/mocks"
 	gravityMocks "github.com/umee-network/peggo/mocks/gravity"
@@ -25,6 +27,31 @@ import (
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
 	"github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 )
+
+type mockOracle struct {
+	prices map[string]sdk.Dec
+}
+
+func (m mockOracle) GetPrices(baseSymbols ...string) (map[string]sdk.Dec, error) {
+	return m.prices, nil
+}
+
+func (m mockOracle) GetPrice(baseSymbol string) (sdk.Dec, error) {
+	return m.prices[baseSymbol], nil
+}
+
+func (m mockOracle) SubscribeSymbols(baseSymbols ...string) error {
+	return nil
+}
+
+func NewMockOracle() Oracle {
+	return mockOracle{
+		prices: map[string]sdk.Dec{
+			"ETH":  sdk.MustNewDecFromStr("4271.57"),
+			"USDT": sdk.MustNewDecFromStr("0.998233"),
+		},
+	}
+}
 
 func TestIsBatchProfitable(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
@@ -64,18 +91,25 @@ func TestIsBatchProfitable(t *testing.T) {
 	gravityContract, _ := gravity.NewGravityContract(logger, ethCommitter, gravityAddress, nil)
 
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.URL.Path, "/coins/ethereum/contract/0xdAC17F958D2ee523a2206206994597C13D831ec7") {
+			fmt.Fprint(w, `{"symbol": "usdt"}`)
+			return
+		}
 		if r.URL.Query().Get("contract_addresses") != "" {
 			fmt.Fprint(w, `{"0xdac17f958d2ee523a2206206994597c13d831ec7":{"usd":0.998233}}`)
 		}
 		fmt.Fprint(w, `{"ethereum": {"usd": 4271.57}}`)
+
 	}))
 	defer svr.Close()
-	coingeckoFeed := coingecko.NewCoingeckoPriceFeed(logger, 100, &coingecko.Config{BaseURL: svr.URL})
+	coingeckoFeed := coingecko.NewCoingecko(logger, &coingecko.Config{BaseURL: svr.URL})
+	mockOracle := NewMockOracle()
 
 	relayer := gravityRelayer{
 		gravityContract:  gravityContract,
-		priceFeeder:      coingeckoFeed,
+		symbolRetriever:  coingeckoFeed,
 		profitMultiplier: 1.1,
+		oracle:           mockOracle,
 	}
 
 	isProfitable := relayer.IsBatchProfitable(

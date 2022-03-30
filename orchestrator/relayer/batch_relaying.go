@@ -8,7 +8,7 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
-	"github.com/umee-network/peggo/orchestrator/coingecko"
+	"github.com/umee-network/peggo/orchestrator/oracle"
 )
 
 type SubmittableBatch struct {
@@ -216,17 +216,21 @@ func (s *gravityRelayer) IsBatchProfitable(
 	gasPrice *big.Int,
 	profitMultiplier float64,
 ) bool {
-	if s.priceFeeder == nil || profitMultiplier == 0 {
+	if s.symbolRetriever == nil || s.oracle == nil || profitMultiplier == 0 {
 		return true
 	}
 
 	// First we get the cost of the transaction in USD
-	usdEthPrice, err := s.priceFeeder.QueryUSDPriceByCoinID(coingecko.EthereumCoinID)
+	usdEthPrice, err := s.oracle.GetPrice(oracle.BaseSymbolETH)
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get ETH price")
 		return false
 	}
-	usdEthPriceDec := decimal.NewFromFloat(usdEthPrice)
+	usdEthPriceDec, err := decimal.NewFromString(usdEthPrice.String())
+	if err != nil {
+		s.logger.Err(err).Msg("failed to parse ETH price")
+		return false
+	}
 	totalETHcost := big.NewInt(0).Mul(gasPrice, big.NewInt(int64(ethGasCost)))
 
 	// Ethereum decimals are 18 and that's a constant.
@@ -248,7 +252,21 @@ func (s *gravityRelayer) IsBatchProfitable(
 		Str("token_contract", batch.TokenContract).
 		Msg("got token decimals")
 
-	usdTokenPrice, err := s.priceFeeder.QueryTokenUSDPrice(ethcmn.HexToAddress(batch.TokenContract))
+	tokenSymbol, err := s.symbolRetriever.GetTokenSymbol(ethcmn.HexToAddress(batch.TokenContract))
+	if err != nil {
+		return false
+	}
+
+	if err := s.oracle.SubscribeSymbols(tokenSymbol); err != nil {
+		return false
+	}
+
+	usdTokenPrice, err := s.oracle.GetPrice(tokenSymbol)
+	if err != nil {
+		return false
+	}
+
+	usdTokenPriceDec, err := decimal.NewFromString(usdTokenPrice.String())
 	if err != nil {
 		return false
 	}
@@ -259,7 +277,6 @@ func (s *gravityRelayer) IsBatchProfitable(
 		totalBatchFees = totalBatchFees.Add(tx.Erc20Fee.Amount.BigInt(), totalBatchFees)
 	}
 
-	usdTokenPriceDec := decimal.NewFromFloat(usdTokenPrice)
 	// Decimals (uint8) can be safely casted into int32 because the max uint8 is 255 and the max int32 is 2147483647.
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalBatchFees, -int32(decimals)).Mul(usdTokenPriceDec)
 
@@ -268,7 +285,7 @@ func (s *gravityRelayer) IsBatchProfitable(
 
 	s.logger.Debug().
 		Str("token_contract", batch.TokenContract).
-		Float64("token_price_in_usd", usdTokenPrice).
+		Str("token_price_in_usd", usdTokenPrice.String()).
 		Int64("total_fees", totalBatchFees.Int64()).
 		Float64("total_fee_in_usd", totalFeeInUSDDec.InexactFloat64()).
 		Float64("gas_cost_in_usd", gasCostInUSDDec.InexactFloat64()).

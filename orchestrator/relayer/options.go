@@ -1,11 +1,19 @@
 package relayer
 
-import "github.com/umee-network/peggo/orchestrator/coingecko"
-
-func SetPriceFeeder(pf *coingecko.PriceFeed) func(GravityRelayer) {
-	return func(s GravityRelayer) { s.SetPriceFeeder(pf) }
+func SetSymbolRetriever(coinGecko SymbolRetriever) func(GravityRelayer) {
+	return func(s GravityRelayer) { s.SetSymbolRetriever(coinGecko) }
 }
 
-func (s *gravityRelayer) SetPriceFeeder(pf *coingecko.PriceFeed) {
-	s.priceFeeder = pf
+func (s *gravityRelayer) SetSymbolRetriever(symbolRetriever SymbolRetriever) {
+	s.symbolRetriever = symbolRetriever
+}
+
+// SetOracle sets a new oracle to the Gravity Relayer.
+func SetOracle(o Oracle) func(GravityRelayer) {
+	return func(s GravityRelayer) { s.SetOracle(o) }
+}
+
+// SetOracle sets a new oracle to the Gravity Relayer.
+func (s *gravityRelayer) SetOracle(o Oracle) {
+	s.oracle = o
 }

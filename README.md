@@ -45,7 +45,7 @@ Ethereum (batches or validator set updates).
 ```shell
 $ umeed tx gravity set-orchestrator-address \
   {validatorAddress} \
-  {validatorAddress} \
+  {orchestrator-address} \
   {ethAddress} \
   --eth-priv-key="..." \
   --chain-id="..." \
@@ -119,8 +119,8 @@ Umee using the `sendToCosmos` function on Gravity.
 
 **Withdraw** (`TransactionBatchExecutedEvent`): emitted when a batch of
 transactions is sent from Umee to Ethereum using the `submitBatch` function on
-the Gravity Bridge contract by a validator. This serves as a confirmation to Umee that
-the batch was sent successfully.
+the Gravity Bridge contract by a validator. This serves as a confirmation to Umee
+that the batch was sent successfully.
 
 **Valset update** (`ValsetUpdatedEvent`): emitted on init of the Gravity Bridge contract
 and on every execution of the `updateValset` function.

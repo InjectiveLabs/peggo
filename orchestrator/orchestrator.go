@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog"
 	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 
-	"github.com/umee-network/peggo/orchestrator/coingecko"
 	sidechain "github.com/umee-network/peggo/orchestrator/cosmos"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"
@@ -42,7 +41,8 @@ type gravityOrchestrator struct {
 	batchRequesterLoopDuration time.Duration
 	ethBlocksPerLoop           uint64
 	bridgeStartHeight          uint64
-	priceFeeder                *coingecko.PriceFeed
+	symbolRetriever            relayer.SymbolRetriever
+	oracle                     relayer.Oracle
 
 	mtx             sync.Mutex
 	erc20DenomCache map[string]string
@@ -62,7 +62,8 @@ func NewGravityOrchestrator(
 	batchRequesterLoopDuration time.Duration,
 	ethBlocksPerLoop int64,
 	bridgeStartHeight int64,
-	priceFeeder *coingecko.PriceFeed,
+	symbolRetriever relayer.SymbolRetriever,
+	oracle relayer.Oracle,
 	options ...func(GravityOrchestrator),
 ) GravityOrchestrator {
 
@@ -81,7 +82,8 @@ func NewGravityOrchestrator(
 		batchRequesterLoopDuration: batchRequesterLoopDuration,
 		ethBlocksPerLoop:           uint64(ethBlocksPerLoop),
 		bridgeStartHeight:          uint64(bridgeStartHeight),
-		priceFeeder:                priceFeeder,
+		symbolRetriever:            symbolRetriever,
+		oracle:                     oracle,
 	}
 
 	for _, option := range options {

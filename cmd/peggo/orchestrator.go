@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
+	umeedpfconfig "github.com/umee-network/umee/price-feeder/config"
+
 	"github.com/umee-network/peggo/cmd/peggo/client"
 	"github.com/umee-network/peggo/orchestrator"
 	"github.com/umee-network/peggo/orchestrator/coingecko"
@@ -26,6 +29,7 @@ import (
 	"github.com/umee-network/peggo/orchestrator/ethereum/committer"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
+	"github.com/umee-network/peggo/orchestrator/oracle"
 	"github.com/umee-network/peggo/orchestrator/relayer"
 	wrappers "github.com/umee-network/peggo/solwrappers/Gravity.sol"
 )
@@ -170,9 +174,8 @@ func getOrchestratorCmd() *cobra.Command {
 				return fmt.Errorf("failed to create Ethereum committer: %w", err)
 			}
 
-			coingeckoAPI := konfig.String(flagCoinGeckoAPI)
-			coingeckoFeed := coingecko.NewCoingeckoPriceFeed(logger, 100, &coingecko.Config{
-				BaseURL: coingeckoAPI,
+			symbolRetriever := coingecko.NewCoingecko(logger, &coingecko.Config{
+				BaseURL: konfig.String(flagCoinGeckoAPI),
 			})
 
 			// gravityParams.AverageBlockTime and gravityParams.AverageEthereumBlockTime are in milliseconds.
@@ -192,6 +195,20 @@ func getOrchestratorCmd() *cobra.Command {
 				return err
 			}
 
+			ctx, cancel = context.WithCancel(context.Background())
+			// listen for and trap any OS signal to gracefully shutdown and exit
+			trapSignal(cancel)
+
+			providers := konfig.Strings(flagOracleProviders)
+			o, err := oracle.New(ctx, logger, providers)
+			if err != nil {
+				return err
+			}
+
+			if err := o.SubscribeSymbols(oracle.BaseSymbolETH); err != nil {
+				return err
+			}
+
 			relayer := relayer.NewGravityRelayer(
 				logger,
 				gravityQuerier,
@@ -201,7 +218,8 @@ func getOrchestratorCmd() *cobra.Command {
 				relayerLoopDuration,
 				konfig.Duration(flagEthPendingTXWait),
 				konfig.Float64(flagProfitMultiplier),
-				relayer.SetPriceFeeder(coingeckoFeed),
+				relayer.SetSymbolRetriever(symbolRetriever),
+				relayer.SetOracle(o),
 			)
 
 			logger = logger.With().
@@ -234,10 +252,10 @@ func getOrchestratorCmd() *cobra.Command {
 				batchRequesterLoopDuration,
 				konfig.Int64(flagEthBlocksPerLoop),
 				konfig.Int64(flagBridgeStartHeight),
-				coingeckoFeed,
+				symbolRetriever,
+				o,
 			)
 
-			ctx, cancel = context.WithCancel(context.Background())
 			g, errCtx := errgroup.WithContext(ctx)
 
 			g.Go(func() error {
@@ -252,9 +270,6 @@ func getOrchestratorCmd() *cobra.Command {
 				})
 			}
 
-			// listen for and trap any OS signal to gracefully shutdown and exit
-			trapSignal(cancel)
-
 			return g.Wait()
 		},
 	}
@@ -263,6 +278,9 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Bool(flagRelayBatches, false, "Relay transaction batches to Ethereum")
 	cmd.Flags().Int64(flagEthBlocksPerLoop, 2000, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
+	cmd.Flags().StringSlice(flagOracleProviders, []string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi},
+		fmt.Sprintf("Specify the providers to use in the oracle, options \"%s\"", strings.Join([]string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi,
+			umeedpfconfig.ProviderKraken, umeedpfconfig.ProviderGate, umeedpfconfig.ProviderOkx, umeedpfconfig.ProviderOsmosis}, ",")))
 	cmd.Flags().Duration(flagEthPendingTXWait, 20*time.Minute, "Time for a pending tx to be considered stale")
 	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")
 	cmd.Flags().Float64(flagProfitMultiplier, 1.0, "Multiplier to apply to relayer profit")

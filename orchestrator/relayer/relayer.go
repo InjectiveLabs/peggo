@@ -7,7 +7,6 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
 
-	"github.com/umee-network/peggo/orchestrator/coingecko"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 
@@ -42,9 +41,12 @@ type GravityRelayer interface {
 
 	RelayValsets(ctx context.Context, currentValset gravitytypes.Valset) error
 
-	// SetPriceFeeder sets the (optional) price feeder used when performing profitable
+	// SetSymbolRetriever sets the Symbol Retriever api to get the symbol from contract address.
+	SetSymbolRetriever(SymbolRetriever)
+
+	// SetOracle sets the oracle for price feeder used when performing profitable
 	// batch calculations.
-	SetPriceFeeder(*coingecko.PriceFeed)
+	SetOracle(Oracle)
 
 	GetProfitMultiplier() float64
 }
@@ -57,9 +59,10 @@ type gravityRelayer struct {
 	valsetRelayMode   ValsetRelayMode
 	batchRelayEnabled bool
 	loopDuration      time.Duration
-	priceFeeder       *coingecko.PriceFeed
 	pendingTxWait     time.Duration
 	profitMultiplier  float64
+	symbolRetriever   SymbolRetriever
+	oracle            Oracle
 
 	// Store locally the last tx this validator made to avoid sending duplicates
 	// or invalid txs.

@@ -12,8 +12,8 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 
-	"github.com/umee-network/peggo/orchestrator/coingecko"
 	"github.com/umee-network/peggo/orchestrator/loops"
+	"github.com/umee-network/peggo/orchestrator/oracle"
 )
 
 const (
@@ -318,7 +318,6 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 
 			if err := retry.Do(func() (err error) {
 				batchFeesResp, err := p.cosmosQueryClient.BatchFees(ctx, &types.QueryBatchFeeRequest{})
-
 				if err != nil {
 					return err
 				}
@@ -331,21 +330,38 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 						return fmt.Errorf("failed to get Ethereum gas estimate: %w", err)
 					}
 
-					usdEthPrice, err := p.priceFeeder.QueryUSDPriceByCoinID(coingecko.EthereumCoinID)
+					usdEthPrice, err := p.oracle.GetPrice(oracle.BaseSymbolETH)
 					if err != nil {
 						return err
 					}
 
-					usdEthPriceDec = decimal.NewFromFloat(usdEthPrice)
+					usdEthPriceDec, err = decimal.NewFromString(usdEthPrice.String())
+					if err != nil {
+						return err
+					}
 
 					for _, token := range unbatchedTokensWithFees {
 						if _, ok := tokensPrices[token.Token]; !ok {
-							price, err := p.priceFeeder.QueryTokenUSDPrice(ethcmn.HexToAddress(token.Token))
+							baseSymbol, err := p.symbolRetriever.GetTokenSymbol(ethcmn.HexToAddress(token.Token))
 							if err != nil {
 								return err
 							}
 
-							tokensPrices[token.Token] = decimal.NewFromFloat(price)
+							price, err := p.oracle.GetPrice(baseSymbol)
+							if err != nil {
+								// Our providers may not yet be subscribed to their websockets.
+								if err := p.oracle.SubscribeSymbols(baseSymbol); err != nil {
+									return err
+								}
+
+								return err
+							}
+
+							priceDec, err := decimal.NewFromString(price.String())
+							if err != nil {
+								return err
+							}
+							tokensPrices[token.Token] = priceDec
 
 							tokensDecimals[token.Token], err = p.gravityContract.GetERC20Decimals(
 								ctx,

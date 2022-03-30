@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Features
 
+[#231](https://github.com/umee-network/peggo/pull/231) Add multiple providers for token prices.
 [#216](https://github.com/umee-network/peggo/pull/216) Add profitability check on the batch requester loop.
 
 ### Bug Fixes
