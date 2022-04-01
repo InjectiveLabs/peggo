@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	types "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+	types "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -16,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 
 	"github.com/umee-network/peggo/mocks"
 	"github.com/umee-network/peggo/orchestrator/cosmos"

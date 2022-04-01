@@ -6,7 +6,7 @@ import (
 	retry "github.com/avast/retry-go"
 	"github.com/pkg/errors"
 
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 
 	"github.com/umee-network/peggo/orchestrator/loops"
 )

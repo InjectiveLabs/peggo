@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 

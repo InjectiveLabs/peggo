@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 
 	"github.com/umee-network/peggo/mocks"
 	gravityMocks "github.com/umee-network/peggo/mocks/gravity"

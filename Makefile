@@ -85,7 +85,7 @@ mocks:
 			-package=mocks github.com/umee-network/peggo/orchestrator/ethereum/provider \
 			EVMProviderWithRet
 	@go run github.com/golang/mock/mockgen -destination=mocks/gravity_queryclient.go \
-			-package=mocks github.com/umee-network/Gravity-Bridge/module/x/gravity/types \
+			-package=mocks github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types \
 			QueryClient
 	@go run github.com/golang/mock/mockgen -destination=mocks/gravity/gravity_contract.go \
 			-package=gravity github.com/umee-network/peggo/orchestrator/ethereum/gravity \

@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 	"github.com/umee-network/peggo/orchestrator/oracle"
 )
 

@@ -10,7 +10,7 @@ import (
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
 	"github.com/umee-network/peggo/orchestrator/ethereum/provider"
 
-	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 )
 
 // ValsetRelayMode defines an enumerated validator set relay mode.

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -20,7 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	gravitytypes "github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 	"google.golang.org/grpc"
 
 	"github.com/umee-network/peggo/cmd/peggo/client"

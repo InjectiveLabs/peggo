@@ -3,8 +3,8 @@ package relayer
 import (
 	"context"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	"github.com/pkg/errors"
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 )
 
 // RelayValsets checks the last validator set on Ethereum, if it's lower than our latest validator

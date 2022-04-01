@@ -3,9 +3,9 @@ package gravity
 import (
 	"testing"
 
+	"github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/umee-network/Gravity-Bridge/module/x/gravity/types"
 )
 
 func TestEncodeValsetConfirm(t *testing.T) {
