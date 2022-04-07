@@ -30,8 +30,8 @@ import (
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/umee-network/umee/app"
-	leveragetypes "github.com/umee-network/umee/x/leverage/types"
+	"github.com/umee-network/umee/v2/app"
+	leveragetypes "github.com/umee-network/umee/v2/x/leverage/types"
 )
 
 const (

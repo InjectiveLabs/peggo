@@ -24,12 +24,6 @@ const (
 	BaseSymbolETH        = "ETH"
 )
 
-var (
-	// deviationThreshold defines how many 𝜎 a provider can be away from the mean
-	// without being considered faulty.
-	deviationThreshold = sdk.MustNewDecFromStr("2")
-)
-
 // Oracle implements the core component responsible for fetching exchange rates
 // for a given set of currency pairs and determining the correct exchange rates.
 type Oracle struct {
@@ -264,22 +258,14 @@ func (o *Oracle) setPrices() error {
 			// e.g.: {ProviderKraken: {"ATOM": <price, volume>, ...}}
 			mtx.Lock()
 			for _, pair := range subscribedPrices {
-				if _, ok := providerPrices[providerName]; !ok {
-					providerPrices[providerName] = make(map[string]umeedpfprovider.TickerPrice)
-				}
-				if _, ok := providerCandles[providerName]; !ok {
-					providerCandles[providerName] = make(map[string][]umeedpfprovider.CandlePrice)
-				}
-
-				tp, pricesOk := prices[pair.String()]
-				if pricesOk {
-					providerPrices[providerName][pair.Base] = tp
-				}
-
-				cp, candlesOk := candles[pair.String()]
-				if candlesOk {
-					providerCandles[providerName][pair.Base] = cp
-				}
+				ummedpforacle.SetProviderTickerPricesAndCandles(
+					providerName,
+					providerPrices,
+					providerCandles,
+					prices,
+					candles,
+					pair,
+				)
 			}
 
 			mtx.Unlock()
@@ -291,170 +277,13 @@ func (o *Oracle) setPrices() error {
 		o.logger.Debug().Err(err).Msg("failed to get ticker prices from provider")
 	}
 
-	filteredCandles, err := o.filterCandleDeviations(providerCandles)
+	computedPrices, err := ummedpforacle.GetComputedPrices(o.logger, providerCandles, providerPrices)
 	if err != nil {
 		return err
 	}
 
-	// attempt to use candles for TVWAP calculations
-	tvwapPrices, err := ummedpforacle.ComputeTVWAP(filteredCandles)
-	if err != nil {
-		return err
-	}
-
-	// If TVWAP candles are not available or were filtered out due to staleness,
-	// use most recent prices & VWAP instead.
-	if len(tvwapPrices) == 0 {
-		filteredProviderPrices, err := o.filterTickerDeviations(providerPrices)
-		if err != nil {
-			return err
-		}
-
-		vwapPrices, err := ummedpforacle.ComputeVWAP(filteredProviderPrices)
-		if err != nil {
-			return err
-		}
-
-		// warn the user of any missing prices
-		reportedPrices := make(map[string]struct{})
-		for _, providers := range filteredProviderPrices {
-			for base := range providers {
-				if _, ok := reportedPrices[base]; !ok {
-					reportedPrices[base] = struct{}{}
-				}
-			}
-		}
-
-		o.prices = vwapPrices
-	} else {
-		// warn the user of any missing candles
-		reportedCandles := make(map[string]struct{})
-		for _, providers := range filteredCandles {
-			for base := range providers {
-				if _, ok := reportedCandles[base]; !ok {
-					reportedCandles[base] = struct{}{}
-				}
-			}
-		}
-
-		o.prices = tvwapPrices
-	}
-
+	o.prices = computedPrices
 	return nil
-}
-
-// filterCandleDeviations finds the standard deviations of the tvwaps of
-// all assets, and filters out any providers that are not within 2𝜎 of the mean.
-// code originally from https://github.com/umee-network/umee/blob/2a69b56ae1c6098cb2d23ef8384f5acf28f76d35/price-feeder/oracle/oracle.go#L458-L459
-func (o *Oracle) filterCandleDeviations(
-	candles umeedpfprovider.AggregatedProviderCandles,
-) (umeedpfprovider.AggregatedProviderCandles, error) {
-	var (
-		filteredCandles = make(umeedpfprovider.AggregatedProviderCandles)
-		tvwaps          = make(map[string]map[string]sdk.Dec)
-	)
-
-	for providerName, priceCandles := range candles {
-		candlePrices := make(umeedpfprovider.AggregatedProviderCandles)
-
-		for base, cp := range priceCandles {
-			if _, ok := candlePrices[providerName]; !ok {
-				candlePrices[providerName] = make(map[string][]umeedpfprovider.CandlePrice)
-			}
-
-			candlePrices[providerName][base] = cp
-		}
-
-		tvwap, err := ummedpforacle.ComputeTVWAP(candlePrices)
-		if err != nil {
-			return nil, err
-		}
-
-		for base, asset := range tvwap {
-			if _, ok := tvwaps[providerName]; !ok {
-				tvwaps[providerName] = make(map[string]sdk.Dec)
-			}
-
-			tvwaps[providerName][base] = asset
-		}
-	}
-
-	deviations, means, err := ummedpforacle.StandardDeviation(tvwaps)
-	if err != nil {
-		return nil, err
-	}
-
-	// accept any tvwaps that are within 2𝜎, or for which we couldn't get 𝜎
-	for providerName, priceMap := range tvwaps {
-		for base, price := range priceMap {
-			if _, ok := deviations[base]; !ok ||
-				(price.GTE(means[base].Sub(deviations[base].Mul(deviationThreshold))) &&
-					price.LTE(means[base].Add(deviations[base].Mul(deviationThreshold)))) {
-				if _, ok := filteredCandles[providerName]; !ok {
-					filteredCandles[providerName] = make(map[string][]umeedpfprovider.CandlePrice)
-				}
-
-				filteredCandles[providerName][base] = candles[providerName][base]
-			} else {
-				o.logger.Warn().
-					Str("base", base).
-					Str("provider", providerName).
-					Str("price", price.String()).
-					Msg("provider deviating from other candles")
-			}
-		}
-	}
-
-	return filteredCandles, nil
-}
-
-// filterTickerDeviations finds the standard deviations of the prices of
-// all assets, and filters out any providers that are not within 2𝜎 of the mean.
-// code originally from https://github.com/umee-network/umee/blob/2a69b56ae1c6098cb2d23ef8384f5acf28f76d35/price-feeder/oracle/oracle.go#L409-L410
-func (o *Oracle) filterTickerDeviations(
-	prices umeedpfprovider.AggregatedProviderPrices,
-) (umeedpfprovider.AggregatedProviderPrices, error) {
-	var (
-		filteredPrices = make(umeedpfprovider.AggregatedProviderPrices)
-		priceMap       = make(map[string]map[string]sdk.Dec)
-	)
-
-	for providerName, priceTickers := range prices {
-		if _, ok := priceMap[providerName]; !ok {
-			priceMap[providerName] = make(map[string]sdk.Dec)
-		}
-		for base, tp := range priceTickers {
-			priceMap[providerName][base] = tp.Price
-		}
-	}
-
-	deviations, means, err := ummedpforacle.StandardDeviation(priceMap)
-	if err != nil {
-		return nil, err
-	}
-
-	// accept any prices that are within 2𝜎, or for which we couldn't get 𝜎
-	for providerName, priceTickers := range prices {
-		for base, tp := range priceTickers {
-			if _, ok := deviations[base]; !ok ||
-				(tp.Price.GTE(means[base].Sub(deviations[base].Mul(deviationThreshold))) &&
-					tp.Price.LTE(means[base].Add(deviations[base].Mul(deviationThreshold)))) {
-				if _, ok := filteredPrices[providerName]; !ok {
-					filteredPrices[providerName] = make(map[string]umeedpfprovider.TickerPrice)
-				}
-
-				filteredPrices[providerName][base] = tp
-			} else {
-				o.logger.Warn().
-					Str("base", base).
-					Str("provider", providerName).
-					Str("price", tp.Price.String()).
-					Msg("provider deviating from other prices")
-			}
-		}
-	}
-
-	return filteredPrices, nil
 }
 
 func (o *Oracle) tick() error {

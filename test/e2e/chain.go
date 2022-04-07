@@ -12,8 +12,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/umee-network/umee/app"
-	"github.com/umee-network/umee/app/params"
+	"github.com/umee-network/umee/v2/app"
+	"github.com/umee-network/umee/v2/app/params"
 )
 
 const (
