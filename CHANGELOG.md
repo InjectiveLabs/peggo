@@ -43,6 +43,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## [v0.3.0](https://github.com/umee-network/peggo/releases/tag/v0.3.0) - 2022-04-01
+
+### Features
+
 [#252](https://github.com/umee-network/peggo/pull/252) Point to new version of Umee + GB
 
 ## [v0.2.7](https://github.com/umee-network/peggo/releases/tag/v0.2.7) - 2022-03-31
