@@ -670,7 +670,10 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 				Name:       s.chain.orchestrators[i].instanceName(),
 				NetworkID:  s.dkrNet.Network.ID,
 				Repository: "umeenet/peggo",
-				Env:        []string{"PEGGO_ETH_PK=" + orch.ethereumKey.privateKey},
+				Env: []string{
+					"PEGGO_ETH_PK=" + orch.ethereumKey.privateKey,
+					"PEGGO_COSMOS_PK=" + hexutil.Encode(s.chain.orchestrators[i].privateKey.Bytes()),
+				},
 				// NOTE: container names are prefixed with '/'
 				Entrypoint: []string{
 					"peggo",
@@ -693,8 +696,6 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 					"--profit-multiplier=0.0",
 					"--relayer-loop-multiplier=1.0",
 					"--requester-loop-multiplier=1.0",
-					"--cosmos-pk",
-					hexutil.Encode(s.chain.orchestrators[i].privateKey.Bytes()),
 				},
 			},
 			noRestart,

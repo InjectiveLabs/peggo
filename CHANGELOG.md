@@ -43,6 +43,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Bug Fixes
+
+[#270](https://github.com/umee-network/peggo/pull/270) Remove Cosmos PK flag
+
 ## [v0.3.0](https://github.com/umee-network/peggo/releases/tag/v0.3.0) - 2022-04-01
 
 ### Features

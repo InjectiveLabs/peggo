@@ -77,6 +77,8 @@ func cosmosKeyringFlagSet() *pflag.FlagSet {
 	fs.String(flagCosmosPK, "", "Specify a Cosmos account private key of the orchestrator in hex")
 	fs.Bool(flagCosmosUseLedger, false, "Use the Cosmos app on a hardware ledger to sign transactions")
 
+	_ = fs.MarkDeprecated(flagCosmosPK, "use the env var $PEGGO_COSMOS_PK instead")
+
 	return fs
 }
 
