@@ -46,7 +46,7 @@ uint256 public state_lastEventNonce = 0;
 bytes32 public state_peggyId;
 uint256 public state_powerThreshold;
 
-  // TransactionBatchExecutedEvent and SendToCosmosEvent both include the field _eventNonce.
+  // TransactionBatchExecutedEvent and sendToInjectiveEvent both include the field _eventNonce.
   // This is incremented every time one of these events is emitted. It is checked by the
   // Cosmos module to ensure that all events are received in order, and that none are lost.
   //
@@ -57,12 +57,13 @@ uint256 public state_powerThreshold;
     address indexed _token,
     uint256 _eventNonce
   );
-  event SendToCosmosEvent(
+  event sendToInjectiveEvent(
     address indexed _tokenContract,
     address indexed _sender,
     bytes32 indexed _destination,
     uint256 _amount,
-    uint256 _eventNonce
+    uint256 _eventNonce,
+    string _data
   );
   event ERC20DeployedEvent(
     // TODO(xlab): _cosmosDenom can be represented as bytes32 to allow indexing
@@ -430,19 +431,21 @@ uint256 public state_powerThreshold;
     }
   }
 
-  function sendToCosmos(
+  function sendToInjective(
     address _tokenContract,
     bytes32 _destination,
-    uint256 _amount
+    uint256 _amount,
+    string memory _data
   ) external whenNotPaused nonReentrant {
     IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
     state_lastEventNonce = state_lastEventNonce + 1;
-    emit SendToCosmosEvent(
+    emit sendToInjectiveEvent(
       _tokenContract,
       msg.sender,
       _destination,
       _amount,
-      state_lastEventNonce
+      state_lastEventNonce,
+      _data
     );
   }
 

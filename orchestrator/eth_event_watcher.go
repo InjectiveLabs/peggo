@@ -54,10 +54,10 @@ func (s *peggyOrchestrator) CheckForEvents(
 		return 0, err
 	}
 
-	var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
+	var sendToCosmosEvents []*wrappers.PeggySendToInjectiveEvent
 	{
 
-		iter, err := peggyFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
+		iter, err := peggyFilterer.FilterSendToInjectiveEvent(&bind.FilterOpts{
 			Start: startingBlock,
 			End:   &currentBlock,
 		}, nil, nil, nil)
@@ -185,10 +185,10 @@ func (s *peggyOrchestrator) CheckForEvents(
 }
 
 func filterSendToCosmosEventsByNonce(
-	events []*wrappers.PeggySendToCosmosEvent,
+	events []*wrappers.PeggySendToInjectiveEvent,
 	nonce uint64,
-) []*wrappers.PeggySendToCosmosEvent {
-	res := make([]*wrappers.PeggySendToCosmosEvent, 0, len(events))
+) []*wrappers.PeggySendToInjectiveEvent {
+	res := make([]*wrappers.PeggySendToInjectiveEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {

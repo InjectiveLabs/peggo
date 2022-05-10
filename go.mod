@@ -52,4 +52,4 @@ replace github.com/btcsuite/btcutil => github.com/btcsuite/btcutil v1.0.2
 
 replace github.com/cosmos/cosmos-sdk => github.com/InjectiveLabs/cosmos-sdk v0.43.0-rc0
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.2
+replace github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.5

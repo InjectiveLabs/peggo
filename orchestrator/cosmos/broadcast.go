@@ -52,7 +52,7 @@ type PeggyBroadcastClient interface {
 	SendEthereumClaims(
 		ctx context.Context,
 		lastClaimEvent uint64,
-		deposits []*wrappers.PeggySendToCosmosEvent,
+		deposits []*wrappers.PeggySendToInjectiveEvent,
 		withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
 	) error
@@ -236,7 +236,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 
 func (s *peggyBroadcastClient) sendDepositClaims(
 	ctx context.Context,
-	deposit *wrappers.PeggySendToCosmosEvent,
+	deposit *wrappers.PeggySendToInjectiveEvent,
 ) error {
 	// EthereumBridgeDepositClaim
 	// When more than 66% of the active validator set has
@@ -368,7 +368,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 func (s *peggyBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
 	lastClaimEvent uint64,
-	deposits []*wrappers.PeggySendToCosmosEvent,
+	deposits []*wrappers.PeggySendToInjectiveEvent,
 	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
 ) error {
