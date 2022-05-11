@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/sdk-go/chain/client"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 
 	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
@@ -75,7 +75,7 @@ type PeggyBroadcastClient interface {
 
 func NewPeggyBroadcastClient(
 	queryClient types.QueryClient,
-	broadcastClient client.CosmosClient,
+	broadcastClient chainclient.ChainClient,
 	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
@@ -101,7 +101,7 @@ func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
 
 type peggyBroadcastClient struct {
 	daemonQueryClient types.QueryClient
-	broadcastClient   client.CosmosClient
+	broadcastClient   chainclient.ChainClient
 	ethSignerFn       keystore.SignerFn
 	ethPersonalSignFn keystore.PersonalSignFn
 
@@ -252,6 +252,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		"destination": sdk.AccAddress(deposit.Destination[12:32]).String(),
 		"amount":      deposit.Amount.String(),
 		"event_nonce": deposit.EventNonce.String(),
+		"data":        deposit.Data,
 	}).Infoln("Oracle observed a deposit event. Sending MsgDepositClaim")
 
 	msg := &types.MsgDepositClaim{
@@ -271,7 +272,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": deposit.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent deposit event succesfully")
 	}
 
@@ -309,7 +310,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": withdraw.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent Withdraw event succesfully")
 	}
 
@@ -358,7 +359,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": valsetUpdate.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent ValsetUpdate event succesfully")
 	}
 

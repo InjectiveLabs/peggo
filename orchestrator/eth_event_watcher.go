@@ -54,7 +54,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 		return 0, err
 	}
 
-	var sendToCosmosEvents []*wrappers.PeggySendToInjectiveEvent
+	var sendToInjectiveEvents []*wrappers.PeggySendToInjectiveEvent
 	{
 
 		iter, err := peggyFilterer.FilterSendToInjectiveEvent(&bind.FilterOpts{
@@ -66,10 +66,10 @@ func (s *peggyOrchestrator) CheckForEvents(
 			log.WithFields(log.Fields{
 				"start": startingBlock,
 				"end":   currentBlock,
-			}).Errorln("failed to scan past SendToCosmos events from Ethereum")
+			}).Errorln("failed to scan past sendToInjectiveEvents events from Ethereum")
 
 			if !isUnknownBlockErr(err) {
-				err = errors.Wrap(err, "failed to scan past SendToCosmos events from Ethereum")
+				err = errors.Wrap(err, "failed to scan past sendToInjectiveEvents events from Ethereum")
 				return 0, err
 			} else if iter == nil {
 				return 0, errors.New("no iterator returned")
@@ -77,7 +77,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 		}
 
 		for iter.Next() {
-			sendToCosmosEvents = append(sendToCosmosEvents, iter.Event)
+			sendToInjectiveEvents = append(sendToInjectiveEvents, iter.Event)
 		}
 
 		iter.Close()
@@ -86,7 +86,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 	log.WithFields(log.Fields{
 		"start":    startingBlock,
 		"end":      currentBlock,
-		"Deposits": sendToCosmosEvents,
+		"Deposits": sendToInjectiveEvents,
 	}).Debugln("Scanned SendToCosmos events from Ethereum")
 
 	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
@@ -168,7 +168,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 		return 0, err
 	}
 
-	deposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastClaimEvent.EthereumEventNonce)
+	deposits := filterSendToInjectiveEventsByNonce(sendToInjectiveEvents, lastClaimEvent.EthereumEventNonce)
 	withdraws := filterTransactionBatchExecutedEventsByNonce(transactionBatchExecutedEvents, lastClaimEvent.EthereumEventNonce)
 	valsetUpdates := filterValsetUpdateEventsByNonce(valsetUpdatedEvents, lastClaimEvent.EthereumEventNonce)
 
@@ -184,7 +184,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 	return currentBlock, nil
 }
 
-func filterSendToCosmosEventsByNonce(
+func filterSendToInjectiveEventsByNonce(
 	events []*wrappers.PeggySendToInjectiveEvent,
 	nonce uint64,
 ) []*wrappers.PeggySendToInjectiveEvent {

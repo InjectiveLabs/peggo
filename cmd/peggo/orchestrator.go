@@ -11,8 +11,9 @@ import (
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/sdk-go/chain/client"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
+	"github.com/InjectiveLabs/sdk-go/client/common"
 
 	"github.com/InjectiveLabs/peggo/orchestrator"
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
@@ -173,7 +174,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		log.Infoln("Using Cosmos ValAddress", valAddress.String())
 		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
 
-		clientCtx, err := client.NewClientContext(*cosmosChainID, valAddress.String(), cosmosKeyring)
+		clientCtx, err := chainclient.NewClientContext(*cosmosChainID, valAddress.String(), cosmosKeyring)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to initialize cosmos client context")
 		}
@@ -184,7 +185,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}
 		clientCtx = clientCtx.WithClient(tmRPC)
 
-		daemonClient, err := client.NewCosmosClient(clientCtx, *cosmosGRPC, client.OptionGasPrices(*cosmosGasPrices))
+		daemonClient, err := chainclient.NewChainClient(clientCtx, *cosmosGRPC, common.OptionGasPrices(*cosmosGasPrices))
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"endpoint": *cosmosGRPC,
