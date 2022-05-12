@@ -66,10 +66,10 @@ func (s *peggyOrchestrator) CheckForEvents(
 			log.WithFields(log.Fields{
 				"start": startingBlock,
 				"end":   currentBlock,
-			}).Errorln("failed to scan past sendToInjectiveEvents events from Ethereum")
+			}).Errorln("failed to scan past SendToInjective events from Ethereum")
 
 			if !isUnknownBlockErr(err) {
-				err = errors.Wrap(err, "failed to scan past sendToInjectiveEvents events from Ethereum")
+				err = errors.Wrap(err, "failed to scan past SendToInjective events from Ethereum")
 				return 0, err
 			} else if iter == nil {
 				return 0, errors.New("no iterator returned")
