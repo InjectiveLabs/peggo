@@ -57,6 +57,13 @@ uint256 public state_powerThreshold;
     address indexed _token,
     uint256 _eventNonce
   );
+  event SendToCosmosEvent(
+      address indexed _tokenContract,
+      address indexed _sender,
+      bytes32 indexed _destination,
+      uint256 _amount,
+      uint256 _eventNonce
+  );
   event SendToInjectiveEvent(
     address indexed _tokenContract,
     address indexed _sender,
@@ -64,13 +71,6 @@ uint256 public state_powerThreshold;
     uint256 _amount,
     uint256 _eventNonce,
     string _data
-  );
-   event SendToCosmosEvent(
-    address indexed _tokenContract,
-    address indexed _sender,
-    bytes32 indexed _destination,
-    uint256 _amount,
-    uint256 _eventNonce    
   );
   event ERC20DeployedEvent(
     // TODO(xlab): _cosmosDenom can be represented as bytes32 to allow indexing
