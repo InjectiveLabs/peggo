@@ -52,6 +52,7 @@ type PeggyBroadcastClient interface {
 	SendEthereumClaims(
 		ctx context.Context,
 		lastClaimEvent uint64,
+		oldDeposits []*wrappers.PeggySendToCosmosEvent,
 		deposits []*wrappers.PeggySendToInjectiveEvent,
 		withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
@@ -234,6 +235,51 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
+func (s *peggyBroadcastClient) sendOldDepositClaims(
+	ctx context.Context,
+	oldDeposit *wrappers.PeggySendToCosmosEvent,
+) error {
+	// EthereumBridgeDepositClaim
+	// When more than 66% of the active validator set has
+	// claimed to have seen the deposit enter the ethereum blockchain coins are
+	// issued to the Cosmos address in question
+	// -------------
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	log.WithFields(log.Fields{
+		"sender":      oldDeposit.Sender.Hex(),
+		"destination": sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
+		"amount":      oldDeposit.Amount.String(),
+		"event_nonce": oldDeposit.EventNonce.String(),
+	}).Infoln("Oracle observed old deposit event. Sending MsgDepositClaim")
+
+	msg := &types.MsgDepositClaim{
+		EventNonce:     oldDeposit.EventNonce.Uint64(),
+		BlockHeight:    oldDeposit.Raw.BlockNumber,
+		TokenContract:  oldDeposit.TokenContract.Hex(),
+		Amount:         sdk.NewIntFromBigInt(oldDeposit.Amount),
+		EthereumSender: oldDeposit.Sender.Hex(),
+		CosmosReceiver: sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
+		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		Data:           "",
+	}
+
+	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+		return err
+	} else {
+		log.WithFields(log.Fields{
+			"event_nonce": oldDeposit.EventNonce.String(),
+			"txHash":      txResponse.TxResponse.TxHash,
+		}).Infoln("Oracle sent old deposit event succesfully")
+	}
+
+	return nil
+}
+
 func (s *peggyBroadcastClient) sendDepositClaims(
 	ctx context.Context,
 	deposit *wrappers.PeggySendToInjectiveEvent,
@@ -263,6 +309,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		EthereumSender: deposit.Sender.Hex(),
 		CosmosReceiver: sdk.AccAddress(deposit.Destination[12:32]).String(),
 		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		Data:           deposit.Data,
 	}
 
 	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
@@ -369,6 +416,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 func (s *peggyBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
 	lastClaimEvent uint64,
+	oldDeposits []*wrappers.PeggySendToCosmosEvent,
 	deposits []*wrappers.PeggySendToInjectiveEvent,
 	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
@@ -377,12 +425,21 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	totalClaimEvents := len(deposits) + len(withdraws) + len(valsetUpdates)
-	var count, i, j, k int
+	totalClaimEvents := len(oldDeposits) + len(deposits) + len(withdraws) + len(valsetUpdates)
+	var count, h, i, j, k int
 
-	// Individual arrays (deposits, withdraws, valsetUpdates) are sorted.
+	// Individual arrays (oldDeposits, deposits, withdraws, valsetUpdates) are sorted.
 	// Broadcast claim events sequentially starting with eventNonce = lastClaimEvent + 1.
 	for count < totalClaimEvents {
+		if h < len(oldDeposits) && oldDeposits[h].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send old deposit
+			if err := s.sendOldDepositClaims(ctx, oldDeposits[h]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			h++
+		}
 		if i < len(deposits) && deposits[i].EventNonce.Uint64() == lastClaimEvent+1 {
 			// send deposit
 			if err := s.sendDepositClaims(ctx, deposits[i]); err != nil {

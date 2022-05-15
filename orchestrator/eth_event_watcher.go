@@ -54,6 +54,41 @@ func (s *peggyOrchestrator) CheckForEvents(
 		return 0, err
 	}
 
+	var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
+	{
+
+		iter, err := peggyFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
+			Start: startingBlock,
+			End:   &currentBlock,
+		}, nil, nil, nil)
+		if err != nil {
+			metrics.ReportFuncError(s.svcTags)
+			log.WithFields(log.Fields{
+				"start": startingBlock,
+				"end":   currentBlock,
+			}).Errorln("failed to scan past SendToCosmos events from Ethereum")
+
+			if !isUnknownBlockErr(err) {
+				err = errors.Wrap(err, "failed to scan past SendToCosmos events from Ethereum")
+				return 0, err
+			} else if iter == nil {
+				return 0, errors.New("no iterator returned")
+			}
+		}
+
+		for iter.Next() {
+			sendToCosmosEvents = append(sendToCosmosEvents, iter.Event)
+		}
+
+		iter.Close()
+	}
+
+	log.WithFields(log.Fields{
+		"start":       startingBlock,
+		"end":         currentBlock,
+		"OldDeposits": sendToCosmosEvents,
+	}).Debugln("Scanned SendToCosmos events from Ethereum")
+
 	var sendToInjectiveEvents []*wrappers.PeggySendToInjectiveEvent
 	{
 
@@ -87,7 +122,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 		"start":    startingBlock,
 		"end":      currentBlock,
 		"Deposits": sendToInjectiveEvents,
-	}).Debugln("Scanned SendToCosmos events from Ethereum")
+	}).Debugln("Scanned SendToInjective events from Ethereum")
 
 	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
 	{
@@ -168,13 +203,14 @@ func (s *peggyOrchestrator) CheckForEvents(
 		return 0, err
 	}
 
+	oldDeposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastClaimEvent.EthereumEventNonce)
 	deposits := filterSendToInjectiveEventsByNonce(sendToInjectiveEvents, lastClaimEvent.EthereumEventNonce)
 	withdraws := filterTransactionBatchExecutedEventsByNonce(transactionBatchExecutedEvents, lastClaimEvent.EthereumEventNonce)
 	valsetUpdates := filterValsetUpdateEventsByNonce(valsetUpdatedEvents, lastClaimEvent.EthereumEventNonce)
 
-	if len(deposits) > 0 || len(withdraws) > 0 || len(valsetUpdates) > 0 {
+	if len(oldDeposits) > 0 || len(deposits) > 0 || len(withdraws) > 0 || len(valsetUpdates) > 0 {
 		// todo get eth chain id from the chain
-		if err := s.peggyBroadcastClient.SendEthereumClaims(ctx, lastClaimEvent.EthereumEventNonce, deposits, withdraws, valsetUpdates); err != nil {
+		if err := s.peggyBroadcastClient.SendEthereumClaims(ctx, lastClaimEvent.EthereumEventNonce, oldDeposits, deposits, withdraws, valsetUpdates); err != nil {
 			metrics.ReportFuncError(s.svcTags)
 			err = errors.Wrap(err, "failed to send ethereum claims to Cosmos chain")
 			return 0, err
@@ -182,6 +218,21 @@ func (s *peggyOrchestrator) CheckForEvents(
 	}
 
 	return currentBlock, nil
+}
+
+func filterSendToCosmosEventsByNonce(
+	events []*wrappers.PeggySendToCosmosEvent,
+	nonce uint64,
+) []*wrappers.PeggySendToCosmosEvent {
+	res := make([]*wrappers.PeggySendToCosmosEvent, 0, len(events))
+
+	for _, ev := range events {
+		if ev.EventNonce.Uint64() > nonce {
+			res = append(res, ev)
+		}
+	}
+
+	return res
 }
 
 func filterSendToInjectiveEventsByNonce(
