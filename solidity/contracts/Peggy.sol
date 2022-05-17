@@ -103,7 +103,7 @@ contract Peggy is
         // The validator set, not in valset args format since many of it's
         // arguments would never be used in this case
         address[] calldata _validators,
-        uint256[] memory _powers
+        uint256[] calldata _powers
     ) external initializer {
         __Context_init_unchained();
         __Ownable_init_unchained();
@@ -260,13 +260,13 @@ contract Peggy is
     // the new valset.
     function updateValset(
         // The new version of the validator set
-        ValsetArgs memory _newValset,
+        ValsetArgs calldata _newValset,
         // The current validators that approve the change
-        ValsetArgs memory _currentValset,
+        ValsetArgs calldata _currentValset,
         // These are arrays of the parts of the current validator's signatures
-        uint8[] memory _v,
-        bytes32[] memory _r,
-        bytes32[] memory _s
+        uint8[] calldata _v,
+        bytes32[] calldata _r,
+        bytes32[] calldata _s
     ) external whenNotPaused {
         // CHECKS
 
@@ -462,7 +462,7 @@ contract Peggy is
         address _tokenContract,
         bytes32 _destination,
         uint256 _amount,
-        string memory _data
+        string calldata _data
     ) external whenNotPaused nonReentrant {
         IERC20(_tokenContract).safeTransferFrom(
             msg.sender,
