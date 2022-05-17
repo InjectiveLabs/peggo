@@ -62,13 +62,6 @@ contract Peggy is
         address indexed _token,
         uint256 _eventNonce
     );
-    event SendToCosmosEvent(
-        address indexed _tokenContract,
-        address indexed _sender,
-        bytes32 indexed _destination,
-        uint256 _amount,
-        uint256 _eventNonce
-    );
     event SendToInjectiveEvent(
         address indexed _tokenContract,
         address indexed _sender,

@@ -19,12 +19,14 @@ dataSources:
         - Test
       abis:
         - name: Peggy
-          file: ../../test/ethereum/artifacts/solidity/contracts/Peggy.sol/Peggy.json
+          file: ../../test/ethereum/artifacts/solidity/contracts/PeggySubgraph.sol/PeggySubgraph.json
       eventHandlers:
         - event: ERC20DeployedEvent(string,indexed address,string,string,uint8,uint256)
           handler: handleNewERC20Deployed
         - event: SendToCosmosEvent(indexed address,indexed address,indexed bytes32,uint256,uint256)
           handler: handleSendToCosmosEvent
+        - event: SendToInjectiveEvent(indexed address,indexed address,indexed bytes32,uint256,uint256,string)
+          handler: handleSendToInjectiveEvent
         - event: ValsetUpdatedEvent(indexed uint256,uint256,uint256,address,address[],uint256[])
           handler: handleUpdateValset
         - event: TransactionBatchExecutedEvent(indexed uint256,indexed address,uint256)

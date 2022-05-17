@@ -13,6 +13,7 @@ import {
 import {
   ERC20DeployedEvent,
   SendToCosmosEvent,
+  SendToInjectiveEvent,
   SubmitBatchCall,
   TransactionBatchExecutedEvent,
   ValsetUpdatedEvent,
@@ -155,6 +156,32 @@ export function handleSendToCosmosEvent(event: SendToCosmosEvent): void {
   deposit.amount = event.params._amount;
   deposit.destination = getInjectiveAddress(event.params._destination);
   deposit.sender = event.params._sender;
+  deposit.eventNonce = event.params._eventNonce.toI32();
+  deposit.timestamp = event.block.timestamp.toI32();
+  deposit.blockHeight = event.block.number.toI32();
+
+  deposit.save();
+
+  let state = new State(STATE_STORE_ID);
+  state.lastEventNonce = event.params._eventNonce.toI32();
+  state.save();
+}
+
+export function handleSendToInjectiveEvent(event: SendToInjectiveEvent): void {
+  log.info(
+    "handleSendToInjectiveEvent: Withdrawal of {} at token with address {}",
+    [event.params._amount.toString(), event.params._tokenContract.toHex()]
+  );
+
+  let depositID =
+    event.transaction.hash.toHex() + "-" + event.logIndex.toString();
+  let deposit = new Deposit(depositID);
+
+  deposit.tokenContract = event.params._tokenContract;
+  deposit.amount = event.params._amount;
+  deposit.destination = getInjectiveAddress(event.params._destination);
+  deposit.sender = event.params._sender;
+  deposit.data = event.params._data;
   deposit.eventNonce = event.params._eventNonce.toI32();
   deposit.timestamp = event.block.timestamp.toI32();
   deposit.blockHeight = event.block.number.toI32();
