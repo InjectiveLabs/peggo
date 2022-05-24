@@ -522,8 +522,8 @@ github.com/cosmos/cosmos-sdk v0.44.5/go.mod h1:maUA6m2TBxOJZkbwl0eRtEBgTX37kcaiO
 github.com/cosmos/cosmos-sdk v0.44.6/go.mod h1:XXS/asyCqWNWkx2rW6pSuen+EVcpAFxq6khrhnZgHaQ=
 github.com/cosmos/cosmos-sdk v0.45.1/go.mod h1:XXS/asyCqWNWkx2rW6pSuen+EVcpAFxq6khrhnZgHaQ=
 github.com/cosmos/cosmos-sdk v0.45.2/go.mod h1:DhSVBqJkhjB694w99FudptzPhU0XHd/qcyiNCLOjkds=
-github.com/cosmos/cosmos-sdk v0.45.3 h1:PiVSU3IkNEDPhoxOZHk2lPnhwBBJgEYAtAR0jGXRN4g=
-github.com/cosmos/cosmos-sdk v0.45.3/go.mod h1:qYm5JEr0ZlbnmoP/Q3b+dYMOliHf4ddHirpILiwZzqg=
+github.com/cosmos/cosmos-sdk v0.45.4 h1:eStDAhJdMY8n5arbBRe+OwpNeBSunxSBHp1g55ulfdA=
+github.com/cosmos/cosmos-sdk v0.45.4/go.mod h1:WOqtDxN3eCCmnYLVla10xG7lEXkFjpTaqm2a2WasgCc=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
@@ -932,6 +932,7 @@ github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a h1:iR3fYXUjHCR97qWS
 github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a/go.mod h1:9qCChq59u/eW8im404Q2WWTrnBUQKjpNYKMbU4M7EFU=
 github.com/golangci/golangci-lint v1.42.1/go.mod h1:MuInrVlgg2jq4do6XI1jbkErbVHVbwdrLLtGv6p2wPI=
 github.com/golangci/golangci-lint v1.45.2/go.mod h1:f20dpzMmUTRp+oYnX0OGjV1Au3Jm2JeI9yLqHq1/xsI=
+github.com/golangci/golangci-lint v1.46.0/go.mod h1:IJpcNOUfx/XLRwE95FHQ6QtbhYwwqcm0H5QkwUfF4ZE=
 github.com/golangci/golangci-lint v1.46.2 h1:o90t/Xa6dhJbvy8Bz2RpzUXqrkigp19DLStMolTZbyo=
 github.com/golangci/golangci-lint v1.46.2/go.mod h1:3DkdHnxn9eoTTrpT2gB0TEv8KSziuoqe9FitgQLHvAY=
 github.com/golangci/lint-1 v0.0.0-20181222135242-d2cdd8c08219/go.mod h1:/X8TswGSh1pIozq4ZwCfxS0WA5JGXguxk94ar/4c87Y=
@@ -1364,6 +1365,7 @@ github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e/go.mod h1:7rIyQ
 github.com/lucasb-eyer/go-colorful v1.0.3/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/lucasb-eyer/go-colorful v1.2.0/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/lucasjones/reggen v0.0.0-20180717132126-cdb49ff09d77/go.mod h1:5ELEyG+X8f+meRWHuqUOewBOhvHkl7M76pdGEansxW4=
+github.com/lufeee/execinquery v1.0.0/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=
 github.com/lufeee/execinquery v1.2.1 h1:hf0Ems4SHcUGBxpGN7Jz78z1ppVkP/837ZlETPCEtOM=
 github.com/lufeee/execinquery v1.2.1/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
@@ -2092,8 +2094,8 @@ github.com/ultraware/whitespace v0.0.5/go.mod h1:aVMh/gQve5Maj9hQ/hg+F75lr/X5A89
 github.com/umee-network/umee/price-feeder v0.2.1 h1:iUwoX97DdAEclRXEiI76QXIDmCTnxBYaCybyLxtbUSg=
 github.com/umee-network/umee/price-feeder v0.2.1/go.mod h1:Ii7X77yIdtcV7oTZ9T5pK4wXPrigd4lYDXreRazzluM=
 github.com/umee-network/umee/v2 v2.0.0/go.mod h1:dJVKVifwAcqN1P0eiHw+pNWXJGppdUL7gm/PqCManhs=
-github.com/umee-network/umee/v2 v2.0.1 h1:S0tDYC+QU1qJuIhV0db0dj9i7sE5jMKjpey7YGKmweA=
-github.com/umee-network/umee/v2 v2.0.1/go.mod h1:KGAOn+mLriba8mKQ0QOJEAXWzch3dCm+dbThGVPvWzc=
+github.com/umee-network/umee/v2 v2.0.2 h1:FxXEWlSuI/pM3SAt+uv8CfNBCbuej/gD3HDXTMlHjiQ=
+github.com/umee-network/umee/v2 v2.0.2/go.mod h1:cIk/jqualQTQdQ5LOBzeAm7obviFn7LZChqBDibl+n8=
 github.com/urfave/cli v0.0.0-20171014202726-7bc6a0acffa5/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
