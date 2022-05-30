@@ -13,7 +13,9 @@ updates:
       prefix: "chore"
     open-pull-requests-limit: 10
     reviewers:
-      - alexanderbez
+      - facundomedica
+      - RafilxTenfen
+      - brianosaurus
     labels:
       - "A:Automerge"
       - "T:Dependencies"
