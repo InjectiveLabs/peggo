@@ -678,8 +678,8 @@ github.com/esimonov/ifshort v1.0.4/go.mod h1:Pe8zjlRrJ80+q2CxHLfEOfTwxCZ4O+MuhcH
 github.com/ethereum/go-ethereum v1.9.25/go.mod h1:vMkFiYLHI4tgPw4k2j4MHKoovchFE8plZ0M9VMk4/oM=
 github.com/ethereum/go-ethereum v1.10.10/go.mod h1:W3yfrFyL9C1pHcwY5hmRHVDaorTiQxhYBkKyu5mEDHw=
 github.com/ethereum/go-ethereum v1.10.16/go.mod h1:Anj6cxczl+AHy63o4X9O8yWNHuN5wMpfb8MAnHkWn7Y=
-github.com/ethereum/go-ethereum v1.10.18 h1:hLEd5M+UD0GJWPaROiYMRgZXl6bi5YwoTJSthsx5CZw=
-github.com/ethereum/go-ethereum v1.10.18/go.mod h1:RD3NhcSBjZpj3k+SnQq24wBrmnmie78P5R/P62iNBD8=
+github.com/ethereum/go-ethereum v1.10.19 h1:EOR5JbL4MD5yeOqv8W2iC1s4NximrTjqFccUz8lyBRA=
+github.com/ethereum/go-ethereum v1.10.19/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/ettle/strcase v0.1.1 h1:htFueZyVeE1XNnMEfbqp5r67qAN/4r6ya1ysq8Q+Zcw=
 github.com/ettle/strcase v0.1.1/go.mod h1:hzDLsPC7/lwKyBOywSHEP89nt2pDgdy+No1NBA9o9VY=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
@@ -2025,6 +2025,7 @@ github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1F
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/subosito/gotenv v1.3.0 h1:mjC+YW8QpAdXibNi+vNWgzmgBH4+5l5dCXv8cNysBLI=
 github.com/subosito/gotenv v1.3.0/go.mod h1:YzJjq/33h7nrwdY+iHMhEOEEbW0ovIz0tB6t6PwAXzs=
+github.com/supranational/blst v0.3.8-0.20220526154634-513d2456b344/go.mod h1:jZJtfjgudtNl4en1tzwPIV3KjUnQUvG3/j+w+fVonLw=
 github.com/sylvia7788/contextcheck v1.0.4 h1:MsiVqROAdr0efZc/fOCt0c235qm9XJqHtWwM+2h2B04=
 github.com/sylvia7788/contextcheck v1.0.4/go.mod h1:vuPKJMQ7MQ91ZTqfdyreNKwZjyUg6KO+IebVyQDedZQ=
 github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
