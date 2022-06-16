@@ -68,7 +68,7 @@ abstract contract OwnableUpgradeableWithExpiry is Initializable, ContextUpgradea
      * @return The timestamp of ownership expiry.
      */
     function getOwnershipExpiryTimestamp() public view returns (uint256) {
-       return _deployTimestamp + 52 weeks;
+       return _deployTimestamp + 82 weeks;
     }
 
     /**
