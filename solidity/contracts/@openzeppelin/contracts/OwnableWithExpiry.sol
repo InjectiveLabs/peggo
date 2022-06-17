@@ -62,7 +62,7 @@ abstract contract OwnableWithExpiry is Context {
      * @return The timestamp of ownership expiry.
      */
     function getOwnershipExpiryTimestamp() public view returns (uint256) {
-       return _deployTimestamp + 52 weeks;
+       return _deployTimestamp + 30 weeks;
     }
 
     /**
