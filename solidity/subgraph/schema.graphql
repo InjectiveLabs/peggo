@@ -16,7 +16,7 @@ type Deposit @entity {
   eventNonce: Int!
   timestamp: Int!
   blockHeight: Int!
-  data: String!
+  data: String
 }
 
 type BatchWithdrawal @entity {
