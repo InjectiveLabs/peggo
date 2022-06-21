@@ -1,0 +1,24 @@
+sequenceDiagram
+    title: EthSignerMainLoop
+
+    Peggo->>+Ethereum: queries Gravity Bridge ID
+    Ethereum-->>-Peggo: returns current gravityID
+
+    Peggo->>+Cosmos: LastPendingValsetRequestByAddr
+        Peggo->>+Cosmos: AccFromAddress
+        Cosmos-->>-Peggo: returns the address
+    Cosmos-->>-Peggo: returns the validator set snapshots it has not yet signed
+
+    Peggo->>+Peggo: Init Loop for each unsigned Valset
+        Peggo->>+Cosmos: SendValsetConfirm sends an confirmation for a validator <br> "MsgValsetConfirm" that sends signatures over to the validator
+        Cosmos-->>-Peggo: If 66%+ sent the MsgValsetConfirm then we can <br>submit the new validator set to ethereum
+    Peggo->>-Peggo: Ends Loop
+
+    Peggo->>+Cosmos: get the LastPendingBatchRequestByAddr
+    Cosmos-->>-Peggo: returns last pending transaction batch unsigned
+
+    Peggo->>+Peggo: Init Loop for each unsigned transaction batch
+        Peggo->>+Cosmos: SendBatchConfirm send an MsgConfirmBatch<br> with txs and eth signature
+        Cosmos-->>-Peggo: Cosmos validators order the txs of <br>highest to lowest fee in txqueue
+    Peggo->>-Peggo: Ends Loop
+

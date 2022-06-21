@@ -47,5 +47,6 @@ ignore:
   - "types/*.pb.go"
   - "test/*"
   - "test/**/*"
+  - "diagrams/**/*"
   - "scripts/"
   - "contrib"

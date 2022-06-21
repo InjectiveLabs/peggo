@@ -1,0 +1,17 @@
+sequenceDiagram
+    title: BatchRequesterLoop
+
+    Peggo->>+Cosmos: BatchFees queries the batch fees
+    Cosmos-->>-Peggo: return the batches from unbatched pool
+    Peggo->>+Oracle: GetPrice of all unbatched tokens
+    Oracle-->>-Peggo: return all token prices and symbols of unbatched tokens
+    Peggo->>+Ethereum: Get tokens decimals of unbatched tokens
+    Ethereum-->>-Peggo: return decimals of each unbatched tokens
+    Peggo->>+Cosmos: Get token denom from erc20 address
+    Cosmos-->>-Peggo: returns denoms of each token
+    Peggo->>+Peggo: Calculate batch profitability
+    Peggo-->>-Peggo: Batch is profitable
+    Peggo->>+Cosmos: SendRequestBatch for each token denom
+    Cosmos->>+Cosmos: Generates a batch tx to send across the bridge
+    Cosmos-->>-Cosmos: Validators grab batch and sign an MsgConfirmBatch
+    Cosmos->>-Peggo: Continue in RelayerMainLoop

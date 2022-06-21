@@ -1,0 +1,37 @@
+sequenceDiagram
+    title: EthOracleMainLoop
+
+    Peggo->>+Cosmos: queries Gravity Bridge Params
+    Cosmos-->>-Peggo: returns current params
+
+    Peggo-->>Peggo: Smart Contract is confirmed
+
+    Peggo->>+Peggo: Init GetLastCheckedBlock
+
+    Peggo->>+Cosmos: LastEventNonceByAddr gets last nonce from this addr
+    Cosmos-->>-Peggo: returns last nonce from this addr
+
+    Peggo->>+Ethereum: GetLastBlock
+    Ethereum-->>-Peggo: returns last block
+
+    Peggo->>+Ethereum: get sendToCosmosEvent, sendToCosmosEvent, TransactionBatchExecuted,<br> ERC20Deployed, ValsetUpdatedEvent events from last block
+    Ethereum-->>-Peggo: returns all events
+
+    Peggo->>-Peggo: End GetLastCheckedBlock
+
+    Peggo->>+Peggo: Init CheckForEvents
+    Peggo->>+Ethereum: Get Last block
+    Ethereum-->>-Peggo: returns last block
+
+    Peggo->>+Ethereum: get all events ERC20Deployed, SendToCosmos,<br> TransactionBatchExecuted, ValsetUpdatedEvent
+    Ethereum-->>-Peggo: returns all the events
+
+    Peggo->>+Cosmos: get LastEventNonceByAddr
+    Cosmos-->>-Peggo: returns the last nonce for that addr
+
+    Peggo-->>Peggo: filter all the events from the nonce
+
+    Peggo->>+Cosmos: broadcast all the eth events
+    Cosmos-->>-Peggo: waits for tx to be included in block
+
+    Peggo-->>-Peggo: End CheckForEvents

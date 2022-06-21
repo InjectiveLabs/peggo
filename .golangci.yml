@@ -2,6 +2,7 @@ run:
   tests: false
   skip-dirs:
     - test
+    - diagrams
 
   govet:
     # Enable analyzers by name (in addition to default).

@@ -1,0 +1,76 @@
+sequenceDiagram
+    title: RelayerMainLoop
+
+    Peggo->>+Peggo: FindLatestValset
+        Peggo->>+Ethereum: GetLastBlockNumber
+        Ethereum-->>-Peggo: returns the block number
+
+        Peggo->>+Ethereum: GetValsetNonce gets the last valset nonce
+        Ethereum-->>-Peggo: returns the last nonce on eth
+
+        Peggo->>+Cosmos: ValsetRequest gets the last valset nonce
+        Cosmos-->>-Peggo: returns the last nonce on cosmos
+
+        Peggo->>+Ethereum: FilterValsetUpdatedEvent gets the last ValsetUpdatedEvent
+        Ethereum-->>-Peggo: returns the last ValsetUpdatedEvent
+
+        Peggo->>Peggo: Builds all the ValsetUpdatedEvent and <br>reverse the order
+        Peggo->>Peggo: CheckIfValsetsDiffer Checks the last valset <br>from eth if the change is meaningfull
+
+    Peggo-->>-Peggo: returns the latests possible valset
+
+    Peggo->>+Peggo: RelayValsets
+
+        Peggo->>+Cosmos: LastValsetRequests gets the last valset request
+        Cosmos-->>-Peggo: returns the last valset request on cosmos
+
+        Peggo->>+Cosmos: findLatestValidValset gets the last valid valset
+        Cosmos-->>-Peggo: returns the lastest valid valset and signatures
+
+        Peggo->>+Ethereum: GetValsetNonce gets the last valset nonce
+        Ethereum-->>-Peggo: returns the last nonce
+
+        Peggo->>Peggo: Check if nonce wasn't already submitted
+
+    Peggo-->>-Peggo: submit the updated Valset as <br>an Ethereum transaction if is needed
+
+    Peggo->>+Peggo: getBatchesAndSignatures
+
+        Peggo->>+Cosmos: OutgoingTxBatches gets the outgoing transactions
+        Cosmos-->>-Peggo: returns the OutgoingTxBatches of the gravity module
+
+        Peggo->>+Cosmos: BatchConfirms foreach batch
+        Cosmos-->>-Peggo: returns all the signatures for the given batch
+
+        Peggo->>+Ethereum: EncodeTransactionBatch checks with the gravity <br>contract if the signatures are good to be sent
+        Ethereum-->>-Peggo: returns error if any
+
+        Peggo->>Peggo: Builds the batches of transactions<br> as possibleBatches
+
+    Peggo-->>-Peggo: returns possible batches <br>to be relayed
+
+    Peggo->>+Peggo: RelayBatches
+
+        Peggo->>+Ethereum: GetLastBlockNumber
+        Ethereum-->>-Peggo: returns the last block number
+
+        Peggo->>+Ethereum: GetTxBatchNonce
+        Ethereum-->>-Peggo: returns the latest transaction batch nonce
+
+        Peggo->>Peggo: Checks for the last submitted <br>nonce on eth with the batch nonce
+
+        Peggo->>+Ethereum: EncodeTransactionBatch encodes the <br>batch with signature (v, r, s)
+        Ethereum-->>-Peggo: returns encoded batch as bytes
+
+        Peggo->>+Ethereum: EstimateGas calculates the gas usage of the tx to be sent
+        Ethereum-->>-Peggo: returns the estimated gas cost
+
+        Peggo->>Peggo: Checks if the batch is <br>profitable using the oracles and <br>checking the price of each asset
+
+        Peggo->>+Ethereum: IsPendingTxInput check if the tx is pending in the mempool
+        Ethereum-->>-Peggo: returns whether or not the tx is already there
+
+        Peggo->>+Ethereum: SendTx sends the transaction to<br> ethereum with the encoded batch
+        Ethereum-->>-Peggo: returns the transaction hash
+
+    Peggo-->>-Peggo: relayes all the possible <br>batches to ethereum

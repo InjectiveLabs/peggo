@@ -58,15 +58,36 @@ func (p *gravityOrchestrator) Start(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {
+		// scan all the events emitted by ethereum gravity contract
+		// from the last block (we get the last block from cosmos)
+		// broadcast all the eth events to cosmos as "claims"
 		return p.EthOracleMainLoop(ctx)
 	})
+
 	pg.Go(func() error {
+		// looks at the BatchFees on Cosmos and uses the query endpoint BatchFees
+		// to iterate over each token to see if it is profitable, if it is
+		// it will send an request batch for that denom
 		return p.BatchRequesterLoop(ctx)
 	})
+
 	pg.Go(func() error {
+		// Gets the last pending valset to send an MsgValsetConfirm that sends
+		// signatures over to the cosmos validator if 66%+ a new validator set
+		// can be send to ethereum smartcontract. Also get the last pending
+		// batch request that signs that batch with an MsgConfirmBatch embedded
+		// with the txs and also the eth signature, then the cosmos validators
+		// are able to put the transactions in the queue ordered by tx fee
 		return p.EthSignerMainLoop(ctx)
 	})
+
 	pg.Go(func() error {
+		// Gets the latest valset available and updating it on the ethereum
+		// smartcontract if needed. Also gets all the pending transaction
+		// batches and it's signatures from cosmos and send it to the
+		// ethereum if that batch of token is profitable, wasn't sent yet
+		// by another node (checking the nonce) and it is not currently
+		// in the eth node node mempool.
 		return p.RelayerMainLoop(ctx)
 	})
 
@@ -298,6 +319,7 @@ func (p *gravityOrchestrator) EthSignerMainLoop(ctx context.Context) (err error)
 	})
 }
 
+// BatchRequesterLoop sends a batch request to Cosmos (Umee).
 func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
 	logger := p.logger.With().Str("loop", "BatchRequesterLoop").Logger()
 

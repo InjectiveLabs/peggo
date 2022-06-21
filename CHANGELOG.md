@@ -45,6 +45,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+[#275](https://github.com/umee-network/peggo/pull/275) Add diagrams of main loops.
 [#297](https://github.com/umee-network/peggo/pull/297) Update dependabot reviewers.
 
 ### Bug Fixes
