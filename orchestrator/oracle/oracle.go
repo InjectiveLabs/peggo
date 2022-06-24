@@ -297,7 +297,7 @@ func (o *Oracle) tick() error {
 // GetStablecoinsCurrencyPair return the currency pair of that symbol quoted by some
 // stablecoins.
 func GetStablecoinsCurrencyPair(baseSymbol string) []umeedpftypes.CurrencyPair {
-	quotes := []string{"USD", "USDT", "UST"}
+	quotes := []string{"USD", "USDT", "DAI"}
 	currencyPairs := make([]umeedpftypes.CurrencyPair, len(quotes))
 
 	for i, quote := range quotes {
