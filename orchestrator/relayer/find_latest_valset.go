@@ -16,7 +16,7 @@ import (
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
-const defaultBlocksToSearch = 2000
+const defaultBlocksToSearch = 20
 
 // FindLatestValset finds the latest valset on the Peggy contract by looking back through the event
 // history and finding the most recent ValsetUpdatedEvent. Most of the time this will be very fast
