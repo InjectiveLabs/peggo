@@ -10,12 +10,12 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/sdk-go/chain/client"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
 
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -52,7 +52,8 @@ type PeggyBroadcastClient interface {
 	SendEthereumClaims(
 		ctx context.Context,
 		lastClaimEvent uint64,
-		deposits []*wrappers.PeggySendToCosmosEvent,
+		oldDeposits []*wrappers.PeggySendToCosmosEvent,
+		deposits []*wrappers.PeggySendToInjectiveEvent,
 		withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
 	) error
@@ -75,7 +76,7 @@ type PeggyBroadcastClient interface {
 
 func NewPeggyBroadcastClient(
 	queryClient types.QueryClient,
-	broadcastClient client.CosmosClient,
+	broadcastClient chainclient.ChainClient,
 	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
@@ -101,7 +102,7 @@ func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
 
 type peggyBroadcastClient struct {
 	daemonQueryClient types.QueryClient
-	broadcastClient   client.CosmosClient
+	broadcastClient   chainclient.ChainClient
 	ethSignerFn       keystore.SignerFn
 	ethPersonalSignFn keystore.PersonalSignFn
 
@@ -234,9 +235,54 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
+func (s *peggyBroadcastClient) sendOldDepositClaims(
+	ctx context.Context,
+	oldDeposit *wrappers.PeggySendToCosmosEvent,
+) error {
+	// EthereumBridgeDepositClaim
+	// When more than 66% of the active validator set has
+	// claimed to have seen the deposit enter the ethereum blockchain coins are
+	// issued to the Cosmos address in question
+	// -------------
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	log.WithFields(log.Fields{
+		"sender":      oldDeposit.Sender.Hex(),
+		"destination": sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
+		"amount":      oldDeposit.Amount.String(),
+		"event_nonce": oldDeposit.EventNonce.String(),
+	}).Infoln("Oracle observed old deposit event. Sending MsgDepositClaim")
+
+	msg := &types.MsgDepositClaim{
+		EventNonce:     oldDeposit.EventNonce.Uint64(),
+		BlockHeight:    oldDeposit.Raw.BlockNumber,
+		TokenContract:  oldDeposit.TokenContract.Hex(),
+		Amount:         sdk.NewIntFromBigInt(oldDeposit.Amount),
+		EthereumSender: oldDeposit.Sender.Hex(),
+		CosmosReceiver: sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
+		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		Data:           "",
+	}
+
+	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+		return err
+	} else {
+		log.WithFields(log.Fields{
+			"event_nonce": oldDeposit.EventNonce.String(),
+			"txHash":      txResponse.TxResponse.TxHash,
+		}).Infoln("Oracle sent old deposit event succesfully")
+	}
+
+	return nil
+}
+
 func (s *peggyBroadcastClient) sendDepositClaims(
 	ctx context.Context,
-	deposit *wrappers.PeggySendToCosmosEvent,
+	deposit *wrappers.PeggySendToInjectiveEvent,
 ) error {
 	// EthereumBridgeDepositClaim
 	// When more than 66% of the active validator set has
@@ -252,6 +298,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		"destination": sdk.AccAddress(deposit.Destination[12:32]).String(),
 		"amount":      deposit.Amount.String(),
 		"event_nonce": deposit.EventNonce.String(),
+		"data":        deposit.Data,
 	}).Infoln("Oracle observed a deposit event. Sending MsgDepositClaim")
 
 	msg := &types.MsgDepositClaim{
@@ -262,6 +309,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		EthereumSender: deposit.Sender.Hex(),
 		CosmosReceiver: sdk.AccAddress(deposit.Destination[12:32]).String(),
 		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		Data:           deposit.Data,
 	}
 
 	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
@@ -271,7 +319,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": deposit.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent deposit event succesfully")
 	}
 
@@ -309,7 +357,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": withdraw.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent Withdraw event succesfully")
 	}
 
@@ -358,7 +406,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": valsetUpdate.EventNonce.String(),
-			"txHash":      txResponse.TxHash,
+			"txHash":      txResponse.TxResponse.TxHash,
 		}).Infoln("Oracle sent ValsetUpdate event succesfully")
 	}
 
@@ -368,7 +416,8 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 func (s *peggyBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
 	lastClaimEvent uint64,
-	deposits []*wrappers.PeggySendToCosmosEvent,
+	oldDeposits []*wrappers.PeggySendToCosmosEvent,
+	deposits []*wrappers.PeggySendToInjectiveEvent,
 	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
 	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
 ) error {
@@ -376,12 +425,21 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	totalClaimEvents := len(deposits) + len(withdraws) + len(valsetUpdates)
-	var count, i, j, k int
+	totalClaimEvents := len(oldDeposits) + len(deposits) + len(withdraws) + len(valsetUpdates)
+	var count, h, i, j, k int
 
-	// Individual arrays (deposits, withdraws, valsetUpdates) are sorted.
+	// Individual arrays (oldDeposits, deposits, withdraws, valsetUpdates) are sorted.
 	// Broadcast claim events sequentially starting with eventNonce = lastClaimEvent + 1.
 	for count < totalClaimEvents {
+		if h < len(oldDeposits) && oldDeposits[h].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send old deposit
+			if err := s.sendOldDepositClaims(ctx, oldDeposits[h]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			h++
+		}
 		if i < len(deposits) && deposits[i].EventNonce.Uint64() == lastClaimEvent+1 {
 			// send deposit
 			if err := s.sendDepositClaims(ctx, deposits[i]); err != nil {
@@ -470,7 +528,7 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
-	
+
 	msg := &types.MsgRequestBatch{
 		Denom:        denom,
 		Orchestrator: s.AccFromAddress().String(),

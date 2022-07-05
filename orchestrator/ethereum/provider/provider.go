@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/metrics"
+	"github.com/InjectiveLabs/metrics"
 )
 
 type EVMProvider interface {
@@ -25,6 +25,7 @@ type EVMProvider interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
 	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
@@ -40,7 +41,7 @@ type EVMProviderWithRet interface {
 
 type evmProviderWithRet struct {
 	*ethclient.Client
-	rc *rpc.Client
+	rc      *rpc.Client
 	svcTags metrics.Tags
 }
 
