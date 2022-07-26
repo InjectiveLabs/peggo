@@ -352,7 +352,7 @@ func (p *gravityOrchestrator) BatchRequesterLoop(ctx context.Context) (err error
 						return fmt.Errorf("failed to get Ethereum gas estimate: %w", err)
 					}
 
-					usdEthPrice, err := p.oracle.GetPrice(oracle.BaseSymbolETH)
+					usdEthPrice, err := p.oracle.GetPrice(oracle.SymbolETH)
 					if err != nil {
 						return err
 					}

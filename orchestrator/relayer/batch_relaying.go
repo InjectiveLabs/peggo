@@ -221,7 +221,7 @@ func (s *gravityRelayer) IsBatchProfitable(
 	}
 
 	// First we get the cost of the transaction in USD
-	usdEthPrice, err := s.oracle.GetPrice(oracle.BaseSymbolETH)
+	usdEthPrice, err := s.oracle.GetPrice(oracle.SymbolETH)
 	if err != nil {
 		s.logger.Err(err).Msg("failed to get ETH price")
 		return false

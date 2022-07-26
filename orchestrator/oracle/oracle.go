@@ -3,7 +3,6 @@ package oracle
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,11 +16,13 @@ import (
 	ummedpfsync "github.com/umee-network/umee/price-feeder/pkg/sync"
 )
 
-// We define tickerTimeout as the minimum timeout between each oracle loop.
 const (
-	tickerTimeout        = 1000 * time.Millisecond
+	// tickerTimeout is the minimum timeout between each oracle loop.
+	tickerTimeout = 1000 * time.Millisecond
+	// availablePairsReload is the amount of time to reload the providers available pairs.
 	availablePairsReload = 24 * time.Hour
-	BaseSymbolETH        = "ETH"
+	// SymbolETH refers to the ethereum symbol.
+	SymbolETH = "ETH"
 )
 
 // Oracle implements the core component responsible for fetching exchange rates
@@ -34,6 +35,9 @@ type Oracle struct {
 	providers             map[string]*Provider // providerName => Provider
 	prices                map[string]sdk.Dec   // baseSymbol => price ex.: UMEE, ETH => sdk.Dec
 	subscribedBaseSymbols map[string]struct{}  // baseSymbol => nothing
+	// this field could be calculated each time by looping providers.subscribedPairs
+	// but the time to process is not worth the amount of memory
+	providerSubscribedPairs map[string][]umeedpftypes.CurrencyPair // providerName => []CurrencyPair
 }
 
 // Provider wraps the umee provider interface.
@@ -59,16 +63,23 @@ func New(ctx context.Context, logger zerolog.Logger, providersName []string) (*O
 		}
 	}
 
-	oracle := &Oracle{
-		logger:                logger.With().Str("module", "oracle").Logger(),
-		closer:                ummedpfsync.NewCloser(),
-		providers:             providers,
-		subscribedBaseSymbols: map[string]struct{}{},
+	o := &Oracle{
+		logger:                  logger.With().Str("module", "oracle").Logger(),
+		closer:                  ummedpfsync.NewCloser(),
+		providers:               providers,
+		subscribedBaseSymbols:   map[string]struct{}{},
+		providerSubscribedPairs: map[string][]umeedpftypes.CurrencyPair{},
 	}
-	oracle.loadAvailablePairs()
-	go oracle.start(ctx)
+	o.loadAvailablePairs()
+	if err := o.subscribeProviders([]umeedpftypes.CurrencyPair{
+		{Base: symbolUSDT, Quote: symbolUSD},
+		{Base: symbolDAI, Quote: symbolUSD},
+	}); err != nil {
+		return nil, err
+	}
+	go o.start(ctx)
 
-	return oracle, nil
+	return o, nil
 }
 
 // GetPrices returns the price for the provided base symbols.
@@ -166,6 +177,7 @@ func (o *Oracle) subscribeProviders(currencyPairs []umeedpftypes.CurrencyPair) e
 
 		for _, pair := range pairsToSubscribe {
 			provider.subscribedPairs[pair.String()] = pair
+			o.providerSubscribedPairs[providerName] = append(o.providerSubscribedPairs[providerName], pair)
 
 			o.logger.Debug().Str("provider_name", providerName).
 				Str("pair_symbol", pair.String()).
@@ -237,7 +249,7 @@ func (o *Oracle) setPrices() error {
 	for providerName, provider := range o.providers {
 		providerName := providerName
 		provider := provider
-		subscribedPrices := umeedpftypes.MapPairsToSlice(provider.subscribedPairs)
+		subscribedPrices := o.providerSubscribedPairs[providerName]
 
 		g.Go(func() error {
 			var (
@@ -277,7 +289,13 @@ func (o *Oracle) setPrices() error {
 		o.logger.Debug().Err(err).Msg("failed to get ticker prices from provider")
 	}
 
-	computedPrices, err := ummedpforacle.GetComputedPrices(o.logger, providerCandles, providerPrices)
+	computedPrices, err := ummedpforacle.GetComputedPrices(
+		o.logger,
+		providerCandles,
+		providerPrices,
+		o.providerSubscribedPairs,
+		make(map[string]sdk.Dec, 0), // uses default deviation
+	)
 	if err != nil {
 		return err
 	}
@@ -292,20 +310,4 @@ func (o *Oracle) tick() error {
 	}
 
 	return nil
-}
-
-// GetStablecoinsCurrencyPair return the currency pair of that symbol quoted by some
-// stablecoins.
-func GetStablecoinsCurrencyPair(baseSymbol string) []umeedpftypes.CurrencyPair {
-	quotes := []string{"USD", "USDT", "DAI"}
-	currencyPairs := make([]umeedpftypes.CurrencyPair, len(quotes))
-
-	for i, quote := range quotes {
-		currencyPairs[i] = umeedpftypes.CurrencyPair{
-			Base:  strings.ToUpper(baseSymbol),
-			Quote: quote,
-		}
-	}
-
-	return currencyPairs
 }

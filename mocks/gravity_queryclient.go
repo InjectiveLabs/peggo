@@ -236,6 +236,26 @@ func (mr *MockQueryClientMockRecorder) GetDelegateKeyByValidator(arg0, arg1 inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDelegateKeyByValidator", reflect.TypeOf((*MockQueryClient)(nil).GetDelegateKeyByValidator), varargs...)
 }
 
+// GetPendingIbcAutoForwards mocks base method.
+func (m *MockQueryClient) GetPendingIbcAutoForwards(arg0 context.Context, arg1 *types.QueryPendingIbcAutoForwards, arg2 ...grpc.CallOption) (*types.QueryPendingIbcAutoForwardsResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetPendingIbcAutoForwards", varargs...)
+	ret0, _ := ret[0].(*types.QueryPendingIbcAutoForwardsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPendingIbcAutoForwards indicates an expected call of GetPendingIbcAutoForwards.
+func (mr *MockQueryClientMockRecorder) GetPendingIbcAutoForwards(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingIbcAutoForwards", reflect.TypeOf((*MockQueryClient)(nil).GetPendingIbcAutoForwards), varargs...)
+}
+
 // GetPendingSendToEth mocks base method.
 func (m *MockQueryClient) GetPendingSendToEth(arg0 context.Context, arg1 *types.QueryPendingSendToEth, arg2 ...grpc.CallOption) (*types.QueryPendingSendToEthResponse, error) {
 	m.ctrl.T.Helper()

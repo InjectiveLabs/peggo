@@ -205,7 +205,7 @@ func getOrchestratorCmd() *cobra.Command {
 				return err
 			}
 
-			if err := o.SubscribeSymbols(oracle.BaseSymbolETH); err != nil {
+			if err := o.SubscribeSymbols(oracle.SymbolETH); err != nil {
 				return err
 			}
 
