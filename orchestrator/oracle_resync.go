@@ -32,14 +32,12 @@ func (p *gravityOrchestrator) GetLastCheckedBlock(
 		lastEventNonce = 1
 	}
 
-	latestHeader, err := p.ethProvider.HeaderByNumber(ctx, nil)
+	// add delay to ensure minimum confirmations are received and block is finalized
+	currentBlock, err := p.getCurrentBlock(ctx, ethBlockConfirmationDelay)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get latest header")
 		return 0, err
 	}
-
-	// add delay to ensure minimum confirmations are received and block is finalized
-	currentBlock := latestHeader.Number.Uint64() - ethBlockConfirmationDelay
 
 	for currentBlock > 0 {
 		endSearch := uint64(0)
@@ -188,4 +186,29 @@ func (p *gravityOrchestrator) GetLastCheckedBlock(
 	}
 
 	return 0, errors.New("reached the end of block history without finding the Gravity contract deploy event")
+}
+
+// getCurrentBlock returns the latest block in the eth
+// if the latest block in eth is less than the confirmation
+// it returns 0, if is bigger than confirmation it removes
+// the amount of confirmations
+func (p *gravityOrchestrator) getCurrentBlock(
+	ctx context.Context,
+	ethBlockConfirmationDelay uint64,
+) (uint64, error) {
+	latestHeader, err := p.ethProvider.HeaderByNumber(ctx, nil)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get latest header")
+		return 0, err
+	}
+
+	latestBlock := latestHeader.Number.Uint64()
+
+	// checks if the latest block is less than the amount of confirmation
+	if latestBlock < ethBlockConfirmationDelay {
+		return 0, nil
+	}
+
+	// add delay to ensure minimum confirmations are received and block is finalized
+	return latestBlock - ethBlockConfirmationDelay, nil
 }
