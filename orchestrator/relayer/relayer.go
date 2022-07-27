@@ -5,6 +5,7 @@ import (
 	"time"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
 	gravity "github.com/umee-network/peggo/orchestrator/ethereum/gravity"
@@ -12,6 +13,8 @@ import (
 
 	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
 )
+
+const ethBlocksValsetOutdated = uint64(2000)
 
 // ValsetRelayMode defines an enumerated validator set relay mode.
 type ValsetRelayMode int64
@@ -66,8 +69,9 @@ type gravityRelayer struct {
 
 	// Store locally the last tx this validator made to avoid sending duplicates
 	// or invalid txs.
-	lastSentBatchNonce  uint64
-	lastSentValsetNonce uint64
+	lastSentBatchNonce         uint64
+	lastSentValsetNonce        uint64
+	latestValsetEthBlockNumber uint64
 }
 
 func NewGravityRelayer(
@@ -102,4 +106,37 @@ func NewGravityRelayer(
 
 func (s *gravityRelayer) GetProfitMultiplier() float64 {
 	return s.profitMultiplier
+}
+
+// UpdateLatestValsetEthBlockNumber only updates the last valset eth block number
+// if the number is bigger than the one already stored in memory
+func (s *gravityRelayer) UpdateLatestValsetEthBlockNumber(lastestValsetEthBlockNumber uint64) {
+	if s.latestValsetEthBlockNumber > lastestValsetEthBlockNumber {
+		return
+	}
+	s.latestValsetEthBlockNumber = lastestValsetEthBlockNumber
+}
+
+// IsLastestValsetUpdateOutdated checks if the latest valset update was sent
+// more than 2000 blocks than the current height
+func (s *gravityRelayer) IsLastestValsetUpdateOutdated(ctx context.Context) bool {
+	if s.latestValsetEthBlockNumber == 0 {
+		// means that it wasn't update or didn't passed to `FindLatestValset`
+		return false
+	}
+
+	latestHeader, err := s.ethProvider.HeaderByNumber(ctx, nil)
+	if err != nil {
+		s.logger.
+			Err(errors.Wrap(err, "failed to get latest header")).
+			Msg("IsLastValsetUpdateOutdated")
+		return false
+	}
+	currentBlock := latestHeader.Number.Uint64()
+
+	if s.latestValsetEthBlockNumber > currentBlock {
+		return false
+	}
+
+	return (currentBlock - s.latestValsetEthBlockNumber) > ethBlocksValsetOutdated
 }

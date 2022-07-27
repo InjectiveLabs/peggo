@@ -7,7 +7,7 @@
 
 set -e
 
-CWD=$(pwd)
+CWD="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 # These options can be overridden by env
 CHAIN_ID="${CHAIN_ID:-888}"
@@ -29,9 +29,9 @@ USER_KEY="user"
 USER_MNEMONIC="pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"
 NEWLINE=$'\n'
 
-VAL0_ETH_ADDRESS="0xfac5EC50BdfbB803f5cFc9BF0A0C2f52aDE5b6dd"
-VAL1_ETH_ADDRESS="0x02fa1b44e2EF8436e6f35D5F56607769c658c225"
-VAL2_ETH_ADDRESS="0xd8f468c1B719cc2d50eB1E3A55cFcb60e23758CD"
+VAL0_ETH_ADDRESS="0xC6Fe5D33615a1C52c08018c47E8Bc53646A0E101"
+VAL1_ETH_ADDRESS="0x963EBDf2e1f8DB8707D05FC75bfeFFBa1B5BaC17"
+VAL2_ETH_ADDRESS="0x6880D7bfE96D49501141375ED835C24cf70E2bD7"
 
 hdir="$CHAIN_DIR/$CHAIN_ID"
 
@@ -171,7 +171,7 @@ if [[ ! -d "$hdir" ]]; then
 	echo "Create gentxs and collect them in n0"
 	$NODE_BIN $home0 gentx-gravity $VAL0_KEY 1000$SCALE_FACTOR$STAKE_DENOM $VAL0_ETH_ADDRESS $($NODE_BIN $home0 keys show $VAL0_KEY -a $kbt) $kbt $cid
 	$NODE_BIN $home1 gentx-gravity $VAL1_KEY 1000$SCALE_FACTOR$STAKE_DENOM $VAL1_ETH_ADDRESS $($NODE_BIN $home1 keys show $VAL1_KEY -a $kbt) $kbt $cid
-	$NODE_BIN $home2 gentx-gravity $VAL2_KEY 1000$SCALE_FACTOR$STAKE_DENOM $VAL2_ETH_ADDRESS $($NODE_BIN $home2 keys show $VAL2_KEY -a $kbt) $kbt $cid 
+	$NODE_BIN $home2 gentx-gravity $VAL2_KEY 1000$SCALE_FACTOR$STAKE_DENOM $VAL2_ETH_ADDRESS $($NODE_BIN $home2 keys show $VAL2_KEY -a $kbt) $kbt $cid
 
 	cp $n1cfgDir/gentx/*.json $n0cfgDir/gentx/
 	cp $n2cfgDir/gentx/*.json $n0cfgDir/gentx/
@@ -249,12 +249,12 @@ echo "Logs:"
 echo "  * tail -f ./data/$CHAIN_ID.n0.log"
 echo "  * tail -f ./data/$CHAIN_ID.n1.log"
 echo "  * tail -f ./data/$CHAIN_ID.n2.log"
-echo 
+echo
 echo "Env for easy access:"
 echo "export H1='--home ./data/$CHAIN_ID/n0/'"
 echo "export H2='--home ./data/$CHAIN_ID/n1/'"
 echo "export H3='--home ./data/$CHAIN_ID/n2/'"
-echo 
+echo
 echo "Command Line Access:"
 echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n0 status"
 echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n1 status"

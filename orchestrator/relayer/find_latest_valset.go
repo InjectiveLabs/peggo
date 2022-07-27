@@ -72,6 +72,7 @@ func (s *gravityRelayer) FindLatestValset(ctx context.Context) (*types.Valset, e
 
 		for iter.Next() {
 			valsetUpdatedEvents = append(valsetUpdatedEvents, iter.Event)
+			s.UpdateLatestValsetEthBlockNumber(iter.Event.Raw.BlockNumber)
 		}
 
 		iter.Close()
@@ -91,16 +92,16 @@ func (s *gravityRelayer) FindLatestValset(ctx context.Context) (*types.Valset, e
 			event := valsetUpdatedEvents[0]
 			valset := &types.Valset{
 				Nonce:        event.NewValsetNonce.Uint64(),
-				Members:      make([]types.BridgeValidator, 0, len(event.Powers)),
+				Members:      make([]types.BridgeValidator, len(event.Powers)),
 				RewardAmount: sdk.NewIntFromBigInt(event.RewardAmount),
 				RewardToken:  event.RewardToken.Hex(),
 			}
 
 			for idx, p := range event.Powers {
-				valset.Members = append(valset.Members, types.BridgeValidator{
+				valset.Members[idx] = types.BridgeValidator{
 					Power:           p.Uint64(),
 					EthereumAddress: event.Validators[idx].Hex(),
-				})
+				}
 			}
 
 			s.checkIfValsetsDiffer(cosmosValset.Valset, valset)
