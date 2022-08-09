@@ -3,6 +3,7 @@ run:
   skip-dirs:
     - test
     - diagrams
+  go: '1.19'
 
   govet:
     # Enable analyzers by name (in addition to default).
@@ -67,6 +68,7 @@ linters-settings:
     locale: US
   nolintlint:
     allow-unused: false
+    # Disable to ensure that nolint directives don't have a leading space. Default is true.
     allow-leading-space: true
     require-explanation: false
     require-specific: false

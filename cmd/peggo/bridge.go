@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	// nolint: lll
+	//nolint: lll
 	maxUint256     = new(big.Int).SetBytes(ethcmn.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 	halfMaxUint256 = new(big.Int).Div(maxUint256, big.NewInt(2))
 )

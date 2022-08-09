@@ -1,4 +1,3 @@
-// nolint: lll
 package peggo
 
 import (
@@ -274,10 +273,11 @@ func getOrchestratorCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String(flagValsetRelayMode, relayer.ValsetRelayModeNone.String(), "Set an (optional) relaying mode for valset updates to Ethereum. Possible values: none, minimum, all")
+	cmd.Flags().String(flagValsetRelayMode, relayer.ValsetRelayModeNone.String(), "Set an (optional) relaying mode for valset updates to Ethereum. Possible values: none, minimum, all") //nolint: lll
 	cmd.Flags().Bool(flagRelayBatches, false, "Relay transaction batches to Ethereum")
 	cmd.Flags().Int64(flagEthBlocksPerLoop, 2000, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
+	//nolint: lll
 	cmd.Flags().StringSlice(flagOracleProviders, []string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi},
 		fmt.Sprintf("Specify the providers to use in the oracle, options \"%s\"", strings.Join([]string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi,
 			umeedpfconfig.ProviderKraken, umeedpfconfig.ProviderGate, umeedpfconfig.ProviderOkx, umeedpfconfig.ProviderOsmosis}, ",")))
@@ -285,8 +285,8 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")
 	cmd.Flags().Float64(flagProfitMultiplier, 1.0, "Multiplier to apply to relayer profit")
 	cmd.Flags().Float64(flagRelayerLoopMultiplier, 3.0, "Multiplier for the relayer loop duration (in ETH blocks)")
-	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")
-	cmd.Flags().String(flagCosmosFeeGranter, "", "Set an (optional) fee granter address that will pay for Cosmos fees (feegrant must exist)")
+	cmd.Flags().Float64(flagRequesterLoopMultiplier, 60.0, "Multiplier for the batch requester loop duration (in Cosmos blocks)")             //nolint: lll
+	cmd.Flags().String(flagCosmosFeeGranter, "", "Set an (optional) fee granter address that will pay for Cosmos fees (feegrant must exist)") //nolint: lll
 	cmd.Flags().Int64(flagBridgeStartHeight, 0, "Set an (optional) height to wait for the bridge to be available")
 	cmd.Flags().Int(flagCosmosMsgsPerTx, 10, "Set a maximum number of messages to send per transaction (used for claims)")
 	cmd.Flags().AddFlagSet(cosmosFlagSet())
