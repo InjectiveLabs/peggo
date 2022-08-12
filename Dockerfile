@@ -1,19 +1,23 @@
 ARG IMG_TAG=latest
 
+# Fetch base packages
+FROM golang:1.18-alpine AS base-builder
+ENV PACKAGES make git libc-dev gcc linux-headers
+RUN apk add --no-cache $PACKAGES
+
 # Compile the peggo binary
-FROM golang:1.17-alpine AS peggo-builder
+FROM base-builder AS peggo-builder
 WORKDIR /src/app/
 COPY go.mod go.sum* ./
 RUN go mod download
 COPY . .
-ENV PACKAGES make git libc-dev bash gcc linux-headers
 RUN apk add --no-cache $PACKAGES
 RUN make install
 
 # Fetch umeed binary
-FROM golang:1.17-alpine AS umeed-builder
+FROM base-builder AS umeed-builder
 ARG UMEE_VERSION=v2.0.0
-ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev
+ENV PACKAGES curl eudev-dev
 RUN apk add --no-cache $PACKAGES
 WORKDIR /downloads/
 RUN git clone https://github.com/umee-network/umee.git

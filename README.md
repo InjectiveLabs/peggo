@@ -14,7 +14,6 @@ Peggo is a Go implementation of the Gravity Bridge Orchestrator originally
 implemented by [Injective Labs](https://github.com/InjectiveLabs/). Peggo itself
 is a fork of the original Gravity Bridge Orchestrator implemented by [Althea](https://github.com/althea-net).
 
-
 ## Table of Contents
 
 - [Dependencies](#dependencies)
@@ -24,7 +23,7 @@ is a fork of the original Gravity Bridge Orchestrator implemented by [Althea](ht
 
 ## Dependencies
 
-- [Go 1.17+](https://golang.org/dl/)
+- [Go 1.18+](https://golang.org/dl/)
 
 ## Installation
 
@@ -96,8 +95,8 @@ Any ERC20 token can be sent to Umee and it's done using the command
 `peggo bridge send-to-cosmos`, use the `--help` flag for more information. It
 can also be done by calling the `sendToCosmos` method on the Gravity Bridge contract.
 
-The ERC20 tokens will be locked in the Gravity Bridge contract and new coins will be
-minted on Umee with the denomination `gravity{token_address}`. This process takes
+The ERC20 tokens will be locked in the Gravity Bridge contract and new coins will
+be minted on Umee with the denomination `gravity{token_address}`. This process takes
 around 3 minutes or 12 Ethereum blocks.
 
 ## How it works

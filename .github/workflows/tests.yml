@@ -20,12 +20,12 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: Display Go Version
         run: go version
       - name: Install tparse
         run: |
-          export GO111MODULE="on" && go get github.com/mfridman/tparse@v0.8.3
+          export GO111MODULE="on" && go install github.com/mfridman/tparse@v0.8.3
       - uses: actions/cache@v3
         with:
           path: ~/go/bin
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - uses: actions/checkout@v3
       - uses: technote-space/get-diff-action@v6.1.0
         with:
@@ -49,10 +49,10 @@ jobs:
           make test-unit-cover
         if: env.GIT_DIFF
       - uses: codecov/codecov-action@v3
+        if: env.GIT_DIFF
         with:
           file: ./coverage.txt
           fail_ci_if_error: true
-        if: env.GIT_DIFF
 
   test-e2e:
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - uses: actions/checkout@v3
       - uses: technote-space/get-diff-action@v6.1.0
         with:
