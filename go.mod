@@ -15,7 +15,7 @@ require (
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/osmosis-labs/bech32-ibc v0.3.0-rc2
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.27.0
+	github.com/rs/zerolog v1.28.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
