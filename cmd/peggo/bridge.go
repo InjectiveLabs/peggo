@@ -65,9 +65,7 @@ func deployGravityCmd() *cobra.Command {
 			}
 
 			// COSMOS RPC
-
-			cosmosChainID := konfig.String(flagCosmosChainID)
-			clientCtx, err := client.NewClientContext(cosmosChainID, "", nil)
+			clientCtx, err := client.NewClientContext(konfig.String(flagCosmosChainID), "", nil)
 			if err != nil {
 				return err
 			}
@@ -174,11 +172,18 @@ func deployGravityCmd() *cobra.Command {
 				return fmt.Errorf("failed deploy Gravity Bridge contract: %w", err)
 			}
 
+			powerStr := ""
+			for _, power := range powers {
+				powerStr += power.String() + " ,"
+			}
+
 			_, _ = fmt.Fprintf(os.Stderr, `Gravity Bridge contract successfully deployed!
 Address: %s
+Input: %+v, %+v, [%s]
 Transaction: %s
 `,
 				address.Hex(),
+				gravityIDBytes32, validators, powerStr,
 				tx.Hash().Hex(),
 			)
 
@@ -212,8 +217,7 @@ func deployERC20Cmd() *cobra.Command {
 			}
 
 			// query for the name and symbol on-chain via the token's metadata
-			cosmosChainID := konfig.String(flagCosmosChainID)
-			clientCtx, err := client.NewClientContext(cosmosChainID, "", nil)
+			clientCtx, err := client.NewClientContext(konfig.String(flagCosmosChainID), "", nil)
 			if err != nil {
 				return err
 			}

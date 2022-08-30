@@ -3,7 +3,7 @@ package oracle
 import (
 	"strings"
 
-	umeedpftypes "github.com/umee-network/umee/price-feeder/oracle/types"
+	umeepftypes "github.com/umee-network/umee/price-feeder/oracle/types"
 )
 
 const (
@@ -18,11 +18,11 @@ var (
 
 // GetStablecoinsCurrencyPair return the currency pair of that symbol quoted by some
 // stablecoins.
-func GetStablecoinsCurrencyPair(baseSymbol string) []umeedpftypes.CurrencyPair {
-	currencyPairs := make([]umeedpftypes.CurrencyPair, len(quoteStablecoins))
+func GetStablecoinsCurrencyPair(baseSymbol string) []umeepftypes.CurrencyPair {
+	currencyPairs := make([]umeepftypes.CurrencyPair, len(quoteStablecoins))
 
 	for i, quote := range quoteStablecoins {
-		currencyPairs[i] = umeedpftypes.CurrencyPair{
+		currencyPairs[i] = umeepftypes.CurrencyPair{
 			Base:  strings.ToUpper(baseSymbol),
 			Quote: quote,
 		}

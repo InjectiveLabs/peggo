@@ -4,7 +4,9 @@ import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-ethers";
 import { env } from "process";
 import "./tasks/getCurrentValset";
+import * as dotenv from "dotenv";
 
+dotenv.config();
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -66,9 +68,15 @@ const config: HardhatUserConfig = {
         "0x6c212553111b370a8ffdc682954495b7b90a73cedab7106323646a4f2c4e668f",
       ]
     },
+    goerli: {
+      url: env.ETHRPC,
+      accounts: [
+        "0x88cbead91aee890d27bf06e003ade3d4e952427e88f88d31d61d3ef5e5d54305"
+      ]
+    }
   },
   etherscan: {
-    apiKey: "QCT9NFXK6QMK7H1UX9WU3RXJ972RR2H2G1",
+    apiKey: env.ETHERSCAN_API,
   },
   paths: {
     sources: "./contracts",

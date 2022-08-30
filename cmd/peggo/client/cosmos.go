@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type CosmosClient interface {
@@ -36,7 +37,11 @@ func NewCosmosClient(
 	protoAddr string,
 	options ...CosmosClientOption,
 ) (CosmosClient, error) {
-	conn, err := grpc.Dial(protoAddr, grpc.WithInsecure(), grpc.WithContextDialer(dialerFunc))
+	conn, err := grpc.Dial(
+		protoAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(dialerFunc),
+	)
 	if err != nil {
 		err := errors.Wrapf(err, "failed to connect to the gRPC: %s", protoAddr)
 		return nil, err
@@ -252,7 +257,7 @@ func (c *cosmosClient) broadcastTx(
 		txf = txf.WithGas(adjusted)
 	}
 
-	txn, err := tx.BuildUnsignedTx(txf, msgs...)
+	txn, err := txf.BuildUnsignedTx(msgs...)
 	if err != nil {
 		err = errors.Wrap(err, "failed to BuildUnsignedTx")
 		return nil, err
@@ -292,10 +297,14 @@ func (c *cosmosClient) broadcastTx(
 			resultTx, err := clientCtx.Client.Tx(awaitCtx, txHash, false)
 			if err != nil {
 				if errRes := client.CheckTendermintError(err, txBytes); errRes != nil {
+					c.logger.Error().Str("tendermint errRes", errRes.RawLog)
 					return errRes, err
 				}
 
-				// log.WithError(err).Warningln("Tx Error for Hash:", res.TxHash)
+				c.logger.Error().Err(err).
+					Str("Tx Hash", res.TxHash).
+					Str("Raw Log", res.RawLog).
+					Msg("Tx error on broadcastTx")
 
 				t.Reset(defaultBroadcastStatusPoll)
 				continue
@@ -418,7 +427,8 @@ func (c *cosmosClient) runBatchBroadcast() {
 
 		if res.Code != 0 {
 			err = errors.Errorf("error %d (%s): %s", res.Code, res.Codespace, res.RawLog)
-			c.logger.Err(err).Str("tx_hash", res.TxHash).Msg("failed to (sync) broadcast batch tx")
+			c.logger.Err(err).Str("tx_hash", res.TxHash).
+				Msg("failed to (sync) broadcast tx batch error code != 0")
 		} else {
 			c.logger.Debug().Str("tx_hash", res.TxHash).Msg("batch tx committed successfully")
 		}

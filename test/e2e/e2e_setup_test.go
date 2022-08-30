@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -147,15 +146,19 @@ func (s *IntegrationTestSuite) initNodes() {
 	// initialize a genesis file for the first validator
 	val0ConfigDir := s.chain.validators[0].configDir()
 	for _, val := range s.chain.validators {
+		addr, err := val.keyInfo.GetAddress()
+		s.Require().NoError(err)
 		s.Require().NoError(
-			addGenesisAccount(val0ConfigDir, "", initBalanceStr, val.keyInfo.GetAddress()),
+			addGenesisAccount(val0ConfigDir, "", initBalanceStr, addr),
 		)
 	}
 
 	// add orchestrator accounts to genesis file
 	for _, orch := range s.chain.orchestrators {
+		addr, err := orch.keyInfo.GetAddress()
+		s.Require().NoError(err)
 		s.Require().NoError(
-			addGenesisAccount(val0ConfigDir, "", initBalanceStr, orch.keyInfo.GetAddress()),
+			addGenesisAccount(val0ConfigDir, "", initBalanceStr, addr),
 		)
 	}
 
@@ -228,7 +231,7 @@ func (s *IntegrationTestSuite) initGenesis() {
 		BaseBorrowRate:       sdk.MustNewDecFromStr("0.020000000000000000"),
 		KinkBorrowRate:       sdk.MustNewDecFromStr("0.200000000000000000"),
 		MaxBorrowRate:        sdk.MustNewDecFromStr("1.50000000000000000"),
-		KinkUtilizationRate:  sdk.MustNewDecFromStr("0.200000000000000000"),
+		KinkUtilization:      sdk.MustNewDecFromStr("0.200000000000000000"),
 		LiquidationIncentive: sdk.MustNewDecFromStr("0.180000000000000000"),
 	})
 	bz, err = cdc.MarshalJSON(&leverageGenState)
@@ -274,7 +277,9 @@ func (s *IntegrationTestSuite) initGenesis() {
 		createValmsg, err := val.buildCreateValidatorMsg(stakeAmountCoin)
 		s.Require().NoError(err)
 
-		delKeysMsg, err := val.buildDelegateKeysMsg(s.chain.orchestrators[i].keyInfo.GetAddress(), s.chain.orchestrators[i].ethereumKey.address)
+		addr, err := s.chain.orchestrators[i].keyInfo.GetAddress()
+		s.Require().NoError(err)
+		delKeysMsg, err := val.buildDelegateKeysMsg(addr, s.chain.orchestrators[i].ethereumKey.address)
 		s.Require().NoError(err)
 
 		signedTx, err := val.signMsg(createValmsg, delKeysMsg)
@@ -314,7 +319,7 @@ func (s *IntegrationTestSuite) initValidatorConfigs() {
 		vpr.SetConfigFile(tmCfgPath)
 		s.Require().NoError(vpr.ReadInConfig())
 
-		valConfig := &tmconfig.Config{}
+		valConfig := tmconfig.DefaultConfig()
 		s.Require().NoError(vpr.Unmarshal(valConfig))
 
 		valConfig.P2P.ListenAddress = "tcp://0.0.0.0:26656"
@@ -345,16 +350,20 @@ func (s *IntegrationTestSuite) initValidatorConfigs() {
 
 		appConfig := srvconfig.DefaultConfig()
 		appConfig.API.Enable = true
-		appConfig.MinGasPrices = fmt.Sprintf("%s%s", minGasPrice, photonDenom)
+		appConfig.MinGasPrices = s.getMinGasPrice()
 
 		srvconfig.WriteConfigFile(appCfgPath, appConfig)
 	}
 }
 
+func (s *IntegrationTestSuite) getMinGasPrice() string {
+	return fmt.Sprintf("%s%s", minGasPrice, photonDenom)
+}
+
 func (s *IntegrationTestSuite) runGanacheContainer() {
 	s.T().Log("starting Ganache container...")
 
-	tmpDir, err := ioutil.TempDir("", "umee-e2e-testnet-eth-")
+	tmpDir, err := os.MkdirTemp("", "umee-e2e-testnet-eth-")
 	s.Require().NoError(err)
 	s.tmpDirs = append(s.tmpDirs, tmpDir)
 
@@ -436,7 +445,7 @@ func (s *IntegrationTestSuite) runGanacheContainer() {
 func (s *IntegrationTestSuite) runEthContainer() {
 	s.T().Log("starting Ethereum container...")
 
-	tmpDir, err := ioutil.TempDir("", "umee-e2e-testnet-eth-")
+	tmpDir, err := os.MkdirTemp("", "umee-e2e-testnet-eth-")
 	s.Require().NoError(err)
 	s.tmpDirs = append(s.tmpDirs, tmpDir)
 
@@ -509,6 +518,7 @@ func (s *IntegrationTestSuite) runValidators() {
 			Entrypoint: []string{
 				"umeed",
 				"start",
+				"--log_level=trace",
 			},
 		}
 
@@ -652,14 +662,6 @@ func (s *IntegrationTestSuite) runContractDeployment() {
 	s.gravityContractAddr = gravityContractAddr
 }
 
-func (s *IntegrationTestSuite) registerValidatorOrchAddresses() {
-	s.T().Log("registering Umee validator Ethereum keys...")
-
-	for i := range s.chain.validators {
-		s.registerOrchAddresses(i, "10photon")
-	}
-}
-
 func (s *IntegrationTestSuite) runOrchestrators() {
 	s.T().Log("starting orchestrator containers...")
 
@@ -690,11 +692,13 @@ func (s *IntegrationTestSuite) runOrchestrators() {
 					"--cosmos-gas-prices",
 					fmt.Sprintf("%s%s", minGasPrice, photonDenom),
 					"--cosmos-from",
-					s.chain.orchestrators[i].keyInfo.GetName(),
+					s.chain.orchestrators[i].keyInfo.Name,
+					"--oracle-providers=mock",
 					"--relay-batches=true",
 					"--valset-relay-mode=minimum",
 					"--profit-multiplier=0.0",
 					"--relayer-loop-multiplier=1.0",
+					"--log-level=debug",
 					"--requester-loop-multiplier=1.0",
 				},
 			},

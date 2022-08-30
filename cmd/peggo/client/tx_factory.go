@@ -7,7 +7,7 @@ import (
 )
 
 func NewTxFactory(clientCtx client.Context) tx.Factory {
-	return new(tx.Factory).
+	return tx.Factory{}.
 		WithKeybase(clientCtx.Keyring).
 		WithTxConfig(clientCtx.TxConfig).
 		WithAccountRetriever(clientCtx.AccountRetriever).

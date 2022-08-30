@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -eux
 
 # Based Cosmos 3-node bootstrap script by PeggyJV:
 # https://github.com/PeggyJV/sommelier/blob/main/scripts/three-node.sh
@@ -29,9 +29,9 @@ USER_KEY="user"
 USER_MNEMONIC="pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"
 NEWLINE=$'\n'
 
-VAL0_ETH_ADDRESS="0xC6Fe5D33615a1C52c08018c47E8Bc53646A0E101"
-VAL1_ETH_ADDRESS="0x963EBDf2e1f8DB8707D05FC75bfeFFBa1B5BaC17"
-VAL2_ETH_ADDRESS="0x6880D7bfE96D49501141375ED835C24cf70E2bD7"
+VAL0_ETH_ADDRESS="0xfac5EC50BdfbB803f5cFc9BF0A0C2f52aDE5b6dd"
+VAL1_ETH_ADDRESS="0x02fa1b44e2EF8436e6f35D5F56607769c658c225"
+VAL2_ETH_ADDRESS="0xd8f468c1B719cc2d50eB1E3A55cFcb60e23758CD"
 
 hdir="$CHAIN_DIR/$CHAIN_ID"
 
@@ -192,12 +192,15 @@ if [[ ! -d "$hdir" ]]; then
 
 	echo "regex replacing config variables"
 
+	minimumGasPrice="0.0000001$STAKE_DENOM"
+
 	perl -i -pe 's|addr_book_strict = true|addr_book_strict = false|g' $n0cfg
 	perl -i -pe 's|external_address = ""|external_address = "tcp://127.0.0.1:26657"|g' $n0cfg
 	perl -i -pe 's|"tcp://127.0.0.1:26657"|"tcp://0.0.0.0:26657"|g' $n0cfg
 	perl -i -pe 's|allow_duplicate_ip = false|allow_duplicate_ip = true|g' $n0cfg
 	perl -i -pe 's|log_level = "info"|log_level = "'$LOG_LEVEL'"|g' $n0cfg
 	perl -i -pe 's|timeout_commit = ".*?"|timeout_commit = "5s"|g' $n0cfg
+	perl -i -pe 's|minimum-gas-prices = ""|minimum-gas-prices = "'$minimumGasPrice'"|g' $n0app
 
 	perl -i -pe 's|addr_book_strict = true|addr_book_strict = false|g' $n1cfg
 	perl -i -pe 's|external_address = ""|external_address = "tcp://127.0.0.1:26667"|g' $n1cfg
@@ -206,7 +209,7 @@ if [[ ! -d "$hdir" ]]; then
 	perl -i -pe 's|"localhost:6060"|"localhost:6061"|g' $n1cfg
 	perl -i -pe 's|"tcp://0.0.0.0:10337"|"tcp://0.0.0.0:11337"|g' $n1app
 	perl -i -pe 's|"0.0.0.0:1317"|"0.0.0.0:1417"|g' $n1app
-	perl -i -pe 's|"0.0.0.0:9090"|"0.0.0.0:9091"|g' $n1app
+	perl -i -pe 's|minimum-gas-prices = ""|minimum-gas-prices = "'$minimumGasPrice'"|g' $n1app
 	perl -i -pe 's|allow_duplicate_ip = false|allow_duplicate_ip = true|g' $n1cfg
 	perl -i -pe 's|log_level = "info"|log_level = "'$LOG_LEVEL'"|g' $n1cfg
 	perl -i -pe 's|timeout_commit = ".*?"|timeout_commit = "5s"|g' $n1cfg
@@ -218,7 +221,7 @@ if [[ ! -d "$hdir" ]]; then
 	perl -i -pe 's|"localhost:6060"|"localhost:6062"|g' $n2cfg
 	perl -i -pe 's|"tcp://0.0.0.0:10337"|"tcp://0.0.0.0:12337"|g' $n2app
 	perl -i -pe 's|"0.0.0.0:1317"|"0.0.0.0:1517"|g' $n2app
-	perl -i -pe 's|"0.0.0.0:9090"|"0.0.0.0:9092"|g' $n2app
+	perl -i -pe 's|minimum-gas-prices = ""|minimum-gas-prices = "'$minimumGasPrice'"|g' $n2app
 	perl -i -pe 's|allow_duplicate_ip = false|allow_duplicate_ip = true|g' $n2cfg
 	perl -i -pe 's|log_level = "info"|log_level = "'$LOG_LEVEL'"|g' $n2cfg
 	perl -i -pe 's|timeout_commit = ".*?"|timeout_commit = "5s"|g' $n2cfg
@@ -236,9 +239,10 @@ fi # data dir check
 # Start the instances
 echo "Starting nodes..."
 
-$NODE_BIN $home0 start --grpc.address="0.0.0.0:9090" --grpc-web.enable=false --log_level info > $hdir.n0.log 2>&1 &
-$NODE_BIN $home1 start --grpc.address="0.0.0.0:9091" --grpc-web.enable=false --log_level info > $hdir.n1.log 2>&1 &
-$NODE_BIN $home2 start --grpc.address="0.0.0.0:9092" --grpc-web.enable=false --log_level info > $hdir.n2.log 2>&1 &
+$NODE_BIN $home0 start --api.enable true --grpc.address="0.0.0.0:9090" --grpc-web.enable=false --log_level $LOG_LEVEL > $hdir.n0.log 2>&1 &
+$NODE_BIN $home1 start --grpc.address="0.0.0.0:9091" --grpc-web.enable=false --log_level $LOG_LEVEL > $hdir.n1.log 2>&1 &
+$NODE_BIN $home2 start --grpc.address="0.0.0.0:9092" --grpc-web.enable=false --log_level $LOG_LEVEL > $hdir.n2.log 2>&1 &
+
 
 # Wait for chains to start
 echo "Waiting for chains to start..."
@@ -246,16 +250,16 @@ sleep 8
 
 echo
 echo "Logs:"
-echo "  * tail -f ./data/$CHAIN_ID.n0.log"
-echo "  * tail -f ./data/$CHAIN_ID.n1.log"
-echo "  * tail -f ./data/$CHAIN_ID.n2.log"
+echo "  * tail -f $hdir.n0.log"
+echo "  * tail -f $hdir.n1.log"
+echo "  * tail -f $hdir.n2.log"
 echo
 echo "Env for easy access:"
-echo "export H1='--home ./data/$CHAIN_ID/n0/'"
-echo "export H2='--home ./data/$CHAIN_ID/n1/'"
-echo "export H3='--home ./data/$CHAIN_ID/n2/'"
+echo "export H1='--home $n0dir'"
+echo "export H2='--home $n1dir'"
+echo "export H3='--home $n2dir'"
 echo
 echo "Command Line Access:"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n0 status"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n1 status"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n2 status"
+echo "  * $NODE_BIN --home $n0dir status"
+echo "  * $NODE_BIN --home $n1dir status"
+echo "  * $NODE_BIN --home $n2dir status"

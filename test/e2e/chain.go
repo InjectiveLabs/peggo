@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
@@ -12,7 +12,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 
-	"github.com/umee-network/umee/v2/app"
+	umeeapp "github.com/umee-network/umee/v2/app"
 	"github.com/umee-network/umee/v2/app/params"
 )
 
@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	encodingConfig = app.MakeEncodingConfig()
+	encodingConfig = umeeapp.MakeEncodingConfig()
 
 	encodingConfig.InterfaceRegistry.RegisterImplementations(
 		(*sdk.Msg)(nil),
@@ -39,7 +39,7 @@ func init() {
 		&ed25519.PubKey{},
 	)
 
-	cdc = encodingConfig.Marshaler
+	cdc = encodingConfig.Codec
 }
 
 type chain struct {
@@ -50,7 +50,7 @@ type chain struct {
 }
 
 func newChain() (*chain, error) {
-	tmpDir, err := ioutil.TempDir("", "umee-e2e-testnet-")
+	tmpDir, err := os.MkdirTemp("", "umee-e2e-testnet-")
 	if err != nil {
 		return nil, err
 	}
@@ -91,33 +91,6 @@ func (c *chain) createAndInitValidators(count int) error {
 	return nil
 }
 
-func (c *chain) createAndInitValidatorsWithMnemonics(count int, mnemonics []string) error {
-	for i := 0; i < count; i++ {
-		// create node
-		node := c.createValidator(i)
-
-		// generate genesis files
-		if err := node.init(); err != nil {
-			return err
-		}
-
-		c.validators = append(c.validators, node)
-
-		// create keys
-		if err := node.createKeyFromMnemonic("val", mnemonics[i]); err != nil {
-			return err
-		}
-		if err := node.createNodeKey(); err != nil {
-			return err
-		}
-		if err := node.createConsensusKey(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (c *chain) createAndInitOrchestrators(count int) error {
 	for i := 0; i < count; i++ {
 		// create orchestrator
@@ -132,26 +105,6 @@ func (c *chain) createAndInitOrchestrators(count int) error {
 		if err != nil {
 			return err
 		}
-
-		c.orchestrators = append(c.orchestrators, orchestrator)
-	}
-
-	return nil
-}
-
-func (c *chain) createAndInitOrchestratorsWithMnemonics(count int, mnemonics []string) error {
-	for i := 0; i < count; i++ {
-		// create orchestrator
-		orchestrator := c.createOrchestrator(i)
-
-		// create keys
-		info, err := createMemoryKeyFromMnemonic(mnemonics[i])
-		if err != nil {
-			return err
-		}
-
-		orchestrator.keyInfo = *info
-		orchestrator.mnemonic = mnemonics[i]
 
 		c.orchestrators = append(c.orchestrators, orchestrator)
 	}

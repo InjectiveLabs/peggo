@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	umeedpfconfig "github.com/umee-network/umee/price-feeder/config"
+	umeepfprovider "github.com/umee-network/umee/price-feeder/oracle/provider"
 
 	"github.com/umee-network/peggo/cmd/peggo/client"
 	"github.com/umee-network/peggo/orchestrator"
@@ -60,8 +60,7 @@ func getOrchestratorCmd() *cobra.Command {
 				return fmt.Errorf("failed to initialize Cosmos keyring: %w", err)
 			}
 
-			cosmosChainID := konfig.String(flagCosmosChainID)
-			clientCtx, err := client.NewClientContext(cosmosChainID, orchAddress.String(), cosmosKeyring)
+			clientCtx, err := client.NewClientContext(konfig.String(flagCosmosChainID), orchAddress.String(), cosmosKeyring)
 			if err != nil {
 				return err
 			}
@@ -199,7 +198,7 @@ func getOrchestratorCmd() *cobra.Command {
 			trapSignal(cancel)
 
 			providers := konfig.Strings(flagOracleProviders)
-			o, err := oracle.New(ctx, logger, providers)
+			o, err := oracle.New(ctx, logger, stringsToProviderName(providers))
 			if err != nil {
 				return err
 			}
@@ -278,9 +277,9 @@ func getOrchestratorCmd() *cobra.Command {
 	cmd.Flags().Int64(flagEthBlocksPerLoop, 2000, "Number of Ethereum blocks to process per orchestrator loop")
 	cmd.Flags().String(flagCoinGeckoAPI, "https://api.coingecko.com/api/v3", "Specify the coingecko API endpoint")
 	//nolint: lll
-	cmd.Flags().StringSlice(flagOracleProviders, []string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi},
-		fmt.Sprintf("Specify the providers to use in the oracle, options \"%s\"", strings.Join([]string{umeedpfconfig.ProviderBinance, umeedpfconfig.ProviderHuobi,
-			umeedpfconfig.ProviderKraken, umeedpfconfig.ProviderGate, umeedpfconfig.ProviderOkx, umeedpfconfig.ProviderOsmosis}, ",")))
+	cmd.Flags().StringSlice(flagOracleProviders, []string{string(umeepfprovider.ProviderBinance), string(umeepfprovider.ProviderKraken)},
+		fmt.Sprintf("Specify the providers to use in the oracle, options \"%s\"", strings.Join([]string{string(umeepfprovider.ProviderBinance), string(umeepfprovider.ProviderHuobi),
+			string(umeepfprovider.ProviderKraken), string(umeepfprovider.ProviderGate), string(umeepfprovider.ProviderOkx), string(umeepfprovider.ProviderOsmosis)}, ",")))
 	cmd.Flags().Duration(flagEthPendingTXWait, 20*time.Minute, "Time for a pending tx to be considered stale")
 	cmd.Flags().String(flagEthAlchemyWS, "", "Specify the Alchemy websocket endpoint")
 	cmd.Flags().Float64(flagProfitMultiplier, 1.0, "Multiplier to apply to relayer profit")
@@ -340,4 +339,13 @@ func validateRelayValsetsMode(mode string) (relayer.ValsetRelayMode, error) {
 	default:
 		return relayer.ValsetRelayModeNone, fmt.Errorf("invalid relay valsets mode: %s", mode)
 	}
+}
+
+func stringsToProviderName(providersName []string) []umeepfprovider.Name {
+	names := make([]umeepfprovider.Name, len(providersName))
+	for i, name := range providersName {
+		names[i] = umeepfprovider.Name(name)
+	}
+
+	return names
 }

@@ -118,74 +118,16 @@ func (s *IntegrationTestSuite) deployERC20Token(baseDenom string) string {
 	return erc20Addr
 }
 
-func (s *IntegrationTestSuite) registerOrchAddresses(valIdx int, umeeFee string) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	valAddr := s.chain.validators[valIdx].keyInfo.GetAddress()
-
-	s.T().Logf("registering Ethereum Orchestrator addresses; validator: %s", sdk.ValAddress(valAddr))
-
-	exec, err := s.dkrPool.Client.CreateExec(docker.CreateExecOptions{
-		Context:      ctx,
-		AttachStdout: true,
-		AttachStderr: true,
-		Container:    s.valResources[valIdx].Container.ID,
-		User:         "root",
-		Cmd: []string{
-			"umeed",
-			"tx",
-			"gravity",
-			"set-orchestrator-address",
-			valAddr.String(),
-			s.chain.orchestrators[valIdx].keyInfo.GetAddress().String(),
-			s.chain.orchestrators[valIdx].ethereumKey.address,
-			fmt.Sprintf("--%s=%s", flags.FlagChainID, s.chain.id),
-			fmt.Sprintf("--%s=%s", flags.FlagFees, umeeFee),
-			"--keyring-backend=test",
-			"--broadcast-mode=sync",
-			"-y",
-		},
-	})
-	s.Require().NoError(err)
-
-	var (
-		outBuf bytes.Buffer
-		errBuf bytes.Buffer
-	)
-
-	err = s.dkrPool.Client.StartExec(exec.ID, docker.StartExecOptions{
-		Context:      ctx,
-		Detach:       false,
-		OutputStream: &outBuf,
-		ErrorStream:  &errBuf,
-	})
-	s.Require().NoErrorf(err, "stdout: %s, stderr: %s", outBuf.String(), errBuf.String())
-
-	var broadcastResp map[string]interface{}
-	s.Require().NoError(json.Unmarshal(outBuf.Bytes(), &broadcastResp))
-
-	endpoint := fmt.Sprintf("http://%s", s.valResources[valIdx].GetHostPort("1317/tcp"))
-	txHash := broadcastResp["txhash"].(string)
-
-	s.Require().Eventuallyf(
-		func() bool {
-			return queryUmeeTx(endpoint, txHash) == nil
-		},
-		time.Minute,
-		5*time.Second,
-		"stdout: %s, stderr: %s",
-		outBuf.String(), errBuf.String(),
-	)
-}
-
 func (s *IntegrationTestSuite) sendFromUmeeToEth(valIdx int, ethDest, amount, umeeFee, gravityFee string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
+	addr, err := s.chain.validators[valIdx].keyInfo.GetAddress()
+	s.Require().NoError(err)
+
 	s.T().Logf(
 		"sending tokens from Umee to Ethereum; from: %s, to: %s, amount: %s, umeeFee: %s, gravityFee: %s",
-		s.chain.validators[valIdx].keyInfo.GetAddress(), ethDest, amount, umeeFee, gravityFee,
+		addr, ethDest, amount, umeeFee, gravityFee,
 	)
 
 	exec, err := s.dkrPool.Client.CreateExec(docker.CreateExecOptions{
@@ -202,10 +144,11 @@ func (s *IntegrationTestSuite) sendFromUmeeToEth(valIdx int, ethDest, amount, um
 			ethDest,
 			amount,
 			gravityFee,
-			fmt.Sprintf("--%s=%s", flags.FlagFrom, s.chain.validators[valIdx].keyInfo.GetName()),
+			fmt.Sprintf("--%s=%s", flags.FlagFrom, s.chain.validators[valIdx].keyInfo.Name),
 			fmt.Sprintf("--%s=%s", flags.FlagChainID, s.chain.id),
 			fmt.Sprintf("--%s=%s", flags.FlagFees, umeeFee),
 			"--keyring-backend=test",
+			"--output=json",
 			"--broadcast-mode=sync",
 			"-y",
 		},
@@ -223,6 +166,7 @@ func (s *IntegrationTestSuite) sendFromUmeeToEth(valIdx int, ethDest, amount, um
 		OutputStream: &outBuf,
 		ErrorStream:  &errBuf,
 	})
+
 	s.Require().NoErrorf(err, "stdout: %s, stderr: %s", outBuf.String(), errBuf.String())
 
 	var broadcastResp map[string]interface{}
@@ -332,27 +276,6 @@ func queryUmeeTx(endpoint, txHash string) error {
 	}
 
 	return nil
-}
-
-func queryUmeeAllBalances(endpoint, addr string) (sdk.Coins, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/cosmos/bank/v1beta1/balances/%s", endpoint, addr))
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute HTTP request: %w", err)
-	}
-
-	defer resp.Body.Close()
-
-	bz, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var balancesResp banktypes.QueryAllBalancesResponse
-	if err := cdc.UnmarshalJSON(bz, &balancesResp); err != nil {
-		return nil, err
-	}
-
-	return balancesResp.Balances, nil
 }
 
 func queryUmeeDenomBalance(endpoint, addr, denom string) (sdk.Coin, error) {

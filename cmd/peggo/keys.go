@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdkcrypto "github.com/cosmos/cosmos-sdk/crypto"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -27,6 +28,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/umee-network/peggo/orchestrator/ethereum/keystore"
 	"golang.org/x/term"
+
+	umeeapp "github.com/umee-network/umee/v2/app"
 )
 
 const defaultKeyringKeyName = "validator"
@@ -42,6 +45,7 @@ func initCosmosKeyring(konfig *koanf.Koanf) (sdk.AccAddress, keyring.Keyring, er
 	cosmosPassphrase := konfig.String(flagCosmosFromPassphrase)
 	cosmosKeyringDir := konfig.String(flagCosmosKeyringDir)
 	cosmosUseLedger := konfig.Bool(flagCosmosUseLedger)
+	encodingConfig := umeeapp.MakeEncodingConfig()
 
 	switch {
 	case len(cosmosPK) > 0:
@@ -84,7 +88,7 @@ func initCosmosKeyring(konfig *koanf.Koanf) (sdk.AccAddress, keyring.Keyring, er
 		}
 
 		// wrap a PK into a Keyring
-		kb, err := keyringForPrivKey(keyName, cosmosAccPk)
+		kb, err := keyringForPrivKey(keyName, cosmosAccPk, encodingConfig.Codec)
 		return addressFromPk, kb, err
 
 	case len(cosmosFrom) > 0:
@@ -116,12 +120,13 @@ func initCosmosKeyring(konfig *koanf.Koanf) (sdk.AccAddress, keyring.Keyring, er
 			konfig.String(flagCosmosKeyring),
 			absoluteKeyringDir,
 			passReader,
+			encodingConfig.Codec,
 		)
 		if err != nil {
 			return emptyCosmosAddress, nil, fmt.Errorf("failed to create keyring: %w", err)
 		}
 
-		var keyInfo keyring.Info
+		var keyInfo *keyring.Record
 		if fromIsAddress {
 			if keyInfo, err = kb.KeyByAddress(addressFrom); err != nil {
 				return emptyCosmosAddress, nil, fmt.Errorf(
@@ -140,27 +145,33 @@ func initCosmosKeyring(konfig *koanf.Koanf) (sdk.AccAddress, keyring.Keyring, er
 
 		switch keyType := keyInfo.GetType(); keyType {
 		case keyring.TypeLocal:
+			addr, err := keyInfo.GetAddress()
 			// kb has a key and it's totally usable
-			return keyInfo.GetAddress(), kb, nil
+			return addr, kb, err
+			// kb has a key and it's totally usable
 
 		case keyring.TypeLedger:
+			addr, err := keyInfo.GetAddress()
+			if err != nil {
+				return nil, nil, err
+			}
 			// The keyring stores references to ledger keys, so we must explicitly
 			// check that. The keyring doesn't know how to scan HD keys - they must be
 			// added manually before.
 			if cosmosUseLedger {
-				return keyInfo.GetAddress(), kb, nil
+				return addr, kb, nil
 			}
 
-			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is a ledger reference, enable ledger option", keyInfo.GetName())
+			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is a ledger reference, enable ledger option", keyInfo.Name)
 
 		case keyring.TypeOffline:
-			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is an offline key, not supported yet", keyInfo.GetName())
+			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is an offline key, not supported yet", keyInfo.Name)
 
 		case keyring.TypeMulti:
-			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is an multisig key, not supported yet", keyInfo.GetName())
+			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key is an multisig key, not supported yet", keyInfo.Name)
 
 		default:
-			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key  has unsupported type: %s", keyInfo.GetName(), keyType)
+			return emptyCosmosAddress, nil, fmt.Errorf("'%s' key  has unsupported type: %s", keyInfo.Name, keyType)
 		}
 
 	default:
@@ -383,7 +394,11 @@ func (r *passReader) Read(p []byte) (n int, err error) {
 
 // keyringForPrivKey creates a temporary in-mem keyring for a PrivKey.
 // Allows to init Context when the key has been provided in plaintext and parsed.
-func keyringForPrivKey(name string, privKey sdkcryptotypes.PrivKey) (keyring.Keyring, error) {
+func keyringForPrivKey(
+	name string,
+	privKey sdkcryptotypes.PrivKey,
+	cdc codec.Codec,
+) (keyring.Keyring, error) {
 	tmpPhrase, err := randPhrase(64)
 	if err != nil {
 		return nil, err
@@ -391,7 +406,7 @@ func keyringForPrivKey(name string, privKey sdkcryptotypes.PrivKey) (keyring.Key
 
 	armored := sdkcrypto.EncryptArmorPrivKey(privKey, tmpPhrase, privKey.Type())
 
-	kb := keyring.NewInMemory()
+	kb := keyring.NewInMemory(cdc)
 	if err := kb.ImportPrivKey(name, armored, tmpPhrase); err != nil {
 		err = errors.Wrap(err, "failed to import privkey")
 		return nil, err

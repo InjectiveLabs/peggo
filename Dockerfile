@@ -16,7 +16,7 @@ RUN make install
 
 # Fetch umeed binary
 FROM base-builder AS umeed-builder
-ARG UMEE_VERSION=v2.0.0
+ARG UMEE_VERSION=main
 ENV PACKAGES curl eudev-dev
 RUN apk add --no-cache $PACKAGES
 WORKDIR /downloads/

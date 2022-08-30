@@ -11,12 +11,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	umeeapp "github.com/umee-network/umee/v2/app"
 )
 
 type orchestrator struct {
 	index       int
 	mnemonic    string
-	keyInfo     keyring.Info
+	keyInfo     *keyring.Record
 	privateKey  cryptotypes.PrivKey
 	ethereumKey ethereumKey
 }
@@ -66,7 +67,8 @@ func (o *orchestrator) createKey(name string) error {
 }
 
 func (o *orchestrator) createKeyFromMnemonic(name, mnemonic string) error {
-	kb, err := keyring.New(keyringAppName, keyring.BackendMemory, "", nil)
+	encodingConfig = umeeapp.MakeEncodingConfig()
+	kb, err := keyring.New(keyringAppName, keyring.BackendMemory, "", nil, encodingConfig.Codec)
 	if err != nil {
 		return err
 	}
