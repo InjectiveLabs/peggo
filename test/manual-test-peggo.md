@@ -90,7 +90,7 @@ $~ PEGGO_ETH_PK=$MYETHPK peggo orchestrator $BRIDGEADDR \
   --oracle-providers="mock" \
   --cosmos-keyring=test \
   --cosmos-keyring-dir=$UMEE_PEGGO_PATH/test/cosmos/data/$CHAIN_ID/n0/ \
-  --cosmos-from=val  --log-level debug --log-format text --profit-multiplier=0
+  --cosmos-from=val --log-level debug --log-format text --profit-multiplier=0
 ```
 
 ```shell
