@@ -220,7 +220,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
 		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
-		//	Check if the provided ETH address (valAddress) belongs to a validator
+		// Check if the provided ETH address belongs to a validator
 		ctx, cancelFn = context.WithTimeout(context.Background(), time.Second * 30)
 		defer cancelFn()
 
