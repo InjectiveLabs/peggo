@@ -220,8 +220,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
 		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
-		//	TODO: (dbrajovic)
-		//	Check if the provided INJ address (valAddress) belongs to a validator
+		//	Check if the provided ETH address (valAddress) belongs to a validator
 		ctx, cancelFn = context.WithTimeout(context.Background(), time.Second * 30)
 		defer cancelFn()
 
@@ -286,7 +285,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 
 		go func() {
-			if err := svc.Start(ctx); err != nil {
+			if err := svc.Start(ctx, isValidator); err != nil {
 				log.Errorln(err)
 
 				// signal there that the app failed
