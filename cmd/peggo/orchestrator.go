@@ -220,6 +220,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
 		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
+		//	TODO: (dbrajovic)
+		//	Check if the provided INJ address (valAddress) belongs to a validator
+
 		erc20ContractMapping := make(map[ethcmn.Address]string)
 		erc20ContractMapping[injAddress] = ctypes.InjectiveCoin
 

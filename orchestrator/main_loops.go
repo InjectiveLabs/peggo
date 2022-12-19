@@ -26,6 +26,10 @@ const defaultLoopDur = 60 * time.Second
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
 func (s *peggyOrchestrator) Start(ctx context.Context) error {
+	//	TODO: (dbrajovic)
+	//	split into 2 modes (validator, non-validator)
+	//	non-validator runs only BatchRequesterLoop and RelayerMainLoop
+
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {
