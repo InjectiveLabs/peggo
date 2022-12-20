@@ -17,7 +17,7 @@ import (
 )
 
 type PeggyOrchestrator interface {
-	Start(ctx context.Context) error
+	Start(ctx context.Context, validatorMode bool) error
 
 	CheckForEvents(ctx context.Context, startingBlock uint64) (currentBlock uint64, err error)
 	GetLastCheckedBlock(ctx context.Context) (uint64, error)
