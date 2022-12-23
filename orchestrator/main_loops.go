@@ -318,6 +318,15 @@ func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 }
 
 func (s *peggyOrchestrator) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+	steadyETH := common.HexToAddress("0x3F07A84eCdf494310D397d24c1C78B041D2fa622")
+	steadyBTC := common.HexToAddress("0x4986fD36b6b16f49b43282Ee2e24C5cF90ed166d")
+	ethbtcTrend := common.HexToAddress("0x6b7f87279982d919Bbf85182DDeAB179B366D8f2")
+
+	isWhitelistedToken := erc20Contract == steadyETH || erc20Contract == steadyBTC || erc20Contract == ethbtcTrend
+	if isWhitelistedToken {
+		return true
+	}
+
 	if minFeeInUSD == 0 {
 		return true
 	}
