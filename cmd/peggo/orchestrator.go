@@ -221,7 +221,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
 		// Check if the provided ETH address belongs to a validator
-		ctx, cancelFn = context.WithTimeout(context.Background(), time.Second * 30)
+		ctx, cancelFn = context.WithTimeout(context.Background(), time.Second*30)
 		defer cancelFn()
 
 		currentValset, err := cosmosQueryClient.CurrentValset(ctx)
@@ -231,7 +231,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		var isValidator bool
 		for _, validator := range currentValset.Members {
-			if validator.EthereumAddress == ethKeyFromAddress.String() {
+			if ethcmn.HexToAddress(validator.EthereumAddress) == ethKeyFromAddress {
 				isValidator = true
 			}
 		}
