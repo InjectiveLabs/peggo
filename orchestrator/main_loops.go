@@ -27,9 +27,11 @@ const defaultLoopDur = 60 * time.Second
 // up the Orchestrator, all of these are async loops.
 func (s *peggyOrchestrator) Start(ctx context.Context, validatorMode bool) error {
 	if !validatorMode {
+		log.Infoln("Starting peggo in relayer (non-validator) mode")
 		return s.startRelayerMode(ctx)
 	}
 
+	log.Infoln("Starting peggo in validator mode")
 	return s.startValidatorMode(ctx)
 }
 
@@ -385,8 +387,8 @@ func calculateTotalValsetPower(valset *types.Valset) *big.Int {
 	return totalValsetPower
 }
 
-//	startValidatorMode runs all orchestrator processes. This is called
-//	when peggo is run alongside a validator injective node.
+// startValidatorMode runs all orchestrator processes. This is called
+// when peggo is run alongside a validator injective node.
 func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
@@ -406,9 +408,9 @@ func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	return pg.Wait()
 }
 
-//	startRelayerMode runs orchestrator processes that only relay specific
-//	messages that do not require a validator's signature. This mode is run
-//	alongside a non-validator injective node
+// startRelayerMode runs orchestrator processes that only relay specific
+// messages that do not require a validator's signature. This mode is run
+// alongside a non-validator injective node
 func (s *peggyOrchestrator) startRelayerMode(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
