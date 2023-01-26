@@ -220,6 +220,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
 		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
+		// Check if the provided ETH address belongs to a validator
+		isValidator, err := isValidatorAddress(cosmosQueryClient, ethKeyFromAddress)
+		if err != nil {
+			log.WithError(err).Fatalln("failed to query the current validator set from injective")
+
+			return
+		}
+
 		erc20ContractMapping := make(map[ethcmn.Address]string)
 		erc20ContractMapping[injAddress] = ctypes.InjectiveCoin
 
@@ -269,7 +277,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 
 		go func() {
-			if err := svc.Start(ctx); err != nil {
+			if err := svc.Start(ctx, isValidator); err != nil {
 				log.Errorln(err)
 
 				// signal there that the app failed
@@ -279,4 +287,23 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		closer.Hold()
 	}
+}
+
+func isValidatorAddress(peggyQuery cosmos.PeggyQueryClient, addr ethcmn.Address) (bool, error) {
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancelFn()
+
+	currentValset, err := peggyQuery.CurrentValset(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var isValidator bool
+	for _, validator := range currentValset.Members {
+		if ethcmn.HexToAddress(validator.EthereumAddress) == addr {
+			isValidator = true
+		}
+	}
+
+	return isValidator, nil
 }

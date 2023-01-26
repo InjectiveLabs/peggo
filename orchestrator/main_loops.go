@@ -25,23 +25,14 @@ const defaultLoopDur = 60 * time.Second
 
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
-func (s *peggyOrchestrator) Start(ctx context.Context) error {
-	var pg loops.ParanoidGroup
+func (s *peggyOrchestrator) Start(ctx context.Context, validatorMode bool) error {
+	if !validatorMode {
+		log.Infoln("Starting peggo in relayer (non-validator) mode")
+		return s.startRelayerMode(ctx)
+	}
 
-	pg.Go(func() error {
-		return s.EthOracleMainLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.BatchRequesterLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.EthSignerMainLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.RelayerMainLoop(ctx)
-	})
-
-	return pg.Wait()
+	log.Infoln("Starting peggo in validator mode")
+	return s.startValidatorMode(ctx)
 }
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -394,4 +385,42 @@ func calculateTotalValsetPower(valset *types.Valset) *big.Int {
 	}
 
 	return totalValsetPower
+}
+
+// startValidatorMode runs all orchestrator processes. This is called
+// when peggo is run alongside a validator injective node.
+func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error {
+		return s.EthOracleMainLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.BatchRequesterLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.EthSignerMainLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.RelayerMainLoop(ctx)
+	})
+
+	return pg.Wait()
+}
+
+// startRelayerMode runs orchestrator processes that only relay specific
+// messages that do not require a validator's signature. This mode is run
+// alongside a non-validator injective node
+func (s *peggyOrchestrator) startRelayerMode(ctx context.Context) error {
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error {
+		return s.BatchRequesterLoop(ctx)
+	})
+
+	pg.Go(func() error {
+		return s.RelayerMainLoop(ctx)
+	})
+
+	return pg.Wait()
 }
