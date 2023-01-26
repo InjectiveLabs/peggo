@@ -9,6 +9,7 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
@@ -157,6 +158,39 @@ func (s *peggyOrchestrator) CheckForEvents(
 		"Withdraws": transactionBatchExecutedEvents,
 	}).Debugln("Scanned TransactionBatchExecuted events from Ethereum")
 
+	var erc20DeployedEvents []*wrappers.PeggyERC20DeployedEvent
+	{
+		iter, err := peggyFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
+			Start: startingBlock,
+			End:   &currentBlock,
+		}, nil)
+		if err != nil {
+			metrics.ReportFuncError(s.svcTags)
+			log.WithFields(log.Fields{
+				"start": startingBlock,
+				"end":   currentBlock,
+			}).Errorln("failed to scan past FilterERC20Deployed events from Ethereum")
+
+			if !isUnknownBlockErr(err) {
+				err = errors.Wrap(err, "failed to scan past FilterERC20Deployed events from Ethereum")
+				return 0, err
+			} else if iter == nil {
+				return 0, errors.New("no iterator returned")
+			}
+		}
+
+		for iter.Next() {
+			erc20DeployedEvents = append(erc20DeployedEvents, iter.Event)
+		}
+
+		iter.Close()
+	}
+	log.WithFields(log.Fields{
+		"start":         startingBlock,
+		"end":           currentBlock,
+		"erc20Deployed": erc20DeployedEvents,
+	}).Debugln("Scanned FilterERC20Deployed events from Ethereum")
+
 	var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
 	{
 		iter, err := peggyFilterer.FilterValsetUpdatedEvent(&bind.FilterOpts{
@@ -191,7 +225,7 @@ func (s *peggyOrchestrator) CheckForEvents(
 		"valsetUpdates": valsetUpdatedEvents,
 	}).Debugln("Scanned ValsetUpdatedEvents events from Ethereum")
 
-	// note that starting block overlaps with our last che	cked block, because we have to deal with
+	// note that starting block overlaps with our last checked block, because we have to deal with
 	// the possibility that the relayer was killed after relaying only one of multiple events in a single
 	// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
 	// multi event block again. In theory we only send all events for every block and that will pass of fail
@@ -206,11 +240,12 @@ func (s *peggyOrchestrator) CheckForEvents(
 	oldDeposits := filterSendToCosmosEventsByNonce(sendToCosmosEvents, lastClaimEvent.EthereumEventNonce)
 	deposits := filterSendToInjectiveEventsByNonce(sendToInjectiveEvents, lastClaimEvent.EthereumEventNonce)
 	withdraws := filterTransactionBatchExecutedEventsByNonce(transactionBatchExecutedEvents, lastClaimEvent.EthereumEventNonce)
+	erc20Deployments := filterERC20DeployedEventsByNonce(erc20DeployedEvents, lastClaimEvent.EthereumEventNonce)
 	valsetUpdates := filterValsetUpdateEventsByNonce(valsetUpdatedEvents, lastClaimEvent.EthereumEventNonce)
 
-	if len(oldDeposits) > 0 || len(deposits) > 0 || len(withdraws) > 0 || len(valsetUpdates) > 0 {
+	if len(oldDeposits) > 0 || len(deposits) > 0 || len(withdraws) > 0 || len(erc20Deployments) > 0 || len(valsetUpdates) > 0 {
 		// todo get eth chain id from the chain
-		if err := s.peggyBroadcastClient.SendEthereumClaims(ctx, lastClaimEvent.EthereumEventNonce, oldDeposits, deposits, withdraws, valsetUpdates); err != nil {
+		if err := s.peggyBroadcastClient.SendEthereumClaims(ctx, lastClaimEvent.EthereumEventNonce, oldDeposits, deposits, withdraws, erc20Deployments, valsetUpdates); err != nil {
 			metrics.ReportFuncError(s.svcTags)
 			err = errors.Wrap(err, "failed to send ethereum claims to Cosmos chain")
 			return 0, err
@@ -255,6 +290,21 @@ func filterTransactionBatchExecutedEventsByNonce(
 	nonce uint64,
 ) []*wrappers.PeggyTransactionBatchExecutedEvent {
 	res := make([]*wrappers.PeggyTransactionBatchExecutedEvent, 0, len(events))
+
+	for _, ev := range events {
+		if ev.EventNonce.Uint64() > nonce {
+			res = append(res, ev)
+		}
+	}
+
+	return res
+}
+
+func filterERC20DeployedEventsByNonce(
+	events []*wrappers.PeggyERC20DeployedEvent,
+	nonce uint64,
+) []*wrappers.PeggyERC20DeployedEvent {
+	res := make([]*wrappers.PeggyERC20DeployedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
