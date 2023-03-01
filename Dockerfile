@@ -1,5 +1,5 @@
 #install packages for build layer
-FROM golang:1.15-alpine as builder
+FROM golang:1.19-alpine as builder
 RUN apk add --no-cache git gcc make perl jq libc-dev linux-headers
 
 #build binary
@@ -12,13 +12,12 @@ RUN make install
 
 #build main container
 FROM alpine:latest
-RUN apk add --update --no-cache ca-certificates
-RUN apk add curl
+RUN apk add --update --no-cache ca-certificates curl
 COPY --from=builder /go/bin/* /usr/local/bin/
 
 #configure container
 VOLUME /apps/data
-WORKDIR /apps/data
+WORKDIR /root/.injectived/peggo
 
 #default command
-CMD cd /root/.injectived/peggo/ && peggo orchestrator
+CMD peggo orchestrator
