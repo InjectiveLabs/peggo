@@ -21,7 +21,7 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )
 
-const defaultLoopDur = 60 * time.Second
+const defaultLoopDur = 30 * time.Second
 
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
@@ -46,7 +46,7 @@ func (s *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 
 	if err := retry.Do(func() (err error) {
 		lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
-		if lastCheckedBlock == 0 {
+		if lastCheckedBlock == 0 || err != nil {
 			peggyParams, err := s.cosmosQueryClient.PeggyParams(ctx)
 			if err != nil {
 				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
