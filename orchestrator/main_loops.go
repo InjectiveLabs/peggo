@@ -45,8 +45,8 @@ func (s *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	var lastCheckedBlock uint64
 
 	if err := retry.Do(func() (err error) {
-		lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
-		if lastCheckedBlock == 0 || err != nil {
+		lastCheckedBlock, _ = s.GetLastCheckedBlock(ctx)
+		if lastCheckedBlock == 0 {
 			peggyParams, err := s.cosmosQueryClient.PeggyParams(ctx)
 			if err != nil {
 				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
