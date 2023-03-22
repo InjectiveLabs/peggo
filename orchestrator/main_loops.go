@@ -392,9 +392,11 @@ func calculateTotalValsetPower(valset *types.Valset) *big.Int {
 func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error {
-		return s.EthOracleMainLoop(ctx)
-	})
+	log.Info("temporary disabling Eth Oracle loop for validators")
+	//pg.Go(func() error {
+	//	return s.EthOracleMainLoop(ctx)
+	//})
+
 	pg.Go(func() error {
 		return s.BatchRequesterLoop(ctx)
 	})
