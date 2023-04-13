@@ -1,0 +1,35 @@
+#install packages for build layer
+FROM golang:1.19-alpine as builder
+RUN apk add --no-cache git gcc make perl jq libc-dev linux-headers
+
+#build binary
+WORKDIR /src
+COPY . .
+RUN go mod download
+
+#install binary
+RUN make install
+
+#build main container
+FROM alpine:latest
+
+# Add the "injective" non-root user and group
+RUN addgroup -S injective && adduser -S -G injective injective
+
+# Install dependencies
+RUN apk add --update --no-cache ca-certificates curl
+
+# Copy the peggo binary
+COPY --from=builder /go/bin/* /usr/local/bin/
+
+# Set ownership and permissions
+RUN chown -R injective:injective /usr/local/bin
+
+# Configure container
+USER injective
+VOLUME /apps/data
+WORKDIR /home/injective/.injectived/peggo
+
+# Default command
+CMD peggo orchestrator
+
