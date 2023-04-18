@@ -7,9 +7,9 @@ on:
     tags:
       - v**
 env:
-  ECR_ENABLED: false
+  ECR_ENABLED: true
   ECR_REPO: public.ecr.aws/l9h3g6c6/peggo
-  GHCR_ENABLED: true
+  GHCR_ENABLED: false
   GHCR_REPO: ghcr.io/InjectiveLabs/peggo
 
 jobs:
