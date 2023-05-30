@@ -261,15 +261,16 @@ func (s *peggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error)
 
 func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "BatchRequesterLoop")
+	startTime := time.Now()
+	eightHoursPassed := false
+
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		// get All the denominations
 		// check if threshold is met
 		// broadcast Request batch
 
 		var pg loops.ParanoidGroup
-
 		pg.Go(func() error {
-
 			var unbatchedTokensWithFees []*types.BatchFees
 
 			if err := retry.Do(func() (err error) {
@@ -277,44 +278,61 @@ func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 				return
 			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 				logger.WithError(err).Errorf("failed to get UnbatchedTokensWithFees, will retry (%d)", n)
-			})); err != nil {
+			}),
+			); err != nil {
 				// non-fatal, just alert
 				logger.Warningln("unable to get UnbatchedTokensWithFees for the token")
 				return nil
 			}
 
-			if len(unbatchedTokensWithFees) > 0 {
-				logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("Check if token fees meets set threshold amount and send batch request")
-				for _, unbatchedToken := range unbatchedTokensWithFees {
-					return retry.Do(func() (err error) {
-						// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
-						tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
-
-						var denom string
-						if cosmosDenom, ok := s.erc20ContractMapping[tokenAddr]; ok {
-							// cosmos denom
-							denom = cosmosDenom
-						} else {
-							// peggy denom
-							denom = types.PeggyDenomString(tokenAddr)
-						}
-
-						// send batch request only if fee threshold is met.
-						if s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD) {
-							logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
-							_ = s.peggyBroadcastClient.SendRequestBatch(ctx, denom)
-						}
-
-						return nil
-					}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-						logger.WithError(err).Errorf("failed to get LatestUnbatchOutgoingTx, will retry (%d)", n)
-					}))
-				}
-			} else {
+			if len(unbatchedTokensWithFees) == 0 {
 				logger.Debugln("No outgoing withdraw tx or Unbatched token fee less than threshold")
+				return nil
 			}
+
+			logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("Check if token fees meets set threshold amount and send batch request")
+			for _, unbatchedToken := range unbatchedTokensWithFees {
+				return retry.Do(func() (err error) {
+					// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
+					tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
+
+					var denom string
+					if cosmosDenom, ok := s.erc20ContractMapping[tokenAddr]; ok {
+						// cosmos denom
+						denom = cosmosDenom
+					} else {
+						// peggy denom
+						denom = types.PeggyDenomString(tokenAddr)
+					}
+
+					// don't do anything if neither fee threshold is met or 8-hour window hasn't passed
+					if !s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD) &&
+						time.Since(startTime) < time.Hour*8 {
+						return nil
+					}
+
+					logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
+					_ = s.peggyBroadcastClient.SendRequestBatch(ctx, denom)
+
+					if time.Since(startTime) >= time.Hour*8 {
+						// update window flag
+						eightHoursPassed = true
+					}
+
+					return nil
+				}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+					logger.WithError(err).Errorf("failed to get LatestUnbatchOutgoingTx, will retry (%d)", n)
+				}))
+			}
+
+			if eightHoursPassed {
+				startTime = time.Now()
+				eightHoursPassed = false
+			}
+
 			return nil
 		})
+
 		return pg.Wait()
 	})
 }
