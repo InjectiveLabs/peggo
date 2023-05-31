@@ -262,6 +262,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingeckoConfig)
 
+		// make the flag obsolete and hardcode
+		*minBatchFeeUSD = 49.0
+
 		svc := orchestrator.NewPeggyOrchestrator(
 			cosmosQueryClient,
 			peggyBroadcaster,
