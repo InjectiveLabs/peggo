@@ -31,18 +31,19 @@ type PeggyOrchestrator interface {
 type peggyOrchestrator struct {
 	svcTags metrics.Tags
 
-	tmClient             tmclient.TendermintClient
-	cosmosQueryClient    sidechain.PeggyQueryClient
-	peggyBroadcastClient sidechain.PeggyBroadcastClient
-	peggyContract        peggy.PeggyContract
-	ethProvider          provider.EVMProvider
-	ethFrom              ethcmn.Address
-	ethSignerFn          keystore.SignerFn
-	ethPersonalSignFn    keystore.PersonalSignFn
-	erc20ContractMapping map[ethcmn.Address]string
-	relayer              relayer.PeggyRelayer
-	minBatchFeeUSD       float64
-	priceFeeder          *coingecko.CoingeckoPriceFeed
+	tmClient                tmclient.TendermintClient
+	cosmosQueryClient       sidechain.PeggyQueryClient
+	peggyBroadcastClient    sidechain.PeggyBroadcastClient
+	peggyContract           peggy.PeggyContract
+	ethProvider             provider.EVMProvider
+	ethFrom                 ethcmn.Address
+	ethSignerFn             keystore.SignerFn
+	ethPersonalSignFn       keystore.PersonalSignFn
+	erc20ContractMapping    map[ethcmn.Address]string
+	relayer                 relayer.PeggyRelayer
+	minBatchFeeUSD          float64
+	priceFeeder             *coingecko.CoingeckoPriceFeed
+	periodicBatchRequesting bool
 }
 
 func NewPeggyOrchestrator(
@@ -57,21 +58,22 @@ func NewPeggyOrchestrator(
 	relayer relayer.PeggyRelayer,
 	minBatchFeeUSD float64,
 	priceFeeder *coingecko.CoingeckoPriceFeed,
-
+	periodicBatchRequesting bool,
 ) PeggyOrchestrator {
 	return &peggyOrchestrator{
-		tmClient:             tmClient,
-		cosmosQueryClient:    cosmosQueryClient,
-		peggyBroadcastClient: peggyBroadcastClient,
-		peggyContract:        peggyContract,
-		ethProvider:          peggyContract.Provider(),
-		ethFrom:              ethFrom,
-		ethSignerFn:          ethSignerFn,
-		ethPersonalSignFn:    ethPersonalSignFn,
-		erc20ContractMapping: erc20ContractMapping,
-		relayer:              relayer,
-		minBatchFeeUSD:       minBatchFeeUSD,
-		priceFeeder:          priceFeeder,
+		tmClient:                tmClient,
+		cosmosQueryClient:       cosmosQueryClient,
+		peggyBroadcastClient:    peggyBroadcastClient,
+		peggyContract:           peggyContract,
+		ethProvider:             peggyContract.Provider(),
+		ethFrom:                 ethFrom,
+		ethSignerFn:             ethSignerFn,
+		ethPersonalSignFn:       ethPersonalSignFn,
+		erc20ContractMapping:    erc20ContractMapping,
+		relayer:                 relayer,
+		minBatchFeeUSD:          minBatchFeeUSD,
+		priceFeeder:             priceFeeder,
+		periodicBatchRequesting: periodicBatchRequesting,
 		svcTags: metrics.Tags{
 			"svc": "peggy_orchestrator",
 		},

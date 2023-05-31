@@ -305,16 +305,18 @@ func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 						denom = types.PeggyDenomString(tokenAddr)
 					}
 
-					// don't do anything if neither fee threshold is met or 8-hour window hasn't passed
-					if !s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD) &&
-						time.Since(startTime) < time.Hour*8 {
-						return nil
+					// don't do anything if neither fee threshold is met nor 8-hour window hasn't passed
+					if !s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD) {
+						notInjectivePeggoOr8HoursHaventPassed := !s.periodicBatchRequesting || time.Since(startTime) < time.Hour*8
+						if notInjectivePeggoOr8HoursHaventPassed {
+							return nil
+						}
 					}
 
 					logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
 					_ = s.peggyBroadcastClient.SendRequestBatch(ctx, denom)
 
-					if time.Since(startTime) >= time.Hour*8 {
+					if s.periodicBatchRequesting && time.Since(startTime) >= time.Hour*8 {
 						// update window flag
 						eightHoursPassed = true
 					}

@@ -323,12 +323,20 @@ func initRelayerOptions(
 func initBatchRequesterOptions(
 	cmd *cli.Cmd,
 	minBatchFeeUSD **float64,
+	periodicBatchRequesting **bool,
 ) {
 	*minBatchFeeUSD = cmd.Float64(cli.Float64Opt{
 		Name:   "min_batch_fee_usd",
 		Desc:   "If set, batch request will create batches only if fee threshold exceeds",
 		EnvVar: "PEGGO_MIN_BATCH_FEE_USD",
 		Value:  float64(23.3),
+	})
+
+	*periodicBatchRequesting = cmd.Bool(cli.BoolOpt{
+		Name:   "periodic_batch_requesting",
+		Desc:   "If set, batches will be requested every 8 hours regardless of the fee",
+		EnvVar: "PEGGO_PERIODIC_BATCH_REQUESTING",
+		Value:  false,
 	})
 }
 

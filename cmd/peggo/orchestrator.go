@@ -75,6 +75,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		// Batch requester config
 		minBatchFeeUSD *float64
 
+		periodicBatchRequesting *bool
+
 		coingeckoApi *string
 	)
 
@@ -127,6 +129,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 	initBatchRequesterOptions(
 		cmd,
 		&minBatchFeeUSD,
+		&periodicBatchRequesting,
 	)
 
 	initCoingeckoOptions(
@@ -277,6 +280,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			relayer,
 			*minBatchFeeUSD,
 			coingeckoFeed,
+			*periodicBatchRequesting,
 		)
 
 		go func() {
