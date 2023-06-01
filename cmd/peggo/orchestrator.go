@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	cli "github.com/jawher/mow.cli"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
