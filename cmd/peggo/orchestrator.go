@@ -76,6 +76,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		log.Infoln("Using Cosmos ValAddress", valAddress.String())
 		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
 
+		// injective start
+
 		clientCtx, err := chainclient.NewClientContext(*cfg.cosmosChainID, valAddress.String(), cosmosKeyring)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to initialize cosmos client context")
@@ -114,6 +116,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
 
+		// injective end
+
 		peggyParams, err := cosmosQueryClient.PeggyParams(ctx)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
@@ -133,11 +137,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		erc20ContractMapping := make(map[ethcmn.Address]string)
 		erc20ContractMapping[injAddress] = ctypes.InjectiveCoin
 
+		// eth start
+
 		evmRPC, err := rpc.Dial(*cfg.ethNodeRPC)
 		if err != nil {
 			log.WithField("endpoint", *cfg.ethNodeRPC).WithError(err).Fatalln("Failed to connect to Ethereum RPC")
 			return
 		}
+		// todo dusan: last error return
 		ethProvider := provider.NewEVMProvider(evmRPC)
 		log.Infoln("Connected to Ethereum RPC at", *cfg.ethNodeRPC)
 
@@ -157,6 +164,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			go peggyContract.SubscribeToPendingTxs(*cfg.ethNodeAlchemyWS)
 		}
 
+		// eth end
+
 		relayer := relayer.NewPeggyRelayer(
 			cosmosQueryClient,
 			tmclient.NewRPCClient(*cfg.tendermintRPC),
@@ -175,11 +184,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		svc := orchestrator.NewPeggyOrchestrator(
 			cosmosQueryClient,
 			peggyBroadcaster,
-			tmclient.NewRPCClient(*cfg.tendermintRPC),
 			peggyContract,
 			ethKeyFromAddress,
-			signerFn,
-			personalSignFn,
 			erc20ContractMapping,
 			relayer,
 			*cfg.minBatchFeeUSD,
