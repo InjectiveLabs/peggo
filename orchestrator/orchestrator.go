@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/core/types"
+	"math/big"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 
@@ -12,6 +14,13 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
 )
+
+type Injective interface {
+}
+
+type EthereumNetwork interface {
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+}
 
 type PeggyOrchestrator interface {
 	Start(ctx context.Context, validatorMode bool) error
@@ -26,7 +35,8 @@ type PeggyOrchestrator interface {
 }
 
 type peggyOrchestrator struct {
-	svcTags metrics.Tags
+	svcTags  metrics.Tags
+	ethereum EthereumNetwork
 
 	cosmosQueryClient       sidechain.PeggyQueryClient
 	peggyBroadcastClient    sidechain.PeggyBroadcastClient

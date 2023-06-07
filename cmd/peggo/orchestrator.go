@@ -111,12 +111,12 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		cancelWait()
 
+		// injective end
+		
 		// Query peggy params
 		cosmosQueryClient := cosmos.NewPeggyQueryClient(peggyQuerier)
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
-
-		// injective end
 
 		peggyParams, err := cosmosQueryClient.PeggyParams(ctx)
 		if err != nil {
