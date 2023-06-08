@@ -262,14 +262,21 @@ func (s *peggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error)
 func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "BatchRequesterLoop")
 	startTime := time.Now()
-	eightHoursPassed := false
+
+	// we are the only ones relaying periodically, ignoring the batch fee
+	isInjectiveRelayer := s.periodicBatchRequesting
 
 	// 1. Query all unbatched txs by token type
 	// 2. For each potential batch that satisfies the fee threshold, request batch creation
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		mustRequest := false
+		if isInjectiveRelayer && time.Since(startTime) >= 8*time.Hour {
+			mustRequest = true
+			startTime = time.Now()
+		}
+
 		var pg loops.ParanoidGroup
 		pg.Go(func() error {
-
 			unbatchedTokensWithFees, err := s.getBatchFeesByToken(ctx, logger)
 			if err != nil {
 				// non-fatal, just alert
@@ -284,30 +291,17 @@ func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 
 			logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("Check if token fees meets set threshold amount and send batch request")
 			for _, unbatchedToken := range unbatchedTokensWithFees {
-				// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 				tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
 				denom := s.getTokenDenom(tokenAddr)
 
-				// don't do anything if neither fee threshold is met nor 8-hour window hasn't passed
-				if !s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD) {
-					notInjectivePeggoOr8HoursHaventPassed := !s.periodicBatchRequesting || time.Since(startTime) < time.Hour*8
-					if notInjectivePeggoOr8HoursHaventPassed {
-						continue
-					}
+				thresholdMet := s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD)
+				if !thresholdMet && !mustRequest {
+					//	non injective nodes skip batches that do not satisfy the threshold (49.0)
+					continue
 				}
 
 				logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
 				_ = s.peggyBroadcastClient.SendRequestBatch(ctx, denom)
-
-				if s.periodicBatchRequesting && time.Since(startTime) >= time.Hour*8 {
-					// update window flag
-					eightHoursPassed = true
-				}
-			}
-
-			if eightHoursPassed {
-				startTime = time.Now()
-				eightHoursPassed = false
 			}
 
 			return nil
@@ -339,6 +333,7 @@ func (s *peggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 }
 
 func (s *peggyOrchestrator) getTokenDenom(tokenAddr common.Address) string {
+	// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 	if cosmosDenom, ok := s.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
