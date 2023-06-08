@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 
@@ -15,7 +16,13 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
 )
 
-type Injective interface {
+type PriceFeed interface {
+	QueryUSDPrice(address ethcmn.Address) (float64, error)
+}
+
+type InjectiveNetwork interface {
+	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
+	SendRequestBatch(ctx context.Context, denom string) error
 }
 
 type EthereumNetwork interface {
@@ -23,8 +30,10 @@ type EthereumNetwork interface {
 }
 
 type PeggyOrchestrator struct {
-	svcTags  metrics.Tags
-	ethereum EthereumNetwork
+	svcTags   metrics.Tags
+	pricefeed PriceFeed
+	injective InjectiveNetwork
+	ethereum  EthereumNetwork
 
 	cosmosQueryClient       sidechain.PeggyQueryClient
 	peggyBroadcastClient    sidechain.PeggyBroadcastClient
