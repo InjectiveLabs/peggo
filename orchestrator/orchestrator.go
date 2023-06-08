@@ -22,19 +22,7 @@ type EthereumNetwork interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
-type PeggyOrchestrator interface {
-	Start(ctx context.Context, validatorMode bool) error
-
-	CheckForEvents(ctx context.Context, startingBlock uint64) (currentBlock uint64, err error)
-	GetLastCheckedBlock(ctx context.Context) (uint64, error)
-
-	EthOracleMainLoop(ctx context.Context) error
-	EthSignerMainLoop(ctx context.Context) error
-	BatchRequesterLoop(ctx context.Context) error
-	RelayerMainLoop(ctx context.Context) error
-}
-
-type peggyOrchestrator struct {
+type PeggyOrchestrator struct {
 	svcTags  metrics.Tags
 	ethereum EthereumNetwork
 
@@ -60,8 +48,8 @@ func NewPeggyOrchestrator(
 	minBatchFeeUSD float64,
 	priceFeeder *coingecko.CoingeckoPriceFeed,
 	periodicBatchRequesting bool,
-) PeggyOrchestrator {
-	return &peggyOrchestrator{
+) *PeggyOrchestrator {
+	return &PeggyOrchestrator{
 		cosmosQueryClient:       cosmosQueryClient,
 		peggyBroadcastClient:    peggyBroadcastClient,
 		peggyContract:           peggyContract,

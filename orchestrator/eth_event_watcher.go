@@ -22,7 +22,7 @@ const ethBlockConfirmationDelay = 12
 
 // CheckForEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
 // or a transaction batch update. It then responds to these events by performing actions on the Cosmos chain if required
-func (s *peggyOrchestrator) CheckForEvents(
+func (s *PeggyOrchestrator) CheckForEvents(
 	ctx context.Context,
 	startingBlock uint64,
 ) (currentBlock uint64, err error) {

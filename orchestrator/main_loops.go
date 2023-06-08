@@ -25,7 +25,7 @@ const defaultLoopDur = 60 * time.Second
 
 // Start combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
-func (s *peggyOrchestrator) Start(ctx context.Context, validatorMode bool) error {
+func (s *PeggyOrchestrator) Start(ctx context.Context, validatorMode bool) error {
 	if !validatorMode {
 		log.Infoln("Starting peggo in relayer (non-validator) mode")
 		return s.startRelayerMode(ctx)
@@ -39,7 +39,7 @@ func (s *peggyOrchestrator) Start(ctx context.Context, validatorMode bool) error
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
 //
 // TODO this loop requires a method to bootstrap back to the correct event nonce when restarted
-func (s *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "EthOracleMainLoop")
 	lastResync := time.Now()
 	var lastCheckedBlock uint64
@@ -106,7 +106,7 @@ func (s *peggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
 // since these are provided directly by a trusted Cosmsos node they can simply be assumed to be
 // valid and signed off on.
-func (s *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "EthSignerMainLoop")
 
 	var peggyID common.Hash
@@ -203,7 +203,7 @@ func (s *peggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
 /*
 Not required any more. The valset request are generated in endblocker of peggy module automatically. Also MsgSendValsetRequest is removed on peggy module.
 
-func (s *peggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "ValsetRequesterLoop")
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
@@ -259,7 +259,7 @@ func (s *peggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error)
 }
 **/
 
-func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
 	logger := log.WithField("loop", "BatchRequesterLoop")
 	startTime := time.Now()
 	eightHoursPassed := false
@@ -317,7 +317,7 @@ func (s *peggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 	})
 }
 
-func (s *peggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Logger) ([]*types.BatchFees, error) {
+func (s *PeggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Logger) ([]*types.BatchFees, error) {
 	var unbatchedTokensWithFees []*types.BatchFees
 	if err := retry.Do(func() error {
 		fees, err := s.cosmosQueryClient.UnbatchedTokensWithFees(ctx)
@@ -338,7 +338,7 @@ func (s *peggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 	return unbatchedTokensWithFees, nil
 }
 
-func (s *peggyOrchestrator) getTokenDenom(tokenAddr common.Address) string {
+func (s *PeggyOrchestrator) getTokenDenom(tokenAddr common.Address) string {
 	if cosmosDenom, ok := s.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
@@ -347,7 +347,7 @@ func (s *peggyOrchestrator) getTokenDenom(tokenAddr common.Address) string {
 	return types.PeggyDenomString(tokenAddr)
 }
 
-func (s *peggyOrchestrator) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+func (s *PeggyOrchestrator) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
 	if minFeeInUSD == 0 {
 		return true
 	}
@@ -367,7 +367,7 @@ func (s *peggyOrchestrator) CheckFeeThreshold(erc20Contract common.Address, tota
 	return false
 }
 
-func (s *peggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 	if s.relayer != nil {
 		return s.relayer.Start(ctx)
 	} else {
@@ -417,7 +417,7 @@ func calculateTotalValsetPower(valset *types.Valset) *big.Int {
 
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
-func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
+func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {
@@ -439,7 +439,7 @@ func (s *peggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // startRelayerMode runs orchestrator processes that only relay specific
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
-func (s *peggyOrchestrator) startRelayerMode(ctx context.Context) error {
+func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {

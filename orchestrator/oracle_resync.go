@@ -6,7 +6,7 @@ import (
 )
 
 // GetLastCheckedBlock retrieves the last claim event this oracle has relayed to Cosmos.
-func (s *peggyOrchestrator) GetLastCheckedBlock(ctx context.Context) (uint64, error) {
+func (s *PeggyOrchestrator) GetLastCheckedBlock(ctx context.Context) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
