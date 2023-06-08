@@ -2,7 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	"github.com/avast/retry-go"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/pkg/errors"
@@ -16,9 +19,78 @@ import (
 // Considering blocktime of up to 3 seconds approx on the Injective Chain and an oracle loop duration = 1 minute,
 // we broadcast only 20 events in each iteration.
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
-const defaultBlocksToSearch = 20
+const (
+	ethBlockConfirmationDelay = 12
+	defaultBlocksToSearch     = 20
+)
 
-const ethBlockConfirmationDelay = 12
+// EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
+// and ferried over to Cosmos where they will be used to issue tokens or process batches.
+//
+// TODO this loop requires a method to bootstrap back to the correct event nonce when restarted
+func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
+	logger := log.WithField("loop", "EthOracleMainLoop")
+	lastResync := time.Now()
+	var lastCheckedBlock uint64
+
+	if err := retry.Do(func() (err error) {
+		lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
+		if lastCheckedBlock == 0 {
+			peggyParams, err := s.cosmosQueryClient.PeggyParams(ctx)
+			if err != nil {
+				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
+			}
+			lastCheckedBlock = peggyParams.BridgeContractStartHeight
+		}
+		return
+	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+		logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+	})); err != nil {
+		logger.WithError(err).Errorln("got error, loop exits")
+		return err
+	}
+
+	logger.WithField("lastCheckedBlock", lastCheckedBlock).Infoln("Start scanning for events")
+
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		// Relays events from Ethereum -> Cosmos
+		var currentBlock uint64
+		if err := retry.Do(func() (err error) {
+			currentBlock, err = s.CheckForEvents(ctx, lastCheckedBlock)
+			return
+		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+			logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
+		})); err != nil {
+			logger.WithError(err).Errorln("got error, loop exits")
+			return err
+		}
+
+		lastCheckedBlock = currentBlock
+
+		/*
+			Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
+				1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
+				   we need to re-scan this block to ensure events are not missed due to indexing delay.
+				2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+				3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
+		**/
+		if time.Since(lastResync) >= 48*time.Hour {
+			if err := retry.Do(func() (err error) {
+				lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
+				return
+			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
+				logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+			})); err != nil {
+				logger.WithError(err).Errorln("got error, loop exits")
+				return err
+			}
+			lastResync = time.Now()
+			logger.WithFields(log.Fields{"lastResync": lastResync, "lastCheckedBlock": lastCheckedBlock}).Infoln("Auto resync")
+		}
+
+		return nil
+	})
+}
 
 // CheckForEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
 // or a transaction batch update. It then responds to these events by performing actions on the Cosmos chain if required
