@@ -19,6 +19,7 @@ install: export GOPROXY=direct
 install: export VERSION_FLAGS="-X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 install:
 	go install \
+		-tags muslc \
 		-ldflags $(VERSION_FLAGS) \
 		./cmd/...
 
