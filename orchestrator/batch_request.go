@@ -50,7 +50,6 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 		tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
-		denom := s.getTokenDenom(tokenAddr)
 
 		thresholdMet := s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD)
 		if !thresholdMet && !mustRequest {
@@ -58,8 +57,9 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 			continue
 		}
 
+		denom := s.getTokenDenom(tokenAddr)
 		logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
-		_ = s.peggyBroadcastClient.SendRequestBatch(ctx, denom)
+		_ = s.injective.SendRequestBatch(ctx, denom)
 	}
 
 	return nil
@@ -104,7 +104,7 @@ func (s *PeggyOrchestrator) CheckFeeThreshold(erc20Contract ethcmn.Address, tota
 		return true
 	}
 
-	tokenPriceInUSD, err := s.priceFeeder.QueryUSDPrice(erc20Contract)
+	tokenPriceInUSD, err := s.pricefeed.QueryUSDPrice(erc20Contract)
 	if err != nil {
 		return false
 	}
