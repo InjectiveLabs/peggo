@@ -26,15 +26,13 @@ const (
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
-//
-// TODO this loop requires a method to bootstrap back to the correct event nonce when restarted
-func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	logger := log.WithField("loop", "EthOracleMainLoop")
 	lastResync := time.Now()
 	var lastCheckedBlock uint64
 
 	if err := retry.Do(func() (err error) {
-		lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
+		lastCheckedBlock, err = s.getLastKnownEthHeight(ctx)
 		if lastCheckedBlock == 0 {
 			peggyParams, err := s.cosmosQueryClient.PeggyParams(ctx)
 			if err != nil {
@@ -51,12 +49,11 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	}
 
 	logger.WithField("lastCheckedBlock", lastCheckedBlock).Infoln("Start scanning for events")
-
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		// Relays events from Ethereum -> Cosmos
 		var currentBlock uint64
 		if err := retry.Do(func() (err error) {
-			currentBlock, err = s.CheckForEvents(ctx, lastCheckedBlock)
+			currentBlock, err = s.relayEthEvents(ctx, lastCheckedBlock)
 			return
 		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
@@ -76,7 +73,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 		**/
 		if time.Since(lastResync) >= 48*time.Hour {
 			if err := retry.Do(func() (err error) {
-				lastCheckedBlock, err = s.GetLastCheckedBlock(ctx)
+				lastCheckedBlock, err = s.getLastKnownEthHeight(ctx)
 				return
 			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 				logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
@@ -92,9 +89,24 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) (err error) {
 	})
 }
 
-// CheckForEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
+// getLastKnownEthHeight retrieves the last claim event this oracle has relayed to Cosmos.
+func (s *PeggyOrchestrator) getLastKnownEthHeight(ctx context.Context) (uint64, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	lastClaimEvent, err := s.cosmosQueryClient.LastClaimEventByAddr(ctx, s.peggyBroadcastClient.AccFromAddress())
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return uint64(0), err
+	}
+
+	return lastClaimEvent.EthereumEventHeight, nil
+}
+
+// relayEthEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
 // or a transaction batch update. It then responds to these events by performing actions on the Cosmos chain if required
-func (s *PeggyOrchestrator) CheckForEvents(
+func (s *PeggyOrchestrator) relayEthEvents(
 	ctx context.Context,
 	startingBlock uint64,
 ) (currentBlock uint64, err error) {

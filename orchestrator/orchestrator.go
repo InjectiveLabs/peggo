@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
@@ -21,12 +22,31 @@ type PriceFeed interface {
 }
 
 type InjectiveNetwork interface {
+	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
+
 	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	SendRequestBatch(ctx context.Context, denom string) error
+
+	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)
+	SendEthereumClaims(
+		ctx context.Context,
+		lastClaimEvent uint64,
+		oldDeposits []*peggyevents.PeggySendToCosmosEvent,
+		deposits []*peggyevents.PeggySendToInjectiveEvent,
+		withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
+		erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
+		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
+	) error
 }
 
 type EthereumNetwork interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+
+	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
+	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
+	GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
+	GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
+	GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
 }
 
 type PeggyOrchestrator struct {
