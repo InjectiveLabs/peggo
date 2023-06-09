@@ -13,31 +13,6 @@ import (
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-type mockPriceFeed struct {
-	queryFn func(ethcmn.Address) (float64, error)
-}
-
-func (p mockPriceFeed) QueryUSDPrice(address ethcmn.Address) (float64, error) {
-	return p.queryFn(address)
-}
-
-type mockInjective struct {
-	unbatchedTokenFeesFn        func(context.Context) ([]*peggytypes.BatchFees, error)
-	unbatchedTokenFeesCallCount int
-	sendRequestBatchFn          func(context.Context, string) error
-	sendRequestBatchCallCount   int
-}
-
-func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
-	i.unbatchedTokenFeesCallCount++
-	return i.unbatchedTokenFeesFn(ctx)
-}
-
-func (i *mockInjective) SendRequestBatch(ctx context.Context, denom string) error {
-	i.sendRequestBatchCallCount++
-	return i.sendRequestBatchFn(ctx, denom)
-}
-
 func TestRequestBatches(t *testing.T) {
 	t.Parallel()
 
