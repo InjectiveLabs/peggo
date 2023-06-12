@@ -7,13 +7,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/avast/retry-go"
-	"github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
@@ -29,92 +26,6 @@ func (s *PeggyOrchestrator) Start(ctx context.Context, validatorMode bool) error
 
 	log.Infoln("Starting peggo in validator mode")
 	return s.startValidatorMode(ctx)
-}
-
-// EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
-// since these are provided directly by a trusted Cosmsos node they can simply be assumed to be
-// valid and signed off on.
-func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) (err error) {
-	logger := log.WithField("loop", "EthSignerMainLoop")
-
-	var peggyID common.Hash
-	if err := retry.Do(func() (err error) {
-		peggyID, err = s.peggyContract.GetPeggyID(ctx, s.peggyContract.FromAddress())
-		return
-	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-		logger.WithError(err).Warningf("failed to get PeggyID from Ethereum contract, will retry (%d)", n)
-	})); err != nil {
-		logger.WithError(err).Errorln("got error, loop exits")
-		return err
-	}
-	logger.Debugf("received peggyID %s", peggyID.Hex())
-
-	return loops.RunLoop(ctx, defaultLoopDur, func() error {
-		var oldestUnsignedValsets []*types.Valset
-		if err := retry.Do(func() error {
-			oldestValsets, err := s.cosmosQueryClient.OldestUnsignedValsets(ctx, s.peggyBroadcastClient.AccFromAddress())
-			if err != nil {
-				if err == cosmos.ErrNotFound || oldestValsets == nil {
-					logger.Debugln("no Valset waiting to be signed")
-					return nil
-				}
-
-				return err
-			}
-			oldestUnsignedValsets = oldestValsets
-			return nil
-		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get unsigned Valset for signing, will retry (%d)", n)
-		})); err != nil {
-			logger.WithError(err).Errorln("got error, loop exits")
-			return err
-		}
-
-		for _, oldestValset := range oldestUnsignedValsets {
-			logger.Infoln("Sending Valset confirm for %d", oldestValset.Nonce)
-			if err := retry.Do(func() error {
-				return s.peggyBroadcastClient.SendValsetConfirm(ctx, s.ethFrom, peggyID, oldestValset)
-			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-				logger.WithError(err).Warningf("failed to sign and send Valset confirmation to Cosmos, will retry (%d)", n)
-			})); err != nil {
-				logger.WithError(err).Errorln("got error, loop exits")
-				return err
-			}
-		}
-
-		var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-		if err := retry.Do(func() error {
-			// sign the last unsigned batch, TODO check if we already have signed this
-			txBatch, err := s.cosmosQueryClient.OldestUnsignedTransactionBatch(ctx, s.peggyBroadcastClient.AccFromAddress())
-			if err != nil {
-				if err == cosmos.ErrNotFound || txBatch == nil {
-					logger.Debugln("no TransactionBatch waiting to be signed")
-					return nil
-				}
-				return err
-			}
-			oldestUnsignedTransactionBatch = txBatch
-			return nil
-		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get unsigned TransactionBatch for signing, will retry (%d)", n)
-		})); err != nil {
-			logger.WithError(err).Errorln("got error, loop exits")
-			return err
-		}
-
-		if oldestUnsignedTransactionBatch != nil {
-			logger.Infoln("Sending TransactionBatch confirm for BatchNonce %d", oldestUnsignedTransactionBatch.BatchNonce)
-			if err := retry.Do(func() error {
-				return s.peggyBroadcastClient.SendBatchConfirm(ctx, s.ethFrom, peggyID, oldestUnsignedTransactionBatch)
-			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-				logger.WithError(err).Warningf("failed to sign and send TransactionBatch confirmation to Cosmos, will retry (%d)", n)
-			})); err != nil {
-				logger.WithError(err).Errorln("got error, loop exits")
-				return err
-			}
-		}
-		return nil
-	})
 }
 
 // This loop doesn't have a formal role per say, anyone can request a valset

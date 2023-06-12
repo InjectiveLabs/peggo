@@ -37,11 +37,25 @@ type InjectiveNetwork interface {
 		erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
 		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
 	) error
+
+	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
+	SendValsetConfirm(
+		ctx context.Context,
+		peggyID ethcmn.Hash,
+		valset *peggytypes.Valset,
+	) error
+
+	OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
+	SendBatchConfirm(
+		ctx context.Context,
+		peggyID ethcmn.Hash,
+		batch *peggytypes.OutgoingTxBatch,
+	) error
 }
 
 type EthereumNetwork interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-
+	GetPeggyID(ctx context.Context) (ethcmn.Hash, error)
 	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
 	GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
@@ -64,6 +78,7 @@ type PeggyOrchestrator struct {
 	relayer                 relayer.PeggyRelayer
 	minBatchFeeUSD          float64
 	priceFeeder             *coingecko.CoingeckoPriceFeed
+	maxRetries              uint
 	periodicBatchRequesting bool
 }
 

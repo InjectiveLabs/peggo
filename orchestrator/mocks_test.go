@@ -25,10 +25,8 @@ type mockInjective struct {
 	sendRequestBatchFn        func(context.Context, string) error
 	sendRequestBatchCallCount int
 
-	peggyParamsFn func(context.Context) (*peggytypes.Params, error)
-
-	lastClaimEventFn func(context.Context) (*peggytypes.LastClaimEvent, error)
-
+	peggyParamsFn        func(context.Context) (*peggytypes.Params, error)
+	lastClaimEventFn     func(context.Context) (*peggytypes.LastClaimEvent, error)
 	sendEthereumClaimsFn func(
 		ctx context.Context,
 		lastClaimEvent uint64,
@@ -39,6 +37,16 @@ type mockInjective struct {
 		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
 	) error
 	sendEthereumClaimsCallCount int
+
+	oldestUnsignedValsetsFn func(context.Context) ([]*peggytypes.Valset, error)
+	sendValsetConfirmFn     func(
+		ctx context.Context,
+		peggyID eth.Hash,
+		valset *peggytypes.Valset,
+	) error
+
+	oldestUnsignedTransactionBatchFn func(context.Context) (*peggytypes.OutgoingTxBatch, error)
+	sendBatchConfirmFn               func(context.Context, eth.Hash, *peggytypes.OutgoingTxBatch) error
 }
 
 func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
@@ -80,6 +88,30 @@ func (i *mockInjective) SendEthereumClaims(
 	)
 }
 
+func (i *mockInjective) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
+	return i.oldestUnsignedValsetsFn(ctx)
+}
+
+func (i *mockInjective) SendValsetConfirm(
+	ctx context.Context,
+	peggyID eth.Hash,
+	valset *peggytypes.Valset,
+) error {
+	return i.sendValsetConfirmFn(ctx, peggyID, valset)
+}
+
+func (i *mockInjective) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
+	return i.oldestUnsignedTransactionBatchFn(ctx)
+}
+
+func (i *mockInjective) SendBatchConfirm(
+	ctx context.Context,
+	peggyID eth.Hash,
+	batch *peggytypes.OutgoingTxBatch,
+) error {
+	return i.sendBatchConfirmFn(ctx, peggyID, batch)
+}
+
 type mockEthereum struct {
 	headerByNumberFn                    func(context.Context, *big.Int) (*ethtypes.Header, error)
 	getSendToCosmosEventsFn             func(uint64, uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
@@ -87,6 +119,7 @@ type mockEthereum struct {
 	getPeggyERC20DeployedEventsFn       func(uint64, uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
 	getValsetUpdatedEventsFn            func(uint64, uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
 	getTransactionBatchExecutedEventsFn func(uint64, uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
+	getPeggyIDFn                        func(context.Context) (eth.Hash, error)
 }
 
 func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
@@ -111,4 +144,8 @@ func (e mockEthereum) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*pe
 
 func (e mockEthereum) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error) {
 	return e.getTransactionBatchExecutedEventsFn(startBlock, endBlock)
+}
+
+func (e mockEthereum) GetPeggyID(ctx context.Context) (eth.Hash, error) {
+	return e.getPeggyIDFn(ctx)
 }
