@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
 	"math"
 	"math/big"
 	"time"
@@ -97,14 +96,6 @@ func (s *PeggyOrchestrator) ValsetRequesterLoop(ctx context.Context) (err error)
 	})
 }
 **/
-
-func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
-	if s.relayer != nil {
-		return s.relayer.Start(ctx)
-	} else {
-		return errors.New("relayer is nil")
-	}
-}
 
 // valPowerDiff returns the difference in power between two bridge validator sets
 // TODO: this needs to be potentially refactored

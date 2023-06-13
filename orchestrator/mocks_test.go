@@ -5,6 +5,7 @@ import (
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	eth "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"math/big"
 
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -47,6 +48,12 @@ type mockInjective struct {
 
 	oldestUnsignedTransactionBatchFn func(context.Context) (*peggytypes.OutgoingTxBatch, error)
 	sendBatchConfirmFn               func(context.Context, eth.Hash, *peggytypes.OutgoingTxBatch) error
+
+	latestValsetsFn func(context.Context) ([]*peggytypes.Valset, error)
+	getBlockFn      func(context.Context, int64) (*tmctypes.ResultBlock, error)
+
+	allValsetConfirmsFn func(context.Context, uint64) ([]*peggytypes.MsgValsetConfirm, error)
+	valsetAtFn          func(context.Context, uint64) (*peggytypes.Valset, error)
 }
 
 func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
@@ -104,12 +111,28 @@ func (i *mockInjective) OldestUnsignedTransactionBatch(ctx context.Context) (*pe
 	return i.oldestUnsignedTransactionBatchFn(ctx)
 }
 
+func (i *mockInjective) GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error) {
+	return i.getBlockFn(ctx, height)
+}
+
+func (i *mockInjective) LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
+	return i.latestValsetsFn(ctx)
+}
+
+func (i *mockInjective) AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error) {
+	return i.allValsetConfirmsFn(ctx, nonce)
+}
+
 func (i *mockInjective) SendBatchConfirm(
 	ctx context.Context,
 	peggyID eth.Hash,
 	batch *peggytypes.OutgoingTxBatch,
 ) error {
 	return i.sendBatchConfirmFn(ctx, peggyID, batch)
+}
+
+func (i *mockInjective) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
+	return i.valsetAtFn(ctx, nonce)
 }
 
 type mockEthereum struct {
@@ -120,6 +143,8 @@ type mockEthereum struct {
 	getValsetUpdatedEventsFn            func(uint64, uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
 	getTransactionBatchExecutedEventsFn func(uint64, uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
 	getPeggyIDFn                        func(context.Context) (eth.Hash, error)
+	getValsetNonceFn                    func(context.Context) (*big.Int, error)
+	sendEthValsetUpdateFn               func(context.Context, *peggytypes.Valset, *peggytypes.Valset, []*peggytypes.MsgValsetConfirm) (*eth.Hash, error)
 }
 
 func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
@@ -148,4 +173,17 @@ func (e mockEthereum) GetTransactionBatchExecutedEvents(startBlock, endBlock uin
 
 func (e mockEthereum) GetPeggyID(ctx context.Context) (eth.Hash, error) {
 	return e.getPeggyIDFn(ctx)
+}
+
+func (e mockEthereum) GetValsetNonce(ctx context.Context) (*big.Int, error) {
+	return e.getValsetNonceFn(ctx)
+}
+
+func (e mockEthereum) SendEthValsetUpdate(
+	ctx context.Context,
+	oldValset *peggytypes.Valset,
+	newValset *peggytypes.Valset,
+	confirms []*peggytypes.MsgValsetConfirm,
+) (*eth.Hash, error) {
+	return e.sendEthValsetUpdateFn(ctx, oldValset, newValset, confirms)
 }

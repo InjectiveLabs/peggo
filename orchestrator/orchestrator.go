@@ -5,7 +5,9 @@ import (
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/ethereum/go-ethereum/core/types"
+	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"math/big"
+	"time"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 
@@ -51,16 +53,31 @@ type InjectiveNetwork interface {
 		peggyID ethcmn.Hash,
 		batch *peggytypes.OutgoingTxBatch,
 	) error
+
+	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
+
+	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
+	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
+	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)
 }
 
 type EthereumNetwork interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	GetPeggyID(ctx context.Context) (ethcmn.Hash, error)
+
 	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
 	GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
 	GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
 	GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
+
+	GetValsetNonce(ctx context.Context) (*big.Int, error)
+	SendEthValsetUpdate(
+		ctx context.Context,
+		oldValset *peggytypes.Valset,
+		newValset *peggytypes.Valset,
+		confirms []*peggytypes.MsgValsetConfirm,
+	) (*ethcmn.Hash, error)
 }
 
 type PeggyOrchestrator struct {
@@ -80,6 +97,10 @@ type PeggyOrchestrator struct {
 	priceFeeder             *coingecko.CoingeckoPriceFeed
 	maxRetries              uint
 	periodicBatchRequesting bool
+	valsetRelayEnabled      bool
+	batchRelayEnabled       bool
+	relayValsetOffsetDur,
+	relayBatchOffsetDur time.Duration // todo: parsed from string
 }
 
 func NewPeggyOrchestrator(
