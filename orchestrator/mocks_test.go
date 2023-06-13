@@ -54,6 +54,9 @@ type mockInjective struct {
 
 	allValsetConfirmsFn func(context.Context, uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	valsetAtFn          func(context.Context, uint64) (*peggytypes.Valset, error)
+
+	latestTransactionBatchesFn   func(context.Context) ([]*peggytypes.OutgoingTxBatch, error)
+	transactionBatchSignaturesFn func(context.Context, uint64, eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
 }
 
 func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
@@ -135,6 +138,14 @@ func (i *mockInjective) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes
 	return i.valsetAtFn(ctx, nonce)
 }
 
+func (i *mockInjective) LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error) {
+	return i.latestTransactionBatchesFn(ctx)
+}
+
+func (i *mockInjective) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract eth.Address) ([]*peggytypes.MsgConfirmBatch, error) {
+	return i.transactionBatchSignaturesFn(ctx, nonce, tokenContract)
+}
+
 type mockEthereum struct {
 	headerByNumberFn                    func(context.Context, *big.Int) (*ethtypes.Header, error)
 	getSendToCosmosEventsFn             func(uint64, uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
@@ -145,6 +156,8 @@ type mockEthereum struct {
 	getPeggyIDFn                        func(context.Context) (eth.Hash, error)
 	getValsetNonceFn                    func(context.Context) (*big.Int, error)
 	sendEthValsetUpdateFn               func(context.Context, *peggytypes.Valset, *peggytypes.Valset, []*peggytypes.MsgValsetConfirm) (*eth.Hash, error)
+	getTxBatchNonceFn                   func(context.Context, eth.Address) (*big.Int, error)
+	sendTransactionBatchFn              func(context.Context, *peggytypes.Valset, *peggytypes.OutgoingTxBatch, []*peggytypes.MsgConfirmBatch) (*eth.Hash, error)
 }
 
 func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
@@ -186,4 +199,20 @@ func (e mockEthereum) SendEthValsetUpdate(
 	confirms []*peggytypes.MsgValsetConfirm,
 ) (*eth.Hash, error) {
 	return e.sendEthValsetUpdateFn(ctx, oldValset, newValset, confirms)
+}
+
+func (e mockEthereum) GetTxBatchNonce(
+	ctx context.Context,
+	erc20ContractAddress eth.Address,
+) (*big.Int, error) {
+	return e.getTxBatchNonceFn(ctx, erc20ContractAddress)
+}
+
+func (e mockEthereum) SendTransactionBatch(
+	ctx context.Context,
+	currentValset *peggytypes.Valset,
+	batch *peggytypes.OutgoingTxBatch,
+	confirms []*peggytypes.MsgConfirmBatch,
+) (*eth.Hash, error) {
+	return e.sendTransactionBatchFn(ctx, currentValset, batch, confirms)
 }

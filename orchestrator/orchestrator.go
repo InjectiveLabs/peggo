@@ -59,6 +59,9 @@ type InjectiveNetwork interface {
 	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)
+
+	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
+	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract ethcmn.Address) ([]*peggytypes.MsgConfirmBatch, error)
 }
 
 type EthereumNetwork interface {
@@ -77,6 +80,18 @@ type EthereumNetwork interface {
 		oldValset *peggytypes.Valset,
 		newValset *peggytypes.Valset,
 		confirms []*peggytypes.MsgValsetConfirm,
+	) (*ethcmn.Hash, error)
+
+	GetTxBatchNonce(
+		ctx context.Context,
+		erc20ContractAddress ethcmn.Address,
+	) (*big.Int, error)
+
+	SendTransactionBatch(
+		ctx context.Context,
+		currentValset *peggytypes.Valset,
+		batch *peggytypes.OutgoingTxBatch,
+		confirms []*peggytypes.MsgConfirmBatch,
 	) (*ethcmn.Hash, error)
 }
 

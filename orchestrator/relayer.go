@@ -9,6 +9,7 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 	"sort"
@@ -163,6 +164,95 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context) error {
 }
 
 func (s *PeggyOrchestrator) relayBatches(ctx context.Context) error {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	latestBatches, err := s.injective.LatestTransactionBatches(ctx)
+	//latestBatches, err := s.cosmosQueryClient.LatestTransactionBatches(ctx)
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return err
+	}
+	var oldestSignedBatch *types.OutgoingTxBatch
+	var oldestSigs []*types.MsgConfirmBatch
+	for _, batch := range latestBatches {
+		sigs, err := s.injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
+		if err != nil {
+			metrics.ReportFuncError(s.svcTags)
+			return err
+		} else if len(sigs) == 0 {
+			continue
+		}
+
+		oldestSignedBatch = batch
+		oldestSigs = sigs
+	}
+	if oldestSignedBatch == nil {
+		log.Debugln("could not find batch with signatures, nothing to relay")
+		return nil
+	}
+
+	latestEthereumBatch, err := s.ethereum.GetTxBatchNonce(
+		ctx,
+		common.HexToAddress(oldestSignedBatch.TokenContract),
+	)
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return err
+	}
+
+	currentValset, err := s.findLatestValset(ctx)
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return errors.New("failed to find latest valset")
+	} else if currentValset == nil {
+		metrics.ReportFuncError(s.svcTags)
+		return errors.New("latest valset not found")
+	}
+
+	log.WithFields(log.Fields{"oldestSignedBatchNonce": oldestSignedBatch.BatchNonce, "latestEthereumBatchNonce": latestEthereumBatch.Uint64()}).Debugln("Found Latest valsets")
+
+	if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
+
+		latestEthereumBatch, err := s.ethereum.GetTxBatchNonce(
+			ctx,
+			common.HexToAddress(oldestSignedBatch.TokenContract),
+		)
+		if err != nil {
+			metrics.ReportFuncError(s.svcTags)
+			return err
+		}
+		// Check if oldestSignedBatch already submitted by other validators in mean time
+		if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
+
+			// Check custom time delay offset
+			blockResult, err := s.injective.GetBlock(ctx, int64(oldestSignedBatch.Block))
+			if err != nil {
+				return err
+			}
+			batchCreatedAt := blockResult.Block.Time
+			//relayBatchOffsetDur, err := time.ParseDuration()
+			//if err != nil {
+			//	return err
+			//}
+			customTimeDelay := batchCreatedAt.Add(s.relayBatchOffsetDur)
+			if time.Now().Sub(customTimeDelay) <= 0 {
+				return nil
+			}
+
+			log.Infof("We have detected latest batch %d but latest on Ethereum is %d sending an update!", oldestSignedBatch.BatchNonce, latestEthereumBatch)
+
+			// Send SendTransactionBatch to Ethereum
+			txHash, err := s.ethereum.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)
+			if err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				return err
+			}
+			log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (TransactionBatch)")
+		}
+	}
+
 	return nil
 }
 
