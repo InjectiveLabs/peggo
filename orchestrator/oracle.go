@@ -31,9 +31,9 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	var lastCheckedBlock uint64
 
 	if err := retry.Do(func() (err error) {
-		lastCheckedBlock, err = s.getLastKnownEthHeight(ctx)
+		lastCheckedBlock, err = s.getLastConfirmedEthHeight(ctx)
 		if lastCheckedBlock == 0 {
-			peggyParams, err := s.cosmosQueryClient.PeggyParams(ctx)
+			peggyParams, err := s.injective.PeggyParams(ctx)
 			if err != nil {
 				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 			}
@@ -72,7 +72,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		**/
 		if time.Since(lastResync) >= 48*time.Hour {
 			if err := retry.Do(func() (err error) {
-				lastCheckedBlock, err = s.getLastKnownEthHeight(ctx)
+				lastCheckedBlock, err = s.getLastConfirmedEthHeight(ctx)
 				return
 			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
 				logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
@@ -88,13 +88,13 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	})
 }
 
-// getLastKnownEthHeight retrieves the last claim event this oracle has relayed to Cosmos.
-func (s *PeggyOrchestrator) getLastKnownEthHeight(ctx context.Context) (uint64, error) {
+// getLastConfirmedEthHeight retrieves the last claim event this oracle has relayed to Cosmos.
+func (s *PeggyOrchestrator) getLastConfirmedEthHeight(ctx context.Context) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	lastClaimEvent, err := s.cosmosQueryClient.LastClaimEventByAddr(ctx, s.peggyBroadcastClient.AccFromAddress())
+	lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return uint64(0), err
