@@ -41,18 +41,10 @@ type InjectiveNetwork interface {
 	) error
 
 	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
-	SendValsetConfirm(
-		ctx context.Context,
-		peggyID ethcmn.Hash,
-		valset *peggytypes.Valset,
-	) error
+	SendValsetConfirm(ctx context.Context, peggyID ethcmn.Hash, valset *peggytypes.Valset, ethFrom ethcmn.Address) error
 
 	OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
-	SendBatchConfirm(
-		ctx context.Context,
-		peggyID ethcmn.Hash,
-		batch *peggytypes.OutgoingTxBatch,
-	) error
+	SendBatchConfirm(ctx context.Context, peggyID ethcmn.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom ethcmn.Address) error
 
 	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
 
@@ -65,6 +57,7 @@ type InjectiveNetwork interface {
 }
 
 type EthereumNetwork interface {
+	FromAddress() ethcmn.Address
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	GetPeggyID(ctx context.Context) (ethcmn.Hash, error)
 

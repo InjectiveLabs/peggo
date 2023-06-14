@@ -219,6 +219,14 @@ func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappe
 	return valsetUpdatedEvents, nil
 }
 
+func (n *Network) GetPeggyID(ctx context.Context) (ethcmn.Hash, error) {
+	return n.PeggyContract.GetPeggyID(ctx, n.FromAddress())
+}
+
+func (n *Network) FromAddress() ethcmn.Address {
+	return n.PeggyContract.FromAddress()
+}
+
 func isUnknownBlockErr(err error) bool {
 	// Geth error
 	if strings.Contains(err.Error(), "unknown block") {

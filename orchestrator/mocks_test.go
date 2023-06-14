@@ -40,14 +40,10 @@ type mockInjective struct {
 	sendEthereumClaimsCallCount int
 
 	oldestUnsignedValsetsFn func(context.Context) ([]*peggytypes.Valset, error)
-	sendValsetConfirmFn     func(
-		ctx context.Context,
-		peggyID eth.Hash,
-		valset *peggytypes.Valset,
-	) error
+	sendValsetConfirmFn     func(context.Context, eth.Hash, *peggytypes.Valset, eth.Address) error
 
 	oldestUnsignedTransactionBatchFn func(context.Context) (*peggytypes.OutgoingTxBatch, error)
-	sendBatchConfirmFn               func(context.Context, eth.Hash, *peggytypes.OutgoingTxBatch) error
+	sendBatchConfirmFn               func(context.Context, eth.Hash, *peggytypes.OutgoingTxBatch, eth.Address) error
 
 	latestValsetsFn func(context.Context) ([]*peggytypes.Valset, error)
 	getBlockFn      func(context.Context, int64) (*tmctypes.ResultBlock, error)
@@ -102,12 +98,8 @@ func (i *mockInjective) OldestUnsignedValsets(ctx context.Context) ([]*peggytype
 	return i.oldestUnsignedValsetsFn(ctx)
 }
 
-func (i *mockInjective) SendValsetConfirm(
-	ctx context.Context,
-	peggyID eth.Hash,
-	valset *peggytypes.Valset,
-) error {
-	return i.sendValsetConfirmFn(ctx, peggyID, valset)
+func (i *mockInjective) SendValsetConfirm(ctx context.Context, peggyID eth.Hash, valset *peggytypes.Valset, ethFrom eth.Address) error {
+	return i.sendValsetConfirmFn(ctx, peggyID, valset, ethFrom)
 }
 
 func (i *mockInjective) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
@@ -126,12 +118,8 @@ func (i *mockInjective) AllValsetConfirms(ctx context.Context, nonce uint64) ([]
 	return i.allValsetConfirmsFn(ctx, nonce)
 }
 
-func (i *mockInjective) SendBatchConfirm(
-	ctx context.Context,
-	peggyID eth.Hash,
-	batch *peggytypes.OutgoingTxBatch,
-) error {
-	return i.sendBatchConfirmFn(ctx, peggyID, batch)
+func (i *mockInjective) SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error {
+	return i.sendBatchConfirmFn(ctx, peggyID, batch, ethFrom)
 }
 
 func (i *mockInjective) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
@@ -147,6 +135,7 @@ func (i *mockInjective) TransactionBatchSignatures(ctx context.Context, nonce ui
 }
 
 type mockEthereum struct {
+	fromAddressFn                       func() eth.Address
 	headerByNumberFn                    func(context.Context, *big.Int) (*ethtypes.Header, error)
 	getSendToCosmosEventsFn             func(uint64, uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	getSendToInjectiveEventsFn          func(uint64, uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
@@ -158,6 +147,10 @@ type mockEthereum struct {
 	sendEthValsetUpdateFn               func(context.Context, *peggytypes.Valset, *peggytypes.Valset, []*peggytypes.MsgValsetConfirm) (*eth.Hash, error)
 	getTxBatchNonceFn                   func(context.Context, eth.Address) (*big.Int, error)
 	sendTransactionBatchFn              func(context.Context, *peggytypes.Valset, *peggytypes.OutgoingTxBatch, []*peggytypes.MsgConfirmBatch) (*eth.Hash, error)
+}
+
+func (e mockEthereum) FromAddress() eth.Address {
+	return e.fromAddressFn()
 }
 
 func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {

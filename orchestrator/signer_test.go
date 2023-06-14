@@ -26,8 +26,7 @@ func TestEthSignerLoop(t *testing.T) {
 			},
 		}
 
-		err := orch.EthSignerMainLoop(context.TODO())
-		assert.Error(t, err)
+		assert.Error(t, orch.EthSignerMainLoop(context.TODO()))
 	})
 
 	t.Run("no valset to sign", func(t *testing.T) {
@@ -39,20 +38,19 @@ func TestEthSignerLoop(t *testing.T) {
 				oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
 					return nil, errors.New("fail")
 				},
-				sendValsetConfirmFn: func(_ context.Context, _ common.Hash, _ *types.Valset) error {
+				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
 					return nil
 				},
-				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
+				oldestUnsignedTransactionBatchFn: func(context.Context) (*types.OutgoingTxBatch, error) {
 					return nil, nil
 				},
-				sendBatchConfirmFn: func(_ context.Context, _ common.Hash, _ *types.OutgoingTxBatch) error {
+				sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
 					return nil
 				},
 			},
 		}
 
-		err := orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{1, 2, 3})
-		assert.NoError(t, err)
+		assert.NoError(t, orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{1, 2, 3}))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
@@ -77,8 +75,13 @@ func TestEthSignerLoop(t *testing.T) {
 						},
 					}, nil
 				},
-				sendValsetConfirmFn: func(_ context.Context, _ common.Hash, _ *types.Valset) error {
+				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
 					return errors.New("fail")
+				},
+			},
+			ethereum: mockEthereum{
+				fromAddressFn: func() common.Address {
+					return common.Address{}
 				},
 			},
 		}
@@ -94,9 +97,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxRetries: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn:          func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
-				sendValsetConfirmFn:              func(_ context.Context, _ common.Hash, _ *types.Valset) error { return nil },
+				sendValsetConfirmFn:              func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
 				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) { return nil, errors.New("fail") },
-				sendBatchConfirmFn:               func(_ context.Context, _ common.Hash, _ *types.OutgoingTxBatch) error { return nil },
+				sendBatchConfirmFn:               func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
 			},
 		}
 
@@ -111,11 +114,18 @@ func TestEthSignerLoop(t *testing.T) {
 			maxRetries: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
-				sendValsetConfirmFn:     func(_ context.Context, _ common.Hash, _ *types.Valset) error { return nil },
+				sendValsetConfirmFn:     func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
 				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
 					return &types.OutgoingTxBatch{}, nil // non-empty will do
 				},
-				sendBatchConfirmFn: func(_ context.Context, _ common.Hash, _ *types.OutgoingTxBatch) error { return errors.New("fail") },
+				sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
+					return errors.New("fail")
+				},
+			},
+			ethereum: mockEthereum{
+				fromAddressFn: func() common.Address {
+					return common.Address{}
+				},
 			},
 		}
 
@@ -135,8 +145,13 @@ func TestEthSignerLoop(t *testing.T) {
 				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
 					return &types.OutgoingTxBatch{}, nil // non-empty will do
 				},
-				sendValsetConfirmFn: func(_ context.Context, _ common.Hash, _ *types.Valset) error { return nil },
-				sendBatchConfirmFn:  func(_ context.Context, _ common.Hash, _ *types.OutgoingTxBatch) error { return nil },
+				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
+				sendBatchConfirmFn:  func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
+			},
+			ethereum: mockEthereum{
+				fromAddressFn: func() common.Address {
+					return common.Address{}
+				},
 			},
 		}
 

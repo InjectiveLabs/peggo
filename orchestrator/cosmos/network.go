@@ -50,3 +50,7 @@ func (n *Network) UnbatchedTokenFees(ctx context.Context) ([]*peggy.BatchFees, e
 func (n *Network) SendRequestBatch(ctx context.Context, denom string) error {
 	return n.PeggyBroadcastClient.SendRequestBatch(ctx, denom)
 }
+
+func (n *Network) OldestUnsignedValsets(ctx context.Context) ([]*peggy.Valset, error) {
+	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.PeggyBroadcastClient.AccFromAddress())
+}
