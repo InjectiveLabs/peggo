@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
-	ethcmn "github.com/ethereum/go-ethereum/common"
+	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
 
@@ -49,11 +49,11 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("Check if token fees meets set threshold amount and send batch request")
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
-		tokenAddr := ethcmn.HexToAddress(unbatchedToken.Token)
+		tokenAddr := eth.HexToAddress(unbatchedToken.Token)
 
-		thresholdMet := s.CheckFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD)
+		thresholdMet := s.checkFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD)
 		if !thresholdMet && !mustRequest {
-			//	non injective relayers only relay when the threshold is met
+			//	non-injective relayers only relay when the threshold is met
 			continue
 		}
 
@@ -77,9 +77,9 @@ func (s *PeggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 		return nil
 	}
 
-	if err := retry.Do(
-		retryFn,
+	if err := retry.Do(retryFn,
 		retry.Context(ctx),
+		retry.Attempts(s.maxRetries),
 		retry.OnRetry(func(n uint, err error) {
 			log.WithError(err).Errorf("failed to get UnbatchedTokensWithFees, will retry (%d)", n)
 		}),
@@ -90,7 +90,7 @@ func (s *PeggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 	return unbatchedTokensWithFees, nil
 }
 
-func (s *PeggyOrchestrator) getTokenDenom(tokenAddr ethcmn.Address) string {
+func (s *PeggyOrchestrator) getTokenDenom(tokenAddr eth.Address) string {
 	if cosmosDenom, ok := s.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
@@ -99,7 +99,7 @@ func (s *PeggyOrchestrator) getTokenDenom(tokenAddr ethcmn.Address) string {
 	return types.PeggyDenomString(tokenAddr)
 }
 
-func (s *PeggyOrchestrator) CheckFeeThreshold(erc20Contract ethcmn.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+func (s *PeggyOrchestrator) checkFeeThreshold(erc20Contract eth.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
 	if minFeeInUSD == 0 {
 		return true
 	}

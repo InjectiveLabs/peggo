@@ -2,8 +2,8 @@ package cosmos
 
 import (
 	"context"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
@@ -41,4 +41,12 @@ func (n *Network) SendEthereumClaims(
 		erc20Deployed,
 		valsetUpdates,
 	)
+}
+
+func (n *Network) UnbatchedTokenFees(ctx context.Context) ([]*peggy.BatchFees, error) {
+	return n.PeggyQueryClient.UnbatchedTokensWithFees(ctx)
+}
+
+func (n *Network) SendRequestBatch(ctx context.Context, denom string) error {
+	return n.PeggyBroadcastClient.SendRequestBatch(ctx, denom)
 }
