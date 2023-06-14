@@ -2,16 +2,15 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	"github.com/avast/retry-go"
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
-
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
@@ -28,40 +27,55 @@ const (
 func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	logger := log.WithField("loop", "EthOracleMainLoop")
 	lastResync := time.Now()
-	var lastCheckedBlock uint64
 
-	if err := retry.Do(func() (err error) {
-		lastCheckedBlock, err = s.getLastConfirmedEthHeight(ctx)
-		if lastCheckedBlock == 0 {
+	var lastConfirmedEthHeight uint64
+	retryFn := func() error {
+		height, err := s.getLastConfirmedEthHeight(ctx)
+		if err != nil {
+			logger.WithError(err).Warningf("failed to get last claim. Querying peggy params...")
+		}
+
+		if height == 0 {
 			peggyParams, err := s.injective.PeggyParams(ctx)
 			if err != nil {
 				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 			}
-			lastCheckedBlock = peggyParams.BridgeContractStartHeight
+			height = peggyParams.BridgeContractStartHeight
 		}
-		return
-	}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-		logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
-	})); err != nil {
+		lastConfirmedEthHeight = height
+		return nil
+	}
+
+	if err := retry.Do(retryFn,
+		retry.Context(ctx),
+		retry.Attempts(s.maxRetries),
+		retry.OnRetry(func(n uint, err error) {
+			logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+		}),
+	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return err
 	}
 
-	logger.WithField("lastCheckedBlock", lastCheckedBlock).Infoln("Start scanning for events")
+	logger.WithField("lastConfirmedEthHeight", lastConfirmedEthHeight).Infoln("Start scanning for events")
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		// Relays events from Ethereum -> Cosmos
-		var currentBlock uint64
+		var currentHeight uint64
 		if err := retry.Do(func() (err error) {
-			currentBlock, err = s.relayEthEvents(ctx, lastCheckedBlock)
+			currentHeight, err = s.relayEthEvents(ctx, lastConfirmedEthHeight)
 			return
-		}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
-		})); err != nil {
+		},
+			retry.Context(ctx),
+			retry.Attempts(s.maxRetries),
+			retry.OnRetry(func(n uint, err error) {
+				logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
+			}),
+		); err != nil {
 			logger.WithError(err).Errorln("got error, loop exits")
 			return err
 		}
 
-		lastCheckedBlock = currentBlock
+		lastConfirmedEthHeight = currentHeight
 
 		/*
 			Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
@@ -72,16 +86,21 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		**/
 		if time.Since(lastResync) >= 48*time.Hour {
 			if err := retry.Do(func() (err error) {
-				lastCheckedBlock, err = s.getLastConfirmedEthHeight(ctx)
+				lastConfirmedEthHeight, err = s.getLastConfirmedEthHeight(ctx)
 				return
-			}, retry.Context(ctx), retry.OnRetry(func(n uint, err error) {
-				logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
-			})); err != nil {
+			},
+				retry.Context(ctx),
+				retry.Attempts(s.maxRetries),
+				retry.OnRetry(func(n uint, err error) {
+					logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+				}),
+			); err != nil {
 				logger.WithError(err).Errorln("got error, loop exits")
 				return err
 			}
+
 			lastResync = time.Now()
-			logger.WithFields(log.Fields{"lastResync": lastResync, "lastCheckedBlock": lastCheckedBlock}).Infoln("Auto resync")
+			logger.WithFields(log.Fields{"lastResync": lastResync, "lastConfirmedEthHeight": lastConfirmedEthHeight}).Infoln("Auto resync")
 		}
 
 		return nil
@@ -122,12 +141,11 @@ func (s *PeggyOrchestrator) relayEthEvents(
 
 	// add delay to ensure minimum confirmations are received and block is finalised
 	currentBlock := latestHeader.Number.Uint64() - ethBlockConfirmationDelay
-
 	if currentBlock < startingBlock {
 		return currentBlock, nil
 	}
 
-	if currentBlock > defaultBlocksToSearch+startingBlock {
+	if currentBlock > startingBlock+defaultBlocksToSearch {
 		currentBlock = startingBlock + defaultBlocksToSearch
 	}
 

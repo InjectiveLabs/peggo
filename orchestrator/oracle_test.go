@@ -16,34 +16,38 @@ import (
 func TestRelayEvents(t *testing.T) {
 	t.Parallel()
 
-	t.Run("ethereum cannot fetch latest header", func(t *testing.T) {
+	t.Run("failed to get latest header from ethereum", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{ethereum: mockEthereum{
-			headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
-				return nil, errors.New("fail")
+		orch := &PeggyOrchestrator{
+			ethereum: mockEthereum{
+				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
+					return nil, errors.New("fail")
+				},
 			},
-		}}
+		}
 
 		_, err := orch.relayEthEvents(context.TODO(), 0)
 		assert.Error(t, err)
 	})
 
-	t.Run("ethereum returns an older block", func(t *testing.T) {
+	t.Run("latest ethereum header is old", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{ethereum: mockEthereum{
-			headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
-				return &types.Header{Number: big.NewInt(50)}, nil
+		orch := &PeggyOrchestrator{
+			ethereum: mockEthereum{
+				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
+					return &types.Header{Number: big.NewInt(50)}, nil
+				},
 			},
-		}}
+		}
 
 		currentBlock, err := orch.relayEthEvents(context.TODO(), 100)
 		assert.NoError(t, err)
 		assert.Equal(t, currentBlock, 50-ethBlockConfirmationDelay)
 	})
 
-	t.Run("failed to fetch SendToCosmos events", func(t *testing.T) {
+	t.Run("failed to get SendToCosmos events", func(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
@@ -70,8 +74,10 @@ func TestRelayEvents(t *testing.T) {
 					return &types.Header{Number: big.NewInt(200)}, nil
 				},
 				getSendToCosmosEventsFn: func(uint64, uint64) ([]*wrappers.PeggySendToCosmosEvent, error) {
-					return []*wrappers.PeggySendToCosmosEvent{}, nil
+					return []*wrappers.PeggySendToCosmosEvent{}, nil // empty slice will do
 				},
+
+				// no-ops
 				getTransactionBatchExecutedEventsFn: func(uint64, uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
 					return nil, nil
 				},
@@ -85,6 +91,7 @@ func TestRelayEvents(t *testing.T) {
 					return nil, nil
 				},
 			},
+
 			injective: &mockInjective{
 				lastClaimEventFn: func(context.Context) (*peggytypes.LastClaimEvent, error) {
 					return nil, errors.New("fail")
@@ -117,6 +124,7 @@ func TestRelayEvents(t *testing.T) {
 		}
 
 		orch := &PeggyOrchestrator{
+			injective: inj,
 			ethereum: mockEthereum{
 				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
 					return &types.Header{Number: big.NewInt(200)}, nil
@@ -124,6 +132,8 @@ func TestRelayEvents(t *testing.T) {
 				getSendToCosmosEventsFn: func(uint64, uint64) ([]*wrappers.PeggySendToCosmosEvent, error) {
 					return []*wrappers.PeggySendToCosmosEvent{{EventNonce: big.NewInt(5)}}, nil
 				},
+
+				// no-ops
 				getTransactionBatchExecutedEventsFn: func(uint64, uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
 					return nil, nil
 				},
@@ -137,7 +147,6 @@ func TestRelayEvents(t *testing.T) {
 					return nil, nil
 				},
 			},
-			injective: inj,
 		}
 
 		_, err := orch.relayEthEvents(context.TODO(), 100)
@@ -166,6 +175,7 @@ func TestRelayEvents(t *testing.T) {
 		}
 
 		orch := &PeggyOrchestrator{
+			injective: inj,
 			ethereum: mockEthereum{
 				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
 					return &types.Header{Number: big.NewInt(200)}, nil
@@ -173,6 +183,8 @@ func TestRelayEvents(t *testing.T) {
 				getSendToCosmosEventsFn: func(uint64, uint64) ([]*wrappers.PeggySendToCosmosEvent, error) {
 					return []*wrappers.PeggySendToCosmosEvent{{EventNonce: big.NewInt(10)}}, nil
 				},
+
+				// no-ops
 				getTransactionBatchExecutedEventsFn: func(uint64, uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
 					return nil, nil
 				},
@@ -186,7 +198,6 @@ func TestRelayEvents(t *testing.T) {
 					return nil, nil
 				},
 			},
-			injective: inj,
 		}
 
 		_, err := orch.relayEthEvents(context.TODO(), 100)
