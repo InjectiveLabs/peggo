@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -160,6 +159,7 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	// todo
 	legacyDeposits, err := s.ethereum.GetSendToCosmosEvents(startingBlock, currentBlock)
 	if err != nil {
+		log.WithFields(log.Fields{"start": startingBlock, "end": currentBlock}).Errorln("failed to scan past SendToCosmos events from Ethereum")
 		return 0, err
 	}
 
@@ -322,7 +322,6 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	// todo
 	valsetUpdates, err := s.ethereum.GetValsetUpdatedEvents(startingBlock, currentBlock)
 	if err != nil {
-		return 0, err
 	}
 
 	//var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
@@ -461,18 +460,4 @@ func filterValsetUpdateEventsByNonce(
 		}
 	}
 	return res
-}
-
-func isUnknownBlockErr(err error) bool {
-	// Geth error
-	if strings.Contains(err.Error(), "unknown block") {
-		return true
-	}
-
-	// Parity error
-	if strings.Contains(err.Error(), "One of the blocks specified in filter") {
-		return true
-	}
-
-	return false
 }
