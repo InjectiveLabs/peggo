@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"math/big"
 	"strings"
 	"time"
@@ -225,6 +226,32 @@ func (n *Network) GetPeggyID(ctx context.Context) (ethcmn.Hash, error) {
 
 func (n *Network) FromAddress() ethcmn.Address {
 	return n.PeggyContract.FromAddress()
+}
+
+func (n *Network) GetValsetNonce(ctx context.Context) (*big.Int, error) {
+	return n.PeggyContract.GetValsetNonce(ctx, n.FromAddress())
+}
+
+func (n *Network) SendEthValsetUpdate(
+	ctx context.Context,
+	oldValset *peggytypes.Valset,
+	newValset *peggytypes.Valset,
+	confirms []*peggytypes.MsgValsetConfirm,
+) (*ethcmn.Hash, error) {
+	return n.PeggyContract.SendEthValsetUpdate(ctx, oldValset, newValset, confirms)
+}
+
+func (n *Network) GetTxBatchNonce(ctx context.Context, erc20ContractAddress ethcmn.Address) (*big.Int, error) {
+	return n.PeggyContract.GetTxBatchNonce(ctx, erc20ContractAddress, n.FromAddress())
+}
+
+func (n *Network) SendTransactionBatch(
+	ctx context.Context,
+	currentValset *peggytypes.Valset,
+	batch *peggytypes.OutgoingTxBatch,
+	confirms []*peggytypes.MsgConfirmBatch,
+) (*ethcmn.Hash, error) {
+	return n.PeggyContract.SendTransactionBatch(ctx, currentValset, batch, confirms)
 }
 
 func isUnknownBlockErr(err error) bool {

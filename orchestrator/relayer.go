@@ -212,46 +212,45 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context) error {
 	}
 
 	log.WithFields(log.Fields{"oldestSignedBatchNonce": oldestSignedBatch.BatchNonce, "latestEthereumBatchNonce": latestEthereumBatch.Uint64()}).Debugln("Found Latest valsets")
-
-	if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
-
-		latestEthereumBatch, err := s.ethereum.GetTxBatchNonce(
-			ctx,
-			common.HexToAddress(oldestSignedBatch.TokenContract),
-		)
-		if err != nil {
-			metrics.ReportFuncError(s.svcTags)
-			return err
-		}
-		// Check if oldestSignedBatch already submitted by other validators in mean time
-		if oldestSignedBatch.BatchNonce > latestEthereumBatch.Uint64() {
-
-			// Check custom time delay offset
-			blockResult, err := s.injective.GetBlock(ctx, int64(oldestSignedBatch.Block))
-			if err != nil {
-				return err
-			}
-			batchCreatedAt := blockResult.Block.Time
-			//relayBatchOffsetDur, err := time.ParseDuration()
-			//if err != nil {
-			//	return err
-			//}
-			customTimeDelay := batchCreatedAt.Add(s.relayBatchOffsetDur)
-			if time.Now().Sub(customTimeDelay) <= 0 {
-				return nil
-			}
-
-			log.Infof("We have detected latest batch %d but latest on Ethereum is %d sending an update!", oldestSignedBatch.BatchNonce, latestEthereumBatch)
-
-			// Send SendTransactionBatch to Ethereum
-			txHash, err := s.ethereum.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)
-			if err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				return err
-			}
-			log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (TransactionBatch)")
-		}
+	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		return nil
 	}
+
+	latestEthereumBatch, err = s.ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestSignedBatch.TokenContract))
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return err
+	}
+	// Check if oldestSignedBatch already submitted by other validators in mean time
+	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		return nil
+	}
+
+	// Check custom time delay offset
+	blockResult, err := s.injective.GetBlock(ctx, int64(oldestSignedBatch.Block))
+	if err != nil {
+		return err
+	}
+	batchCreatedAt := blockResult.Block.Time
+	//relayBatchOffsetDur, err := time.ParseDuration()
+	//if err != nil {
+	//	return err
+	//}
+	customTimeDelay := batchCreatedAt.Add(s.relayBatchOffsetDur)
+	if time.Now().Sub(customTimeDelay) <= 0 {
+		return nil
+	}
+
+	log.Infof("We have detected latest batch %d but latest on Ethereum is %d sending an update!", oldestSignedBatch.BatchNonce, latestEthereumBatch)
+
+	// Send SendTransactionBatch to Ethereum
+	txHash, err := s.ethereum.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return err
+	}
+
+	log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (TransactionBatch)")
 
 	return nil
 }
