@@ -61,7 +61,6 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context) error {
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 
-	//latestValsets, err := s.cosmosQueryClient.LatestValsets(ctx)
 	latestValsets, err := s.injective.LatestValsets(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
@@ -99,66 +98,53 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context) error {
 		err = errors.Wrap(err, "couldn't find latest confirmed valset on Ethereum")
 		return err
 	}
+
 	log.WithFields(log.Fields{"currentEthValset": currentEthValset, "latestCosmosConfirmed": latestCosmosConfirmed}).Debugln("Found Latest valsets")
 
-	if latestCosmosConfirmed.Nonce > currentEthValset.Nonce {
-
-		// todo
-		latestEthereumValsetNonce, err := s.ethereum.GetValsetNonce(ctx)
-
-		//latestEthereumValsetNonce, err := s.peggyContract.GetValsetNonce(ctx, s.peggyContract.FromAddress())
-		if err != nil {
-			metrics.ReportFuncError(s.svcTags)
-			err = errors.Wrap(err, "failed to get latest Valset nonce")
-			return err
-		}
-
-		// Check if latestCosmosConfirmed already submitted by other validators in mean time
-		if latestCosmosConfirmed.Nonce > latestEthereumValsetNonce.Uint64() {
-
-			// Check custom time delay offset
-			blockResult, err := s.injective.GetBlock(ctx, int64(latestCosmosConfirmed.Height))
-			if err != nil {
-				return err
-			}
-			valsetCreatedAt := blockResult.Block.Time
-			// todo: do this at init
-			//relayValsetOffsetDur, err := time.ParseDuration(s.relayValsetOffsetDur)
-			//if err != nil {
-			//	return err
-			//}
-			customTimeDelay := valsetCreatedAt.Add(s.relayValsetOffsetDur)
-			if time.Now().Sub(customTimeDelay) <= 0 {
-				return nil
-			}
-
-			log.Infof("Detected latest cosmos valset nonce %d, but latest valset on Ethereum is %d. Sending update to Ethereum\n",
-				latestCosmosConfirmed.Nonce, latestEthereumValsetNonce.Uint64())
-
-			// todo
-			txHash, err := s.ethereum.SendEthValsetUpdate(
-				ctx,
-				currentEthValset,
-				latestCosmosConfirmed,
-				latestCosmosSigs,
-			)
-
-			// Send Valset Update to Ethereum
-			//txHash, err := s.peggyContract.SendEthValsetUpdate(
-			//	ctx,
-			//	currentEthValset,
-			//	latestCosmosConfirmed,
-			//	latestCosmosSigs,
-			//)
-			if err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				return err
-			}
-
-			log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (EthValsetUpdate)")
-		}
-
+	if latestCosmosConfirmed.Nonce <= currentEthValset.Nonce {
+		return nil
 	}
+
+	latestEthereumValsetNonce, err := s.ethereum.GetValsetNonce(ctx)
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return errors.Wrap(err, "failed to get latest Valset nonce")
+	}
+
+	// Check if latestCosmosConfirmed already submitted by other validators in mean time
+	if latestCosmosConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
+		return nil
+	}
+
+	// Check custom time delay offset
+	blockResult, err := s.injective.GetBlock(ctx, int64(latestCosmosConfirmed.Height))
+	if err != nil {
+		return err
+	}
+
+	valsetCreatedAt := blockResult.Block.Time
+	customTimeDelay := valsetCreatedAt.Add(s.relayValsetOffsetDur)
+
+	if time.Now().Sub(customTimeDelay) <= 0 {
+		return nil
+	}
+
+	log.Infof("Detected latest cosmos valset nonce %d, but latest valset on Ethereum is %d. Sending update to Ethereum\n",
+		latestCosmosConfirmed.Nonce, latestEthereumValsetNonce.Uint64())
+
+	txHash, err := s.ethereum.SendEthValsetUpdate(
+		ctx,
+		currentEthValset,
+		latestCosmosConfirmed,
+		latestCosmosSigs,
+	)
+
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return err
+	}
+
+	log.WithField("tx_hash", txHash.Hex()).Infoln("Sent Ethereum Tx (EthValsetUpdate)")
 
 	return nil
 }
@@ -169,7 +155,6 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context) error {
 	defer doneFn()
 
 	latestBatches, err := s.injective.LatestTransactionBatches(ctx)
-	//latestBatches, err := s.cosmosQueryClient.LatestTransactionBatches(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return err
@@ -231,12 +216,10 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	batchCreatedAt := blockResult.Block.Time
-	//relayBatchOffsetDur, err := time.ParseDuration()
-	//if err != nil {
-	//	return err
-	//}
 	customTimeDelay := batchCreatedAt.Add(s.relayBatchOffsetDur)
+
 	if time.Now().Sub(customTimeDelay) <= 0 {
 		return nil
 	}
@@ -268,7 +251,6 @@ func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset
 	defer doneFn()
 
 	latestHeader, err := s.ethereum.HeaderByNumber(ctx, nil)
-	//latestHeader, err := s.ethProvider.HeaderByNumber(ctx, nil)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "failed to get latest header")
@@ -276,15 +258,7 @@ func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset
 	}
 	currentBlock := latestHeader.Number.Uint64()
 
-	//peggyFilterer, err := wrappers.NewPeggyFilterer(s.peggyContract.Address(), s.ethProvider)
-	//if err != nil {
-	//	metrics.ReportFuncError(s.svcTags)
-	//	err = errors.Wrap(err, "failed to init Peggy events filterer")
-	//	return nil, err
-	//}
-
 	latestEthereumValsetNonce, err := s.ethereum.GetValsetNonce(ctx)
-	//latestEthereumValsetNonce, err := s.peggyContract.GetValsetNonce(ctx, s.peggyContract.FromAddress())
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		err = errors.Wrap(err, "failed to get latest Valset nonce")
@@ -316,18 +290,6 @@ func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset
 			err = errors.Wrap(err, "failed to filter past ValsetUpdated events from Ethereum")
 			return nil, err
 		}
-		//var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
-		//iter, err := peggyFilterer.FilterValsetUpdatedEvent(&bind.FilterOpts{
-		//	Start: endSearchBlock,
-		//	End:   &currentBlock,
-		//}, nil)
-		//} else {
-		//	for iter.Next() {
-		//		valsetUpdatedEvents = append(valsetUpdatedEvents, iter.Event)
-		//	}
-		//
-		//	iter.Close()
-		//}
 
 		// by default the lowest found valset goes first, we want the highest
 		//

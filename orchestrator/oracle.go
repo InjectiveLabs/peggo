@@ -47,7 +47,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 
 	if err := retry.Do(retryFn,
 		retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
 		}),
@@ -65,7 +65,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 			return
 		},
 			retry.Context(ctx),
-			retry.Attempts(s.maxRetries),
+			retry.Attempts(s.maxAttempts),
 			retry.OnRetry(func(n uint, err error) {
 				logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
 			}),
@@ -89,7 +89,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 				return
 			},
 				retry.Context(ctx),
-				retry.Attempts(s.maxRetries),
+				retry.Attempts(s.maxAttempts),
 				retry.OnRetry(func(n uint, err error) {
 					logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
 				}),
@@ -148,49 +148,11 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		currentBlock = startingBlock + defaultBlocksToSearch
 	}
 
-	// todo: this will be part of each Get**Events method
-	//peggyFilterer, err := wrappers.NewPeggyFilterer(s.peggyContract.Address(), s.ethProvider)
-	//if err != nil {
-	//	metrics.ReportFuncError(s.svcTags)
-	//	err = errors.Wrap(err, "failed to init Peggy events filterer")
-	//	return 0, err
-	//}
-
-	// todo
 	legacyDeposits, err := s.ethereum.GetSendToCosmosEvents(startingBlock, currentBlock)
 	if err != nil {
 		log.WithFields(log.Fields{"start": startingBlock, "end": currentBlock}).Errorln("failed to scan past SendToCosmos events from Ethereum")
 		return 0, err
 	}
-
-	//var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
-	//{
-	//
-	//	iter, err := peggyFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
-	//		Start: startingBlock,
-	//		End:   &currentBlock,
-	//	}, nil, nil, nil)
-	//	if err != nil {
-	//		metrics.ReportFuncError(s.svcTags)
-	//		log.WithFields(log.Fields{
-	//			"start": startingBlock,
-	//			"end":   currentBlock,
-	//		}).Errorln("failed to scan past SendToCosmos events from Ethereum")
-	//
-	//		if !isUnknownBlockErr(err) {
-	//			err = errors.Wrap(err, "failed to scan past SendToCosmos events from Ethereum")
-	//			return 0, err
-	//		} else if iter == nil {
-	//			return 0, errors.New("no iterator returned")
-	//		}
-	//	}
-	//
-	//	for iter.Next() {
-	//		sendToCosmosEvents = append(sendToCosmosEvents, iter.Event)
-	//	}
-	//
-	//	iter.Close()
-	//}
 
 	log.WithFields(log.Fields{
 		"start":       startingBlock,
@@ -198,40 +160,10 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		"OldDeposits": legacyDeposits,
 	}).Debugln("Scanned SendToCosmos events from Ethereum")
 
-	// todo
 	deposits, err := s.ethereum.GetSendToInjectiveEvents(startingBlock, currentBlock)
 	if err != nil {
 		return 0, err
 	}
-
-	//var sendToInjectiveEvents []*wrappers.PeggySendToInjectiveEvent
-	//{
-	//
-	//	iter, err := peggyFilterer.FilterSendToInjectiveEvent(&bind.FilterOpts{
-	//		Start: startingBlock,
-	//		End:   &currentBlock,
-	//	}, nil, nil, nil)
-	//	if err != nil {
-	//		metrics.ReportFuncError(s.svcTags)
-	//		log.WithFields(log.Fields{
-	//			"start": startingBlock,
-	//			"end":   currentBlock,
-	//		}).Errorln("failed to scan past SendToInjective events from Ethereum")
-	//
-	//		if !isUnknownBlockErr(err) {
-	//			err = errors.Wrap(err, "failed to scan past SendToInjective events from Ethereum")
-	//			return 0, err
-	//		} else if iter == nil {
-	//			return 0, errors.New("no iterator returned")
-	//		}
-	//	}
-	//
-	//	for iter.Next() {
-	//		sendToInjectiveEvents = append(sendToInjectiveEvents, iter.Event)
-	//	}
-	//
-	//	iter.Close()
-	//}
 
 	log.WithFields(log.Fields{
 		"start":    startingBlock,
@@ -239,39 +171,10 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		"Deposits": deposits,
 	}).Debugln("Scanned SendToInjective events from Ethereum")
 
-	// todo
 	withdrawals, err := s.ethereum.GetTransactionBatchExecutedEvents(startingBlock, currentBlock)
 	if err != nil {
 		return 0, err
 	}
-
-	//var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
-	//{
-	//	iter, err := peggyFilterer.FilterTransactionBatchExecutedEvent(&bind.FilterOpts{
-	//		Start: startingBlock,
-	//		End:   &currentBlock,
-	//	}, nil, nil)
-	//	if err != nil {
-	//		metrics.ReportFuncError(s.svcTags)
-	//		log.WithFields(log.Fields{
-	//			"start": startingBlock,
-	//			"end":   currentBlock,
-	//		}).Errorln("failed to scan past TransactionBatchExecuted events from Ethereum")
-	//
-	//		if !isUnknownBlockErr(err) {
-	//			err = errors.Wrap(err, "failed to scan past TransactionBatchExecuted events from Ethereum")
-	//			return 0, err
-	//		} else if iter == nil {
-	//			return 0, errors.New("no iterator returned")
-	//		}
-	//	}
-	//
-	//	for iter.Next() {
-	//		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
-	//	}
-	//
-	//	iter.Close()
-	//}
 
 	log.WithFields(log.Fields{
 		"start":     startingBlock,
@@ -279,39 +182,10 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		"Withdraws": withdrawals,
 	}).Debugln("Scanned TransactionBatchExecuted events from Ethereum")
 
-	// todo
 	erc20Deployments, err := s.ethereum.GetPeggyERC20DeployedEvents(startingBlock, currentBlock)
 	if err != nil {
 		return 0, err
 	}
-
-	//var erc20DeployedEvents []*wrappers.PeggyERC20DeployedEvent
-	//{
-	//	iter, err := peggyFilterer.FilterERC20DeployedEvent(&bind.FilterOpts{
-	//		Start: startingBlock,
-	//		End:   &currentBlock,
-	//	}, nil)
-	//	if err != nil {
-	//		metrics.ReportFuncError(s.svcTags)
-	//		log.WithFields(log.Fields{
-	//			"start": startingBlock,
-	//			"end":   currentBlock,
-	//		}).Errorln("failed to scan past FilterERC20Deployed events from Ethereum")
-	//
-	//		if !isUnknownBlockErr(err) {
-	//			err = errors.Wrap(err, "failed to scan past FilterERC20Deployed events from Ethereum")
-	//			return 0, err
-	//		} else if iter == nil {
-	//			return 0, errors.New("no iterator returned")
-	//		}
-	//	}
-	//
-	//	for iter.Next() {
-	//		erc20DeployedEvents = append(erc20DeployedEvents, iter.Event)
-	//	}
-	//
-	//	iter.Close()
-	//}
 
 	log.WithFields(log.Fields{
 		"start":         startingBlock,
@@ -319,38 +193,9 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		"erc20Deployed": erc20Deployments,
 	}).Debugln("Scanned FilterERC20Deployed events from Ethereum")
 
-	// todo
 	valsetUpdates, err := s.ethereum.GetValsetUpdatedEvents(startingBlock, currentBlock)
 	if err != nil {
 	}
-
-	//var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
-	//{
-	//	iter, err := peggyFilterer.FilterValsetUpdatedEvent(&bind.FilterOpts{
-	//		Start: startingBlock,
-	//		End:   &currentBlock,
-	//	}, nil)
-	//	if err != nil {
-	//		metrics.ReportFuncError(s.svcTags)
-	//		log.WithFields(log.Fields{
-	//			"start": startingBlock,
-	//			"end":   currentBlock,
-	//		}).Errorln("failed to scan past ValsetUpdatedEvent events from Ethereum")
-	//
-	//		if !isUnknownBlockErr(err) {
-	//			err = errors.Wrap(err, "failed to scan past ValsetUpdatedEvent events from Ethereum")
-	//			return 0, err
-	//		} else if iter == nil {
-	//			return 0, errors.New("no iterator returned")
-	//		}
-	//	}
-	//
-	//	for iter.Next() {
-	//		valsetUpdatedEvents = append(valsetUpdatedEvents, iter.Event)
-	//	}
-	//
-	//	iter.Close()
-	//}
 
 	log.WithFields(log.Fields{
 		"start":         startingBlock,

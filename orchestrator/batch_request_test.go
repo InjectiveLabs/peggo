@@ -20,7 +20,7 @@ func TestRequestBatches(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
 					return nil, errors.New("fail")
@@ -35,7 +35,7 @@ func TestRequestBatches(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
 					return nil, nil
@@ -65,7 +65,7 @@ func TestRequestBatches(t *testing.T) {
 		}
 
 		orch := &PeggyOrchestrator{
-			maxRetries:           1,
+			maxAttempts:          1,
 			minBatchFeeUSD:       51.0,
 			erc20ContractMapping: map[eth.Address]string{tokenAddr: "inj"},
 			pricefeed:            mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }},
@@ -95,7 +95,7 @@ func TestRequestBatches(t *testing.T) {
 		}
 
 		orch := &PeggyOrchestrator{
-			maxRetries:           1,
+			maxAttempts:          1,
 			minBatchFeeUSD:       49.0,
 			erc20ContractMapping: map[eth.Address]string{tokenAddr: "inj"},
 			pricefeed: mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {

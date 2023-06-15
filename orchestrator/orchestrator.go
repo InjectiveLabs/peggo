@@ -5,25 +5,26 @@ import (
 	"math/big"
 	"time"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	ethcmn "github.com/ethereum/go-ethereum/common"
+	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
+	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type PriceFeed interface {
-	QueryUSDPrice(address ethcmn.Address) (float64, error)
+	QueryUSDPrice(address eth.Address) (float64, error)
 }
 
 type InjectiveNetwork interface {
 	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
+	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
 
-	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
-	SendRequestBatch(ctx context.Context, denom string) error
-
+	// claims
 	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)
 	SendEthereumClaims(
 		ctx context.Context,
@@ -35,26 +36,26 @@ type InjectiveNetwork interface {
 		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
 	) error
 
-	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
-	SendValsetConfirm(ctx context.Context, peggyID ethcmn.Hash, valset *peggytypes.Valset, ethFrom ethcmn.Address) error
-
+	// batches
+	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
+	SendRequestBatch(ctx context.Context, denom string) error
 	OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
-	SendBatchConfirm(ctx context.Context, peggyID ethcmn.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom ethcmn.Address) error
+	SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error
+	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
+	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
 
-	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
-
+	// valsets
+	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
+	SendValsetConfirm(ctx context.Context, peggyID eth.Hash, valset *peggytypes.Valset, ethFrom eth.Address) error
 	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)
-
-	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
-	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract ethcmn.Address) ([]*peggytypes.MsgConfirmBatch, error)
 }
 
 type EthereumNetwork interface {
-	FromAddress() ethcmn.Address
+	FromAddress() eth.Address
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	GetPeggyID(ctx context.Context) (ethcmn.Hash, error)
+	GetPeggyID(ctx context.Context) (eth.Hash, error)
 
 	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
@@ -68,20 +69,21 @@ type EthereumNetwork interface {
 		oldValset *peggytypes.Valset,
 		newValset *peggytypes.Valset,
 		confirms []*peggytypes.MsgValsetConfirm,
-	) (*ethcmn.Hash, error)
+	) (*eth.Hash, error)
 
 	GetTxBatchNonce(
 		ctx context.Context,
-		erc20ContractAddress ethcmn.Address,
+		erc20ContractAddress eth.Address,
 	) (*big.Int, error)
-
 	SendTransactionBatch(
 		ctx context.Context,
 		currentValset *peggytypes.Valset,
 		batch *peggytypes.OutgoingTxBatch,
 		confirms []*peggytypes.MsgConfirmBatch,
-	) (*ethcmn.Hash, error)
+	) (*eth.Hash, error)
 }
+
+const defaultLoopDur = 60 * time.Second
 
 type PeggyOrchestrator struct {
 	svcTags   metrics.Tags
@@ -89,9 +91,9 @@ type PeggyOrchestrator struct {
 	ethereum  EthereumNetwork
 	pricefeed PriceFeed
 
-	erc20ContractMapping map[ethcmn.Address]string
+	erc20ContractMapping map[eth.Address]string
 	minBatchFeeUSD       float64
-	maxRetries           uint
+	maxAttempts          uint // max number of times a retry func will be called before exiting
 
 	relayValsetOffsetDur,
 	relayBatchOffsetDur time.Duration
@@ -106,7 +108,7 @@ func NewPeggyOrchestrator(
 	injective InjectiveNetwork,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
-	erc20ContractMapping map[ethcmn.Address]string,
+	erc20ContractMapping map[eth.Address]string,
 	minBatchFeeUSD float64,
 	periodicBatchRequesting,
 	valsetRelayingEnabled,
@@ -124,7 +126,7 @@ func NewPeggyOrchestrator(
 		periodicBatchRequesting: periodicBatchRequesting,
 		valsetRelayEnabled:      valsetRelayingEnabled,
 		batchRelayEnabled:       batchRelayingEnabled,
-		maxRetries:              10, // default is 10 for retry pkg
+		maxAttempts:             10, // default is 10 for retry pkg
 	}
 
 	if valsetRelayingEnabled {
@@ -146,4 +148,54 @@ func NewPeggyOrchestrator(
 	}
 
 	return orch, nil
+}
+
+// Run combines the all major roles required to make
+// up the Orchestrator, all of these are async loops.
+func (s *PeggyOrchestrator) Run(ctx context.Context, validatorMode bool) error {
+	if !validatorMode {
+		log.Infoln("Starting peggo in relayer (non-validator) mode")
+		return s.startRelayerMode(ctx)
+	}
+
+	log.Infoln("Starting peggo in validator mode")
+	return s.startValidatorMode(ctx)
+}
+
+// startValidatorMode runs all orchestrator processes. This is called
+// when peggo is run alongside a validator injective node.
+func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error {
+		return s.EthOracleMainLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.BatchRequesterLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.EthSignerMainLoop(ctx)
+	})
+	pg.Go(func() error {
+		return s.RelayerMainLoop(ctx)
+	})
+
+	return pg.Wait()
+}
+
+// startRelayerMode runs orchestrator processes that only relay specific
+// messages that do not require a validator's signature. This mode is run
+// alongside a non-validator injective node
+func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error {
+		return s.BatchRequesterLoop(ctx)
+	})
+
+	pg.Go(func() error {
+		return s.RelayerMainLoop(ctx)
+	})
+
+	return pg.Wait()
 }

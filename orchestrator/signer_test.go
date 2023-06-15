@@ -18,7 +18,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1, // todo, hardcode do 10
+			maxAttempts: 1, // todo, hardcode do 10
 			ethereum: mockEthereum{
 				getPeggyIDFn: func(context.Context) (common.Hash, error) {
 					return [32]byte{}, errors.New("fail")
@@ -33,7 +33,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
 					return nil, errors.New("fail")
@@ -57,7 +57,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
 					return []*types.Valset{
@@ -94,7 +94,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn:          func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
 				sendValsetConfirmFn:              func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
@@ -111,7 +111,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
 				sendValsetConfirmFn:     func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
@@ -137,7 +137,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxRetries: 1,
+			maxAttempts: 1,
 			injective: &mockInjective{
 				oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) {
 					return []*types.Valset{}, nil // non-empty will do

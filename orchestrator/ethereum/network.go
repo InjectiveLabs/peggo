@@ -2,23 +2,22 @@ package ethereum
 
 import (
 	"context"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"math/big"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
-	log "github.com/xlab/suplog"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/pkg/errors"
+	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type Network struct {
@@ -72,8 +71,16 @@ func NewNetwork(
 	return &Network{PeggyContract: peggyContract}, nil
 }
 
+func (n *Network) FromAddress() ethcmn.Address {
+	return n.PeggyContract.FromAddress()
+}
+
 func (n *Network) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	return n.Provider().HeaderByNumber(ctx, number)
+}
+
+func (n *Network) GetPeggyID(ctx context.Context) (ethcmn.Hash, error) {
+	return n.PeggyContract.GetPeggyID(ctx, n.FromAddress())
 }
 
 func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrappers.PeggySendToCosmosEvent, error) {
@@ -134,34 +141,6 @@ func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrap
 	return sendToInjectiveEvents, nil
 }
 
-func (n *Network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
-	}
-
-	iter, err := peggyFilterer.FilterTransactionBatchExecutedEvent(&bind.FilterOpts{
-		Start: startBlock,
-		End:   &endBlock,
-	}, nil, nil)
-	if err != nil {
-		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past TransactionBatchExecuted events from Ethereum")
-		} else if iter == nil {
-			return nil, errors.New("no iterator returned")
-		}
-	}
-
-	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
-	for iter.Next() {
-		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
-	}
-
-	iter.Close()
-
-	return transactionBatchExecutedEvents, nil
-}
-
 func (n *Network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyERC20DeployedEvent, error) {
 	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
@@ -218,12 +197,32 @@ func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappe
 	return valsetUpdatedEvents, nil
 }
 
-func (n *Network) GetPeggyID(ctx context.Context) (ethcmn.Hash, error) {
-	return n.PeggyContract.GetPeggyID(ctx, n.FromAddress())
-}
+func (n *Network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
+	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
+	}
 
-func (n *Network) FromAddress() ethcmn.Address {
-	return n.PeggyContract.FromAddress()
+	iter, err := peggyFilterer.FilterTransactionBatchExecutedEvent(&bind.FilterOpts{
+		Start: startBlock,
+		End:   &endBlock,
+	}, nil, nil)
+	if err != nil {
+		if !isUnknownBlockErr(err) {
+			return nil, errors.Wrap(err, "failed to scan past TransactionBatchExecuted events from Ethereum")
+		} else if iter == nil {
+			return nil, errors.New("no iterator returned")
+		}
+	}
+
+	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
+	for iter.Next() {
+		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
+	}
+
+	iter.Close()
+
+	return transactionBatchExecutedEvents, nil
 }
 
 func (n *Network) GetValsetNonce(ctx context.Context) (*big.Int, error) {

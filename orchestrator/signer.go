@@ -40,7 +40,7 @@ func (s *PeggyOrchestrator) getPeggyID(ctx context.Context, logger log.Logger) (
 
 	if err := retry.Do(retryFn,
 		retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to get PeggyID from Ethereum contract, will retry (%d)", n)
 		}),
@@ -85,7 +85,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 
 	if err := retry.Do(retryFn,
 		retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to get unsigned Valset for signing, will retry (%d)", n)
 		}),
@@ -100,7 +100,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 			return s.injective.SendValsetConfirm(ctx, peggyID, vs, s.ethereum.FromAddress())
 		},
 			retry.Context(ctx),
-			retry.Attempts(s.maxRetries),
+			retry.Attempts(s.maxAttempts),
 			retry.OnRetry(func(n uint, err error) {
 				logger.WithError(err).Warningf("failed to sign and send Valset confirmation to Cosmos, will retry (%d)", n)
 			}),
@@ -128,7 +128,7 @@ func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger l
 		oldestUnsignedTransactionBatch = txBatch
 		return nil
 	}, retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to get unsigned TransactionBatch for signing, will retry (%d)", n)
 		})); err != nil {
@@ -144,7 +144,7 @@ func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger l
 	if err := retry.Do(func() error {
 		return s.injective.SendBatchConfirm(ctx, peggyID, oldestUnsignedTransactionBatch, s.ethereum.FromAddress())
 	}, retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to sign and send TransactionBatch confirmation to Cosmos, will retry (%d)", n)
 		})); err != nil {

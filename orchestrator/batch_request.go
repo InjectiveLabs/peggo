@@ -79,7 +79,7 @@ func (s *PeggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 
 	if err := retry.Do(retryFn,
 		retry.Context(ctx),
-		retry.Attempts(s.maxRetries),
+		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			log.WithError(err).Errorf("failed to get UnbatchedTokensWithFees, will retry (%d)", n)
 		}),
