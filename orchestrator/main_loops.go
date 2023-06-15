@@ -15,9 +15,9 @@ import (
 
 const defaultLoopDur = 60 * time.Second
 
-// Start combines the all major roles required to make
+// Run combines the all major roles required to make
 // up the Orchestrator, all of these are async loops.
-func (s *PeggyOrchestrator) Start(ctx context.Context, validatorMode bool) error {
+func (s *PeggyOrchestrator) Run(ctx context.Context, validatorMode bool) error {
 	if !validatorMode {
 		log.Infoln("Starting peggo in relayer (non-validator) mode")
 		return s.startRelayerMode(ctx)

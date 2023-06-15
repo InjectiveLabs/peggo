@@ -2,21 +2,16 @@ package orchestrator
 
 import (
 	"context"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	"github.com/ethereum/go-ethereum/core/types"
-	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"math/big"
 	"time"
 
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/InjectiveLabs/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
-	sidechain "github.com/InjectiveLabs/peggo/orchestrator/cosmos"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
 type PriceFeed interface {
@@ -90,51 +85,65 @@ type EthereumNetwork interface {
 
 type PeggyOrchestrator struct {
 	svcTags   metrics.Tags
-	pricefeed PriceFeed
 	injective InjectiveNetwork
 	ethereum  EthereumNetwork
+	pricefeed PriceFeed
 
-	cosmosQueryClient       sidechain.PeggyQueryClient
-	peggyBroadcastClient    sidechain.PeggyBroadcastClient
-	peggyContract           peggy.PeggyContract
-	ethProvider             provider.EVMProvider
-	ethFrom                 ethcmn.Address
-	erc20ContractMapping    map[ethcmn.Address]string
-	relayer                 relayer.PeggyRelayer
-	minBatchFeeUSD          float64
-	priceFeeder             *coingecko.CoingeckoPriceFeed
-	maxRetries              uint
-	periodicBatchRequesting bool
-	valsetRelayEnabled      bool
-	batchRelayEnabled       bool
+	erc20ContractMapping map[ethcmn.Address]string
+	minBatchFeeUSD       float64
+	maxRetries           uint
+
 	relayValsetOffsetDur,
-	relayBatchOffsetDur time.Duration // todo: parsed from string
+	relayBatchOffsetDur time.Duration
+
+	valsetRelayEnabled bool
+	batchRelayEnabled  bool
+
+	periodicBatchRequesting bool
 }
 
 func NewPeggyOrchestrator(
-	cosmosQueryClient sidechain.PeggyQueryClient,
-	peggyBroadcastClient sidechain.PeggyBroadcastClient,
-	peggyContract peggy.PeggyContract,
-	ethFrom ethcmn.Address,
+	injective InjectiveNetwork,
+	ethereum EthereumNetwork,
+	priceFeed PriceFeed,
 	erc20ContractMapping map[ethcmn.Address]string,
-	relayer relayer.PeggyRelayer,
 	minBatchFeeUSD float64,
-	priceFeeder *coingecko.CoingeckoPriceFeed,
-	periodicBatchRequesting bool,
-) *PeggyOrchestrator {
-	return &PeggyOrchestrator{
-		cosmosQueryClient:       cosmosQueryClient,
-		peggyBroadcastClient:    peggyBroadcastClient,
-		peggyContract:           peggyContract,
-		ethProvider:             peggyContract.Provider(),
-		ethFrom:                 ethFrom,
+	periodicBatchRequesting,
+	valsetRelayingEnabled,
+	batchRelayingEnabled bool,
+	valsetRelayingOffset,
+	batchRelayingOffset string,
+) (*PeggyOrchestrator, error) {
+	orch := &PeggyOrchestrator{
+		svcTags:                 metrics.Tags{"svc": "peggy_orchestrator"},
+		injective:               injective,
+		ethereum:                ethereum,
+		pricefeed:               priceFeed,
 		erc20ContractMapping:    erc20ContractMapping,
-		relayer:                 relayer,
 		minBatchFeeUSD:          minBatchFeeUSD,
-		priceFeeder:             priceFeeder,
 		periodicBatchRequesting: periodicBatchRequesting,
-		svcTags: metrics.Tags{
-			"svc": "peggy_orchestrator",
-		},
+		valsetRelayEnabled:      valsetRelayingEnabled,
+		batchRelayEnabled:       batchRelayingEnabled,
+		maxRetries:              10, // default is 10 for retry pkg
 	}
+
+	if valsetRelayingEnabled {
+		dur, err := time.ParseDuration(valsetRelayingOffset)
+		if err != nil {
+			return nil, err
+		}
+
+		orch.relayValsetOffsetDur = dur
+	}
+
+	if batchRelayingEnabled {
+		dur, err := time.ParseDuration(batchRelayingOffset)
+		if err != nil {
+			return nil, err
+		}
+
+		orch.relayBatchOffsetDur = dur
+	}
+
+	return orch, nil
 }

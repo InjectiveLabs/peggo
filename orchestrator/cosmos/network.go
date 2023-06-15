@@ -3,10 +3,22 @@ package cosmos
 import (
 	"context"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
+	"github.com/InjectiveLabs/sdk-go/client/common"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
+	log "github.com/xlab/suplog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"time"
+
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type Network struct {
@@ -15,8 +27,52 @@ type Network struct {
 	PeggyBroadcastClient
 }
 
-func NewNetwork() (*Network, error) {
-	return nil, nil
+func NewNetwork(
+	chainID,
+	validatorAddress,
+	injectiveGRPC,
+	injectiveGasPrices,
+	tendermintRPC string,
+	keyring keyring.Keyring,
+	signerFn bind.SignerFn,
+	personalSignerFn keystore.PersonalSignFn,
+) (*Network, error) {
+	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	if err != nil {
+		log.WithError(err).Fatalln("failed to initialize cosmos client context")
+	}
+
+	clientCtx = clientCtx.WithNodeURI(tendermintRPC)
+
+	tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
+	if err != nil {
+		log.WithError(err)
+	}
+
+	clientCtx = clientCtx.WithClient(tmRPC)
+
+	daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{"endpoint": injectiveGRPC}).Fatalln("failed to connect to daemon, is injectived running?")
+	}
+
+	log.Infoln("Waiting for injectived GRPC")
+	time.Sleep(1 * time.Second)
+
+	daemonWaitCtx, cancelWait := context.WithTimeout(context.Background(), time.Minute)
+	defer cancelWait()
+
+	grpcConn := daemonClient.QueryClient()
+	waitForService(daemonWaitCtx, grpcConn)
+	peggyQuerier := types.NewQueryClient(grpcConn)
+
+	n := &Network{
+		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
+		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
+		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
+	}
+
+	return n, nil
 }
 
 func (n *Network) GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error) {
@@ -102,4 +158,24 @@ func (n *Network) SendBatchConfirm(
 	ethFrom ethcmn.Address,
 ) error {
 	return n.PeggyBroadcastClient.SendBatchConfirm(ctx, ethFrom, peggyID, batch)
+}
+
+// waitForService awaits an active ClientConn to a GRPC service.
+func waitForService(ctx context.Context, clientconn *grpc.ClientConn) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Fatalln("GRPC service wait timed out")
+		default:
+			state := clientconn.GetState()
+
+			if state != connectivity.Ready {
+				log.WithField("state", state.String()).Warningln("state of GRPC connection not ready")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			return
+		}
+	}
 }

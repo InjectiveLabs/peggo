@@ -4,15 +4,19 @@ import (
 	"context"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+
 	cli "github.com/jawher/mow.cli"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )
 
 // txCmdSubset contains actions that can sign and send messages to Cosmos module
@@ -175,5 +179,25 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 
 		log.Infof("Registered Ethereum address %s for validator address %s",
 			ethKeyFromAddress, valAddress.String())
+	}
+}
+
+// waitForService awaits an active ClientConn to a GRPC service.
+func waitForService(ctx context.Context, clientconn *grpc.ClientConn) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Fatalln("GRPC service wait timed out")
+		default:
+			state := clientconn.GetState()
+
+			if state != connectivity.Ready {
+				log.WithField("state", state.String()).Warningln("state of GRPC connection not ready")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			return
+		}
 	}
 }

@@ -69,9 +69,7 @@ func NewNetwork(
 		go peggyContract.SubscribeToPendingTxs(ethNodeAlchemyWS)
 	}
 
-	return &Network{
-		PeggyContract: peggyContract,
-	}, nil
+	return &Network{PeggyContract: peggyContract}, nil
 }
 
 func (n *Network) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
