@@ -34,7 +34,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		defer closer.Close()
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
-			log.Fatalln("cannot really use Ledger for orchestrator, since signatures msut be realtime")
+			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
 		}
 
 		valAddress, cosmosKeyring, err := initCosmosKeyring(
@@ -47,7 +47,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			cfg.cosmosUseLedger,
 		)
 		if err != nil {
-			log.WithError(err).Fatalln("failed to init Cosmos keyring")
+			log.WithError(err).Fatalln("failed to initialize Injective keyring")
 		}
 
 		ethKeyFromAddress, signerFn, personalSignFn, err := initEthereumAccountsManager(
@@ -59,13 +59,13 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			cfg.ethUseLedger,
 		)
 		if err != nil {
-			log.WithError(err).Fatalln("failed to init Ethereum account")
+			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.Infoln("Using Cosmos ValAddress", valAddress.String())
+		log.Infoln("Using Injective validator address", valAddress.String())
 		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
 
-		// init injective network
+		// Connect to Injective network
 		injNetwork, err := cosmos.NewNetwork(
 			*cfg.cosmosChainID,
 			valAddress.String(),
@@ -78,10 +78,12 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
+		log.Infoln("Connected to Injective network")
+
 		// See if the provided ETH address belongs to a validator and determine in which mode peggo should run
 		isValidator, err := isValidatorAddress(injNetwork.PeggyQueryClient, ethKeyFromAddress)
 		if err != nil {
-			log.WithError(err).Fatalln("failed to query the current validator set from injective")
+			log.WithError(err).Fatalln("failed to query current validator set on Injective")
 			return
 		}
 
@@ -100,7 +102,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		erc20ContractMapping := make(map[ethcmn.Address]string)
 		erc20ContractMapping[injAddress] = ctypes.InjectiveCoin
 
-		// init ethereum network
+		// Connect to ethereum network
 		ethNetwork, err := ethereum.NewNetwork(
 			*cfg.ethNodeRPC,
 			peggyAddress,
@@ -113,11 +115,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
+		log.Infoln("Connected to Ethereum network")
+
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
 
 		// make the flag obsolete and hardcode
 		*cfg.minBatchFeeUSD = 49.0
 
+		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
 			injNetwork,
 			ethNetwork,
@@ -130,6 +135,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			*cfg.relayValsetOffsetDur,
 			*cfg.relayBatchOffsetDur,
 		)
+		orShutdown(err)
 
 		go func() {
 			if err := peggo.Run(ctx, isValidator); err != nil {

@@ -6,18 +6,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/pkg/errors"
-	log "github.com/xlab/suplog"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/pkg/errors"
 )
 
 type Network struct {
@@ -36,11 +34,8 @@ func NewNetwork(
 ) (*Network, error) {
 	evmRPC, err := rpc.Dial(ethNodeRPC)
 	if err != nil {
-		log.WithField("endpoint", ethNodeRPC).WithError(err).Fatalln("Failed to connect to Ethereum RPC")
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", ethNodeRPC)
 	}
-
-	log.Infoln("Connected to Ethereum RPC at", ethNodeRPC)
 
 	ethCommitter, err := committer.NewEthCommitter(
 		fromAddr,

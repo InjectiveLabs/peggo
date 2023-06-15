@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	log "github.com/xlab/suplog"
@@ -39,24 +40,23 @@ func NewNetwork(
 ) (*Network, error) {
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
-		log.WithError(err).Fatalln("failed to initialize cosmos client context")
+		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
 	clientCtx = clientCtx.WithNodeURI(tendermintRPC)
 
 	tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
 	if err != nil {
-		log.WithError(err)
+		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
 	}
 
 	clientCtx = clientCtx.WithClient(tmRPC)
 
 	daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
-		log.WithError(err).WithFields(log.Fields{"endpoint": injectiveGRPC}).Fatalln("failed to connect to daemon, is injectived running?")
+		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
 	}
 
-	log.Infoln("Waiting for injectived GRPC")
 	time.Sleep(1 * time.Second)
 
 	daemonWaitCtx, cancelWait := context.WithTimeout(context.Background(), time.Minute)

@@ -13,6 +13,32 @@ import (
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 )
 
+func TestLogger(t *testing.T) {
+	err := errors.New("dusan error")
+	err2 := errors.New("another dusan error")
+
+	logger := suplog.WithError(err).WithError(errors.New("wqerwerw d"))
+
+	suplog.Infoln("random info line")
+	suplog.WithFields(suplog.Fields{"field1": 42}).Infoln("info line with field")
+
+	logger.Errorln("descriptive error line")
+	logger.WithError(err2).Errorln("descriptive error line 2")
+
+	logger = suplog.WithField("dusan", "dusan value")
+	logger.Errorln("this is an error line")
+	logger.Infoln("this is an info line")
+	logger.Info("this is an info log")
+	num := 10
+	logger.Debugln("this", "is", "a", "debug", "log", "with num=", num)
+	num2 := 11
+	logger.WithFields(suplog.Fields{"field1": num, "field2": num2}).Warningln("warning with fields")
+
+	//suplog.WithError(err).Fatalln("failed to initialize Injective keyring")
+
+	suplog.WithFields(suplog.Fields{"chain_id": "888"}).Infoln("Connected to Injective chain")
+}
+
 func TestRequestBatches(t *testing.T) {
 	t.Parallel()
 

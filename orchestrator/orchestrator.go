@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"math/big"
 	"time"
 
@@ -57,12 +58,14 @@ type EthereumNetwork interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	GetPeggyID(ctx context.Context) (eth.Hash, error)
 
+	// events
 	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
 	GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
 	GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
 	GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
 
+	// valsets
 	GetValsetNonce(ctx context.Context) (*big.Int, error)
 	SendEthValsetUpdate(
 		ctx context.Context,
@@ -71,6 +74,7 @@ type EthereumNetwork interface {
 		confirms []*peggytypes.MsgValsetConfirm,
 	) (*eth.Hash, error)
 
+	// batches
 	GetTxBatchNonce(
 		ctx context.Context,
 		erc20ContractAddress eth.Address,
@@ -132,7 +136,7 @@ func NewPeggyOrchestrator(
 	if valsetRelayingEnabled {
 		dur, err := time.ParseDuration(valsetRelayingOffset)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "valset relaying enabled but offset duration is not properly set")
 		}
 
 		orch.relayValsetOffsetDur = dur
@@ -141,7 +145,7 @@ func NewPeggyOrchestrator(
 	if batchRelayingEnabled {
 		dur, err := time.ParseDuration(batchRelayingOffset)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "batch relaying enabled but offset duration is not properly set")
 		}
 
 		orch.relayBatchOffsetDur = dur
@@ -150,21 +154,21 @@ func NewPeggyOrchestrator(
 	return orch, nil
 }
 
-// Run combines the all major roles required to make
+// Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
 func (s *PeggyOrchestrator) Run(ctx context.Context, validatorMode bool) error {
 	if !validatorMode {
-		log.Infoln("Starting peggo in relayer (non-validator) mode")
 		return s.startRelayerMode(ctx)
 	}
 
-	log.Infoln("Starting peggo in validator mode")
 	return s.startValidatorMode(ctx)
 }
 
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
+	log.Infoln("Starting peggo in validator mode")
+
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {
@@ -187,6 +191,8 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
 func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
+	log.Infoln("Starting peggo in relayer mode")
+
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error {
