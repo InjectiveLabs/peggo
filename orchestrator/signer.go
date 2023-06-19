@@ -42,14 +42,14 @@ func (s *PeggyOrchestrator) getPeggyID(ctx context.Context, logger log.Logger) (
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get PeggyID from Ethereum contract, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get peggy ID from Ethereum contract, will retry (%d)", n)
 		}),
 	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return [32]byte{}, err
 	}
 
-	logger.Debugf("received peggyID %s", peggyID.Hex())
+	logger.WithField("id", peggyID.Hex()).Debugln("got peggy ID from Ethereum contract")
 
 	return peggyID, nil
 }
@@ -72,7 +72,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 		oldestValsets, err := s.injective.OldestUnsignedValsets(ctx)
 		if err != nil {
 			if err == cosmos.ErrNotFound || oldestValsets == nil {
-				logger.Debugln("no Valset waiting to be signed")
+				logger.Debugln("no new valset waiting to be signed")
 				return nil
 			}
 
@@ -87,7 +87,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get unsigned Valset for signing, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get unsigned valset, will retry (%d)", n)
 		}),
 	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
@@ -95,14 +95,14 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 	}
 
 	for _, vs := range oldestUnsignedValsets {
-		logger.Infoln("Sending Valset confirm for %d", vs.Nonce)
+		logger.Infoln("sending confirm for valset %d", vs.Nonce)
 		if err := retry.Do(func() error {
 			return s.injective.SendValsetConfirm(ctx, peggyID, vs, s.ethereum.FromAddress())
 		},
 			retry.Context(ctx),
 			retry.Attempts(s.maxAttempts),
 			retry.OnRetry(func(n uint, err error) {
-				logger.WithError(err).Warningf("failed to sign and send Valset confirmation to Cosmos, will retry (%d)", n)
+				logger.WithError(err).Warningf("failed to sign and send valset confirmation to Injective, will retry (%d)", n)
 			}),
 		); err != nil {
 			logger.WithError(err).Errorln("got error, loop exits")
@@ -115,22 +115,25 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 
 func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger log.Logger, peggyID common.Hash) error {
 	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-	if err := retry.Do(func() error {
+	retryFn := func() error {
 		// sign the last unsigned batch, TODO check if we already have signed this
 		txBatch, err := s.injective.OldestUnsignedTransactionBatch(ctx)
 		if err != nil {
 			if err == cosmos.ErrNotFound || txBatch == nil {
-				logger.Debugln("no TransactionBatch waiting to be signed")
+				logger.Debugln("no new transaction batch waiting to be signed")
 				return nil
 			}
 			return err
 		}
 		oldestUnsignedTransactionBatch = txBatch
 		return nil
-	}, retry.Context(ctx),
+	}
+
+	if err := retry.Do(retryFn,
+		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get unsigned TransactionBatch for signing, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get unsigned transaction batch, will retry (%d)", n)
 		})); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return err
@@ -140,13 +143,13 @@ func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger l
 		return nil
 	}
 
-	logger.Infoln("Sending TransactionBatch confirm for BatchNonce %d", oldestUnsignedTransactionBatch.BatchNonce)
+	logger.Infoln("sending confirm for batch %d", oldestUnsignedTransactionBatch.BatchNonce)
 	if err := retry.Do(func() error {
 		return s.injective.SendBatchConfirm(ctx, peggyID, oldestUnsignedTransactionBatch, s.ethereum.FromAddress())
 	}, retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to sign and send TransactionBatch confirmation to Cosmos, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to sign and send batch confirmation to Injective, will retry (%d)", n)
 		})); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return err
