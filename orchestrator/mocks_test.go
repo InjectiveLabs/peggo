@@ -3,9 +3,9 @@ package orchestrator
 import (
 	"context"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"math/big"
 
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"

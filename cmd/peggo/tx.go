@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )

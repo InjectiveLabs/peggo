@@ -2,18 +2,21 @@ package orchestrator
 
 import (
 	"context"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"math/big"
+	"testing"
+	"time"
+
+	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
+	tmtypes "github.com/cometbft/cometbft/types"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
-	types2 "github.com/tendermint/tendermint/types"
-	"math/big"
-	"testing"
-	time "time"
+	"github.com/xlab/suplog"
+
+	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func TestValsetRelaying(t *testing.T) {
@@ -30,7 +33,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to fetch confirms for a valset", func(t *testing.T) {
@@ -47,7 +50,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("no confirms for valset", func(t *testing.T) {
@@ -64,7 +67,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayValsets(context.TODO()))
+		assert.NoError(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -93,7 +96,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -122,7 +125,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get valset nonce from peggy contract", func(t *testing.T) {
@@ -154,7 +157,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get specific valset from injective", func(t *testing.T) {
@@ -189,7 +192,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get valset update events from ethereum", func(t *testing.T) {
@@ -227,7 +230,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("ethereum valset is not higher than injective valset", func(t *testing.T) {
@@ -281,7 +284,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayValsets(context.TODO()))
+		assert.NoError(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("injective valset is higher than ethereum but failed to get block from injective", func(t *testing.T) {
@@ -338,7 +341,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("injective valset is higher than ethereum but valsetOffsetDur has not expired", func(t *testing.T) {
@@ -375,8 +378,8 @@ func TestValsetRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: time.Now().Add(time.Hour),
 							},
 						},
@@ -402,7 +405,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayValsets(context.TODO()))
+		assert.NoError(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("injective valset is higher than ethereum but failed to send update tx to ethereum", func(t *testing.T) {
@@ -440,8 +443,8 @@ func TestValsetRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: oldTime,
 							},
 						},
@@ -470,7 +473,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayValsets(context.TODO()))
+		assert.Error(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("new valset update is sent to ethereum", func(t *testing.T) {
@@ -508,8 +511,8 @@ func TestValsetRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: oldTime,
 							},
 						},
@@ -538,7 +541,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayValsets(context.TODO()))
+		assert.NoError(t, orch.relayValsets(context.TODO(), suplog.DefaultLogger))
 	})
 }
 
@@ -556,7 +559,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get latest batches from injective", func(t *testing.T) {
@@ -573,7 +576,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("no batch confirms", func(t *testing.T) {
@@ -590,7 +593,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayBatches(context.TODO()))
+		assert.NoError(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get batch nonce from ethereum", func(t *testing.T) {
@@ -612,7 +615,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -637,7 +640,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get valset nonce from ethereum", func(t *testing.T) {
@@ -666,7 +669,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get specific valset from injective", func(t *testing.T) {
@@ -698,7 +701,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("failed to get valset updated events from ethereum", func(t *testing.T) {
@@ -733,7 +736,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("ethereum batch is not lower than injective batch", func(t *testing.T) {
@@ -779,7 +782,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayBatches(context.TODO()))
+		assert.NoError(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but failed to get block from injhective", func(t *testing.T) {
@@ -828,7 +831,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but relayBatchOffsetDur has not expired", func(t *testing.T) {
@@ -853,8 +856,8 @@ func TestBatchRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: time.Now().Add(time.Hour),
 							},
 						},
@@ -884,7 +887,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayBatches(context.TODO()))
+		assert.NoError(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but failed to send batch update", func(t *testing.T) {
@@ -909,8 +912,8 @@ func TestBatchRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
 							},
 						},
@@ -943,7 +946,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.relayBatches(context.TODO()))
+		assert.Error(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 
 	t.Run("sending a batch update to ethereum", func(t *testing.T) {
@@ -968,8 +971,8 @@ func TestBatchRelaying(t *testing.T) {
 				},
 				getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
 					return &tmctypes.ResultBlock{
-						Block: &types2.Block{
-							Header: types2.Header{
+						Block: &tmtypes.Block{
+							Header: tmtypes.Header{
 								Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
 							},
 						},
@@ -1002,6 +1005,6 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		assert.NoError(t, orch.relayBatches(context.TODO()))
+		assert.NoError(t, orch.relayBatches(context.TODO(), suplog.DefaultLogger))
 	})
 }
