@@ -43,6 +43,10 @@ func TestLogger(t *testing.T) {
 		"injective_grpc": "*cfg.cosmosGRPC",
 		"tendermint_rpc": "cfg.tendermintRPC",
 	}).Infoln("connected to Injective network")
+
+	logger = suplog.WithField("loop", "EthOracleMainLoop")
+
+	logger.WithField("lastConfirmedEthHeight", 1212).Infoln("Start scanning for events")
 }
 
 func TestRequestBatches(t *testing.T) {

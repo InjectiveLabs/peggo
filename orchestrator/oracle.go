@@ -37,7 +37,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		if height == 0 {
 			peggyParams, err := s.injective.PeggyParams(ctx)
 			if err != nil {
-				log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
+				logger.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 			}
 			height = peggyParams.BridgeContractStartHeight
 		}
@@ -49,15 +49,16 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get last confirmed eth height, will retry (%d)", n)
 		}),
 	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return err
 	}
 
-	logger.WithField("lastConfirmedEthHeight", lastConfirmedEthHeight).Infoln("Start scanning for events")
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		logger.WithField("last_confirmed_eth_height", lastConfirmedEthHeight).Infoln("scanning for events")
+
 		// Relays events from Ethereum -> Cosmos
 		var currentHeight uint64
 		if err := retry.Do(func() (err error) {
@@ -76,13 +77,14 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 
 		lastConfirmedEthHeight = currentHeight
 
-		/*
+		/**
 			Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
 				1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
 				   we need to re-scan this block to ensure events are not missed due to indexing delay.
 				2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
 				3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
 		**/
+
 		if time.Since(lastResync) >= 48*time.Hour {
 			if err := retry.Do(func() (err error) {
 				lastConfirmedEthHeight, err = s.getLastConfirmedEthHeight(ctx)
@@ -91,7 +93,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 				retry.Context(ctx),
 				retry.Attempts(s.maxAttempts),
 				retry.OnRetry(func(n uint, err error) {
-					logger.WithError(err).Warningf("failed to get last checked block, will retry (%d)", n)
+					logger.WithError(err).Warningf("failed to get last confirmed eth height, will retry (%d)", n)
 				}),
 			); err != nil {
 				logger.WithError(err).Errorln("got error, loop exits")
@@ -99,7 +101,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 			}
 
 			lastResync = time.Now()
-			logger.WithFields(log.Fields{"lastResync": lastResync, "lastConfirmedEthHeight": lastConfirmedEthHeight}).Infoln("Auto resync")
+			logger.WithFields(log.Fields{"last_resync": lastResync, "last_confirmed_eth_height": lastConfirmedEthHeight}).Infoln("auto resync")
 		}
 
 		return nil
@@ -134,8 +136,7 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	latestHeader, err := s.ethereum.HeaderByNumber(ctx, nil)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "failed to get latest header")
-		return 0, err
+		return 0, errors.Wrap(err, "failed to get latest ethereum header")
 	}
 
 	// add delay to ensure minimum confirmations are received and block is finalised
@@ -150,58 +151,33 @@ func (s *PeggyOrchestrator) relayEthEvents(
 
 	legacyDeposits, err := s.ethereum.GetSendToCosmosEvents(startingBlock, currentBlock)
 	if err != nil {
-		log.WithFields(log.Fields{"start": startingBlock, "end": currentBlock}).Errorln("failed to scan past SendToCosmos events from Ethereum")
-		return 0, err
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to get SendToCosmos events")
 	}
-
-	log.WithFields(log.Fields{
-		"start":       startingBlock,
-		"end":         currentBlock,
-		"OldDeposits": legacyDeposits,
-	}).Debugln("Scanned SendToCosmos events from Ethereum")
 
 	deposits, err := s.ethereum.GetSendToInjectiveEvents(startingBlock, currentBlock)
 	if err != nil {
-		return 0, err
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to get SendToInjective events")
 	}
-
-	log.WithFields(log.Fields{
-		"start":    startingBlock,
-		"end":      currentBlock,
-		"Deposits": deposits,
-	}).Debugln("Scanned SendToInjective events from Ethereum")
 
 	withdrawals, err := s.ethereum.GetTransactionBatchExecutedEvents(startingBlock, currentBlock)
 	if err != nil {
-		return 0, err
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to get TransactionBatchExecuted events")
 	}
-
-	log.WithFields(log.Fields{
-		"start":     startingBlock,
-		"end":       currentBlock,
-		"Withdraws": withdrawals,
-	}).Debugln("Scanned TransactionBatchExecuted events from Ethereum")
 
 	erc20Deployments, err := s.ethereum.GetPeggyERC20DeployedEvents(startingBlock, currentBlock)
 	if err != nil {
-		return 0, err
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to get ERC20Deployed events")
 	}
-
-	log.WithFields(log.Fields{
-		"start":         startingBlock,
-		"end":           currentBlock,
-		"erc20Deployed": erc20Deployments,
-	}).Debugln("Scanned FilterERC20Deployed events from Ethereum")
 
 	valsetUpdates, err := s.ethereum.GetValsetUpdatedEvents(startingBlock, currentBlock)
 	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to get ValsetUpdated events")
 	}
-
-	log.WithFields(log.Fields{
-		"start":         startingBlock,
-		"end":           currentBlock,
-		"valsetUpdates": valsetUpdates,
-	}).Debugln("Scanned ValsetUpdatedEvents events from Ethereum")
 
 	// note that starting block overlaps with our last checked block, because we have to deal with
 	// the possibility that the relayer was killed after relaying only one of multiple events in a single
@@ -211,22 +187,61 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.New("failed to query last claim event from backend")
-		return 0, err
+		return 0, errors.New("failed to query last claim event from injective")
 	}
 
 	legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
+
+	log.WithFields(log.Fields{
+		"start":        startingBlock,
+		"end":          currentBlock,
+		"old_deposits": legacyDeposits,
+	}).Debugln("scanned SendToCosmos events from Ethereum")
+
 	deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
+
+	log.WithFields(log.Fields{
+		"start":    startingBlock,
+		"end":      currentBlock,
+		"deposits": deposits,
+	}).Debugln("scanned SendToInjective events from Ethereum")
+
 	withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
+
+	log.WithFields(log.Fields{
+		"start":       startingBlock,
+		"end":         currentBlock,
+		"withdrawals": withdrawals,
+	}).Debugln("scanned TransactionBatchExecuted events from Ethereum")
+
 	erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
+
+	log.WithFields(log.Fields{
+		"start":             startingBlock,
+		"end":               currentBlock,
+		"erc20_deployments": erc20Deployments,
+	}).Debugln("scanned FilterERC20Deployed events from Ethereum")
+
 	valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
+
+	log.WithFields(log.Fields{
+		"start":          startingBlock,
+		"end":            currentBlock,
+		"valset_updates": valsetUpdates,
+	}).Debugln("scanned ValsetUpdated events from Ethereum")
 
 	if len(legacyDeposits) > 0 || len(deposits) > 0 || len(withdrawals) > 0 || len(erc20Deployments) > 0 || len(valsetUpdates) > 0 {
 		// todo get eth chain id from the chain
-		if err := s.injective.SendEthereumClaims(ctx, lastClaimEvent.EthereumEventNonce, legacyDeposits, deposits, withdrawals, erc20Deployments, valsetUpdates); err != nil {
+		if err := s.injective.SendEthereumClaims(ctx,
+			lastClaimEvent.EthereumEventNonce,
+			legacyDeposits,
+			deposits,
+			withdrawals,
+			erc20Deployments,
+			valsetUpdates,
+		); err != nil {
 			metrics.ReportFuncError(s.svcTags)
-			err = errors.Wrap(err, "failed to send ethereum claims to Cosmos chain")
-			return 0, err
+			return 0, errors.Wrap(err, "failed to send ethereum claims to Injective")
 		}
 	}
 
