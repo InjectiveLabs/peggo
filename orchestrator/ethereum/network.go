@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	log "github.com/xlab/suplog"
 	"math/big"
 	"strings"
 	"time"
@@ -58,8 +59,16 @@ func NewNetwork(
 		return nil, err
 	}
 
+	log.WithFields(log.Fields{
+		"rpc":            ethNodeRPC,
+		"peggy_contract": peggyContractAddr,
+	}).Infoln("connected to Ethereum network")
+
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
 	if ethNodeAlchemyWS != "" {
+		log.WithFields(log.Fields{
+			"url": ethNodeAlchemyWS,
+		}).Infoln("subscribing to Alchemy websocket")
 		go peggyContract.SubscribeToPendingTxs(ethNodeAlchemyWS)
 	}
 

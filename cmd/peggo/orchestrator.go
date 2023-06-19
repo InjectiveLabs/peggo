@@ -62,8 +62,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.Infoln("Using Injective validator address", valAddress.String())
-		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
+		log.Infoln("using Injective validator address", valAddress.String())
+		log.Infoln("using Ethereum address", ethKeyFromAddress.String())
 
 		// Connect to Injective network
 		injNetwork, err := cosmos.NewNetwork(
@@ -78,13 +78,10 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		log.Infoln("Connected to Injective network")
-
 		// See if the provided ETH address belongs to a validator and determine in which mode peggo should run
 		isValidator, err := isValidatorAddress(injNetwork.PeggyQueryClient, ethKeyFromAddress)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to query current validator set on Injective")
-			return
 		}
 
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -96,16 +93,16 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 		}
 
-		peggyAddress := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
-		injAddress := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
+		peggyContractAddr := ethcmn.HexToAddress(peggyParams.BridgeEthereumAddress)
+		injTokenAddr := ethcmn.HexToAddress(peggyParams.CosmosCoinErc20Contract)
 
 		erc20ContractMapping := make(map[ethcmn.Address]string)
-		erc20ContractMapping[injAddress] = ctypes.InjectiveCoin
+		erc20ContractMapping[injTokenAddr] = ctypes.InjectiveCoin
 
 		// Connect to ethereum network
 		ethNetwork, err := ethereum.NewNetwork(
 			*cfg.ethNodeRPC,
-			peggyAddress,
+			peggyContractAddr,
 			ethKeyFromAddress,
 			signerFn,
 			*cfg.ethGasPriceAdjustment,
@@ -114,8 +111,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			*cfg.ethNodeAlchemyWS,
 		)
 		orShutdown(err)
-
-		log.Infoln("Connected to Ethereum network")
 
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
 

@@ -37,6 +37,12 @@ func TestLogger(t *testing.T) {
 	//suplog.WithError(err).Fatalln("failed to initialize Injective keyring")
 
 	suplog.WithFields(suplog.Fields{"chain_id": "888"}).Infoln("Connected to Injective chain")
+
+	suplog.WithFields(suplog.Fields{
+		"chain_id":       "*cfg.cosmosChainID",
+		"injective_grpc": "*cfg.cosmosGRPC",
+		"tendermint_rpc": "cfg.tendermintRPC",
+	}).Infoln("connected to Injective network")
 }
 
 func TestRequestBatches(t *testing.T) {

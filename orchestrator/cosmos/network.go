@@ -72,6 +72,12 @@ func NewNetwork(
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
 	}
 
+	log.WithFields(log.Fields{
+		"chain_id":   chainID,
+		"grpc":       injectiveGRPC,
+		"tendermint": tendermintRPC,
+	}).Infoln("connected to Injective network")
+
 	return n, nil
 }
 
