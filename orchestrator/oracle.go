@@ -31,7 +31,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	retryFn := func() error {
 		height, err := s.getLastConfirmedEthHeight(ctx)
 		if err != nil {
-			logger.WithError(err).Warningf("failed to get last claim. Querying peggy params...")
+			logger.WithError(err).Warningf("failed to get last claim from Injective. Querying peggy params...")
 		}
 
 		if height == 0 {
@@ -49,7 +49,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get last confirmed eth height, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get last confirmed Ethereum height from Injective, will retry (%d)", n)
 		}),
 	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
@@ -187,7 +187,7 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		return 0, errors.New("failed to query last claim event from injective")
+		return 0, errors.New("failed to query last claim event from Injective")
 	}
 
 	legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
@@ -241,7 +241,7 @@ func (s *PeggyOrchestrator) relayEthEvents(
 			valsetUpdates,
 		); err != nil {
 			metrics.ReportFuncError(s.svcTags)
-			return 0, errors.Wrap(err, "failed to send ethereum claims to Injective")
+			return 0, errors.Wrap(err, "failed to send event claims to Injective")
 		}
 	}
 

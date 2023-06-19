@@ -112,7 +112,7 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context, logger log.Logger)
 		return errors.Wrap(err, "failed to get latest valset nonce from Ethereum")
 	}
 
-	// Check if other validators already updated the valset on ethereum
+	// Check if other validators already updated the valset
 	if latestCosmosConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
 		return nil
 	}

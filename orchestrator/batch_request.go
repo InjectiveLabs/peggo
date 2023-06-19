@@ -38,17 +38,16 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	unbatchedTokensWithFees, err := s.getBatchFeesByToken(ctx, logger)
 	if err != nil {
 		// non-fatal, just alert
-		// todo dusan: change naming on injective methods
 		logger.WithError(err).Warningln("unable to get unbatched fees from Injective")
 		return nil
 	}
 
 	if len(unbatchedTokensWithFees) == 0 {
-		logger.Debugln("no outgoing withdraw txs or the batch fee threshold is not met")
+		logger.Debugln("no outgoing withdrawals or minimum batch fee is not met")
 		return nil
 	}
 
-	logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("check if token fees meet set threshold amount and send batch request")
+	logger.WithField("unbatched_fees_by_token", unbatchedTokensWithFees).Debugln("check if token fees meet threshold and send batch request")
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 		tokenAddr := eth.HexToAddress(unbatchedToken.Token)
@@ -63,7 +62,7 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 		logger.WithFields(log.Fields{
 			"denom":          denom,
 			"token_contract": tokenAddr,
-		}).Infoln("sending batch request")
+		}).Infoln("sending batch request to Injective")
 
 		_ = s.injective.SendRequestBatch(ctx, denom)
 	}

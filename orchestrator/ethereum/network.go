@@ -67,7 +67,7 @@ func NewNetwork(
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
 	if ethNodeAlchemyWS != "" {
 		log.WithFields(log.Fields{
-			"url": ethNodeAlchemyWS,
+			"ws_url": ethNodeAlchemyWS,
 		}).Infoln("subscribing to Alchemy websocket")
 		go peggyContract.SubscribeToPendingTxs(ethNodeAlchemyWS)
 	}
