@@ -624,7 +624,12 @@ func TestBatchRelaying(t *testing.T) {
 		orch := &PeggyOrchestrator{
 			injective: &mockInjective{
 				latestTransactionBatchesFn: func(_ context.Context) ([]*types.OutgoingTxBatch, error) {
-					return []*types.OutgoingTxBatch{{TokenContract: "tokenContract"}}, nil
+					return []*types.OutgoingTxBatch{
+						{
+							TokenContract: "tokenContract",
+							BatchNonce:    100,
+						},
+					}, nil
 				},
 				transactionBatchSignaturesFn: func(_ context.Context, _ uint64, _ common.Address) ([]*types.MsgConfirmBatch, error) {
 					return []*types.MsgConfirmBatch{{}}, nil // non-nil will do
@@ -632,7 +637,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 			ethereum: mockEthereum{
 				getTxBatchNonceFn: func(_ context.Context, _ common.Address) (*big.Int, error) {
-					return nil, nil
+					return big.NewInt(99), nil
 				},
 				headerByNumberFn: func(_ context.Context, _ *big.Int) (*ctypes.Header, error) {
 					return nil, errors.New("fail")
@@ -649,7 +654,12 @@ func TestBatchRelaying(t *testing.T) {
 		orch := &PeggyOrchestrator{
 			injective: &mockInjective{
 				latestTransactionBatchesFn: func(_ context.Context) ([]*types.OutgoingTxBatch, error) {
-					return []*types.OutgoingTxBatch{{TokenContract: "tokenContract"}}, nil
+					return []*types.OutgoingTxBatch{
+						{
+							TokenContract: "tokenContract",
+							BatchNonce:    100,
+						},
+					}, nil
 				},
 				transactionBatchSignaturesFn: func(_ context.Context, _ uint64, _ common.Address) ([]*types.MsgConfirmBatch, error) {
 					return []*types.MsgConfirmBatch{{}}, nil // non-nil will do
@@ -657,7 +667,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 			ethereum: mockEthereum{
 				getTxBatchNonceFn: func(_ context.Context, _ common.Address) (*big.Int, error) {
-					return nil, nil
+					return big.NewInt(99), nil
 				},
 				headerByNumberFn: func(_ context.Context, _ *big.Int) (*ctypes.Header, error) {
 					return &ctypes.Header{Number: big.NewInt(100)}, nil
@@ -678,7 +688,12 @@ func TestBatchRelaying(t *testing.T) {
 		orch := &PeggyOrchestrator{
 			injective: &mockInjective{
 				latestTransactionBatchesFn: func(_ context.Context) ([]*types.OutgoingTxBatch, error) {
-					return []*types.OutgoingTxBatch{{TokenContract: "tokenContract"}}, nil
+					return []*types.OutgoingTxBatch{
+						{
+							TokenContract: "tokenContract",
+							BatchNonce:    100,
+						},
+					}, nil
 				},
 				transactionBatchSignaturesFn: func(_ context.Context, _ uint64, _ common.Address) ([]*types.MsgConfirmBatch, error) {
 					return []*types.MsgConfirmBatch{{}}, nil // non-nil will do
@@ -689,7 +704,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 			ethereum: mockEthereum{
 				getTxBatchNonceFn: func(_ context.Context, _ common.Address) (*big.Int, error) {
-					return nil, nil
+					return big.NewInt(99), nil
 				},
 				headerByNumberFn: func(_ context.Context, _ *big.Int) (*ctypes.Header, error) {
 					return &ctypes.Header{Number: big.NewInt(100)}, nil
@@ -710,7 +725,12 @@ func TestBatchRelaying(t *testing.T) {
 		orch := &PeggyOrchestrator{
 			injective: &mockInjective{
 				latestTransactionBatchesFn: func(_ context.Context) ([]*types.OutgoingTxBatch, error) {
-					return []*types.OutgoingTxBatch{{TokenContract: "tokenContract"}}, nil
+					return []*types.OutgoingTxBatch{
+						{
+							TokenContract: "tokenContract",
+							BatchNonce:    100,
+						},
+					}, nil
 				},
 				transactionBatchSignaturesFn: func(_ context.Context, _ uint64, _ common.Address) ([]*types.MsgConfirmBatch, error) {
 					return []*types.MsgConfirmBatch{{}}, nil // non-nil will do
@@ -721,7 +741,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 			ethereum: mockEthereum{
 				getTxBatchNonceFn: func(_ context.Context, _ common.Address) (*big.Int, error) {
-					return nil, nil
+					return big.NewInt(99), nil
 				},
 				headerByNumberFn: func(_ context.Context, _ *big.Int) (*ctypes.Header, error) {
 					return &ctypes.Header{Number: big.NewInt(100)}, nil
