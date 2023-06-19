@@ -25,6 +25,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 		mustRequestBatch := false
 		if isInjectiveRelayer && time.Since(startTime) > time.Hour*8 {
 			mustRequestBatch = true
+			startTime = time.Now()
 		}
 
 		var pg loops.ParanoidGroup
@@ -37,16 +38,17 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	unbatchedTokensWithFees, err := s.getBatchFeesByToken(ctx, logger)
 	if err != nil {
 		// non-fatal, just alert
-		logger.Warningln("unable to get UnbatchedTokensWithFees for the token")
+		// todo dusan: change naming on injective methods
+		logger.WithError(err).Warningln("unable to get unbatched fees from Injective")
 		return nil
 	}
 
 	if len(unbatchedTokensWithFees) == 0 {
-		logger.Debugln("No outgoing withdraw tx or Unbatched token fee less than threshold")
+		logger.Debugln("no outgoing withdraw txs or the batch fee threshold is not met")
 		return nil
 	}
 
-	logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("Check if token fees meets set threshold amount and send batch request")
+	logger.WithField("unbatchedTokensWithFees", unbatchedTokensWithFees).Debugln("check if token fees meet set threshold amount and send batch request")
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 		tokenAddr := eth.HexToAddress(unbatchedToken.Token)
@@ -58,7 +60,11 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 		}
 
 		denom := s.getTokenDenom(tokenAddr)
-		logger.WithFields(log.Fields{"tokenContract": tokenAddr, "denom": denom}).Infoln("sending batch request")
+		logger.WithFields(log.Fields{
+			"denom":          denom,
+			"token_contract": tokenAddr,
+		}).Infoln("sending batch request")
+
 		_ = s.injective.SendRequestBatch(ctx, denom)
 	}
 
@@ -81,7 +87,7 @@ func (s *PeggyOrchestrator) getBatchFeesByToken(ctx context.Context, log log.Log
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			log.WithError(err).Errorf("failed to get UnbatchedTokensWithFees, will retry (%d)", n)
+			log.WithError(err).Errorf("failed to get unbatched fees, will retry (%d)", n)
 		}),
 	); err != nil {
 		return nil, err
