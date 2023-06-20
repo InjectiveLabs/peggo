@@ -2,18 +2,20 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
-	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"sort"
+	"time"
+
 	"github.com/avast/retry-go"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
-	"sort"
-	"time"
+
+	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {

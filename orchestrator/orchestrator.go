@@ -2,13 +2,13 @@ package orchestrator
 
 import (
 	"context"
-	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/pkg/errors"
 	"math/big"
 	"time"
 
+	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"

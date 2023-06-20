@@ -190,6 +190,8 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		return 0, errors.New("failed to query last claim event from Injective")
 	}
 
+	log.Infof("sending event claims. Last event nonce is %d", lastClaimEvent.EthereumEventNonce)
+
 	legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
 
 	log.WithFields(log.Fields{
@@ -244,6 +246,14 @@ func (s *PeggyOrchestrator) relayEthEvents(
 			return 0, errors.Wrap(err, "failed to send event claims to Injective")
 		}
 	}
+
+	log.WithFields(log.Fields{
+		"legacy_deposits":  len(legacyDeposits),
+		"deposits":         len(deposits),
+		"withdrawals":      len(withdrawals),
+		"erc20Deployments": len(erc20Deployments),
+		"valsetUpdates":    len(valsetUpdates),
+	}).Infoln("sent event claims to Injective")
 
 	return currentBlock, nil
 }

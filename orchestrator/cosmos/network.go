@@ -2,12 +2,8 @@ package cosmos
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-	"github.com/InjectiveLabs/sdk-go/client/common"
+	"time"
+
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -17,9 +13,14 @@ import (
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	"time"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
+	"github.com/InjectiveLabs/sdk-go/client/common"
 )
 
 type Network struct {

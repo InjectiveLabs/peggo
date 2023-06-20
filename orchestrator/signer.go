@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
-	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator

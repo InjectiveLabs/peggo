@@ -2,21 +2,22 @@ package ethereum
 
 import (
 	"context"
-	log "github.com/xlab/suplog"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/pkg/errors"
+	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/pkg/errors"
 )
 
 type Network struct {
@@ -93,10 +94,9 @@ func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrapper
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
 
-	endblock := endBlock
 	iter, err := peggyFilterer.FilterSendToCosmosEvent(&bind.FilterOpts{
 		Start: startBlock,
-		End:   &endblock,
+		End:   &endBlock,
 	}, nil, nil, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
@@ -106,12 +106,12 @@ func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrapper
 		}
 	}
 
+	defer iter.Close()
+
 	var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
 	for iter.Next() {
 		sendToCosmosEvents = append(sendToCosmosEvents, iter.Event)
 	}
-
-	iter.Close()
 
 	return sendToCosmosEvents, nil
 }
@@ -122,10 +122,9 @@ func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrap
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
 
-	endblock := endBlock
 	iter, err := peggyFilterer.FilterSendToInjectiveEvent(&bind.FilterOpts{
 		Start: startBlock,
-		End:   &endblock,
+		End:   &endBlock,
 	}, nil, nil, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
@@ -135,12 +134,12 @@ func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrap
 		}
 	}
 
+	defer iter.Close()
+
 	var sendToInjectiveEvents []*wrappers.PeggySendToInjectiveEvent
 	for iter.Next() {
 		sendToInjectiveEvents = append(sendToInjectiveEvents, iter.Event)
 	}
-
-	iter.Close()
 
 	return sendToInjectiveEvents, nil
 }
@@ -163,12 +162,12 @@ func (n *Network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*w
 		}
 	}
 
+	defer iter.Close()
+
 	var transactionBatchExecutedEvents []*wrappers.PeggyERC20DeployedEvent
 	for iter.Next() {
 		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
 	}
-
-	iter.Close()
 
 	return transactionBatchExecutedEvents, nil
 }
@@ -191,12 +190,12 @@ func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappe
 		}
 	}
 
+	defer iter.Close()
+
 	var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
 	for iter.Next() {
 		valsetUpdatedEvents = append(valsetUpdatedEvents, iter.Event)
 	}
-
-	iter.Close()
 
 	return valsetUpdatedEvents, nil
 }
@@ -219,12 +218,12 @@ func (n *Network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64)
 		}
 	}
 
+	defer iter.Close()
+
 	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
 	for iter.Next() {
 		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
 	}
-
-	iter.Close()
 
 	return transactionBatchExecutedEvents, nil
 }
