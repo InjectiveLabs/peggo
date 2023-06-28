@@ -516,6 +516,37 @@ func initConfig(cmd *cli.Cmd) Config {
 		Value:  "500gwei",
 	})
 
+	cfg.ethKeystoreDir = cmd.String(cli.StringOpt{
+		Name:   "eth-keystore-dir",
+		Desc:   "Specify Ethereum keystore dir (Geth-format) prefix.",
+		EnvVar: "PEGGO_ETH_KEYSTORE_DIR",
+	})
+
+	cfg.ethKeyFrom = cmd.String(cli.StringOpt{
+		Name:   "eth-from",
+		Desc:   "Specify the from address. If specified, must exist in keystore, ledger or match the privkey.",
+		EnvVar: "PEGGO_ETH_FROM",
+	})
+
+	cfg.ethPassphrase = cmd.String(cli.StringOpt{
+		Name:   "eth-passphrase",
+		Desc:   "Passphrase to unlock the private key from armor, if empty then stdin is used.",
+		EnvVar: "PEGGO_ETH_PASSPHRASE",
+	})
+
+	cfg.ethPrivKey = cmd.String(cli.StringOpt{
+		Name:   "eth-pk",
+		Desc:   "Provide a raw Ethereum private key of the validator in hex. USE FOR TESTING ONLY!",
+		EnvVar: "PEGGO_ETH_PK",
+	})
+
+	cfg.ethUseLedger = cmd.Bool(cli.BoolOpt{
+		Name:   "eth-use-ledger",
+		Desc:   "Use the Ethereum app on hardware ledger to sign transactions.",
+		EnvVar: "PEGGO_ETH_USE_LEDGER",
+		Value:  false,
+	})
+
 	/** Relayer **/
 
 	cfg.relayValsets = cmd.Bool(cli.BoolOpt{
