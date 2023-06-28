@@ -25,7 +25,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		var pg loops.ParanoidGroup
 		if s.valsetRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return s.relayValsets(ctx, logger) },
+				return retry.Do(func() error { return s.relayValsets(ctx, log.WithField("loop", "ValsetRelaying")) },
 					retry.Context(ctx),
 					retry.Attempts(s.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -37,7 +37,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 
 		if s.batchRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return s.relayBatches(ctx, logger) },
+				return retry.Do(func() error { return s.relayBatches(ctx, log.WithField("loop", "BatchRelaying")) },
 					retry.Context(ctx),
 					retry.Attempts(s.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -297,8 +297,8 @@ func (s *PeggyOrchestrator) findLatestValsetOnEthereum(ctx context.Context, logg
 		}
 
 		logger.WithFields(log.Fields{
-			"start_block": startSearchBlock,
-			"end_block":   currentBlock,
+			"block_start": startSearchBlock,
+			"block_end":   currentBlock,
 		}).Debugln("looking back into Ethereum history to find the last valset update")
 
 		valsetUpdatedEvents, err := s.ethereum.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
