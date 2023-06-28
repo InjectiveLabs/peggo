@@ -93,7 +93,7 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context, logger log.Logger)
 		return nil
 	}
 
-	currentEthValset, err := s.findLatestValset(ctx)
+	currentEthValset, err := s.findLatestValsetOnEthereum(ctx, logger)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return errors.Wrap(err, "failed to find latest confirmed valset on Ethereum")
@@ -206,7 +206,7 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 		return nil
 	}
 
-	currentValset, err := s.findLatestValset(ctx)
+	currentValset, err := s.findLatestValsetOnEthereum(ctx, logger)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return errors.New("failed to find latest valset")
@@ -263,7 +263,7 @@ const valsetBlocksToSearch = 2000
 // as the latest update will be in recent blockchain history and the search moves from the present
 // backwards in time. In the case that the validator set has not been updated for a very long time
 // this will take longer.
-func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset, error) {
+func (s *PeggyOrchestrator) findLatestValsetOnEthereum(ctx context.Context, logger log.Logger) (*types.Valset, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
@@ -296,7 +296,7 @@ func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset
 			startSearchBlock = currentBlock - valsetBlocksToSearch
 		}
 
-		log.WithFields(log.Fields{
+		logger.WithFields(log.Fields{
 			"start_block": startSearchBlock,
 			"end_block":   currentBlock,
 		}).Debugln("looking back into Ethereum history to find the last valset update")
@@ -318,7 +318,7 @@ func (s *PeggyOrchestrator) findLatestValset(ctx context.Context) (*types.Valset
 			continue
 		}
 
-		log.Debugln("found events", valsetUpdatedEvents)
+		logger.Debugln("found events", valsetUpdatedEvents)
 
 		// we take only the first event if we find any at all.
 		event := valsetUpdatedEvents[0]
