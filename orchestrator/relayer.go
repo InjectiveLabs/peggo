@@ -209,10 +209,10 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 	currentValset, err := s.findLatestValsetOnEthereum(ctx, logger)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		return errors.New("failed to find latest valset")
+		return errors.Wrap(err, "failed to find latest valset")
 	} else if currentValset == nil {
 		metrics.ReportFuncError(s.svcTags)
-		return errors.New("latest valset not found")
+		return errors.Wrap(err, "latest valset not found")
 	}
 
 	latestEthereumBatch, err = s.ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestSignedBatch.TokenContract))
