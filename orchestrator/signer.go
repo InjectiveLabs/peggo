@@ -16,7 +16,7 @@ import (
 // since these are provided directly by a trusted Injective node they can simply be assumed to be
 // valid and signed off on.
 func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
-	logger := log.WithField("loop", "EthSignerMainLoop")
+	logger := log.WithField("loop", "EthSigner")
 
 	peggyID, err := s.getPeggyID(ctx, logger)
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 	}
 
 	for _, vs := range oldestUnsignedValsets {
-		logger.Infoln("sending confirm for valset %d", vs.Nonce)
+		logger.Infoln("sending MsgValsetConfirm for valset", vs.Nonce)
 		if err := retry.Do(func() error {
 			return s.injective.SendValsetConfirm(ctx, peggyID, vs, s.ethereum.FromAddress())
 		},
@@ -145,7 +145,8 @@ func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger l
 		return nil
 	}
 
-	logger.Infoln("sending confirm for batch %d", oldestUnsignedTransactionBatch.BatchNonce)
+	logger.Infoln("sending MsgConfirmBatch for batch", oldestUnsignedTransactionBatch.BatchNonce)
+
 	if err := retry.Do(func() error {
 		return s.injective.SendBatchConfirm(ctx, peggyID, oldestUnsignedTransactionBatch, s.ethereum.FromAddress())
 	}, retry.Context(ctx),

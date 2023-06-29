@@ -15,7 +15,7 @@ import (
 )
 
 func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
-	logger := log.WithField("loop", "BatchRequesterLoop")
+	logger := log.WithField("loop", "BatchRequester")
 	startTime := time.Now()
 
 	// we're the only ones relaying
@@ -47,7 +47,7 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 		return nil
 	}
 
-	logger.WithField("unbatched_fees_by_token", unbatchedTokensWithFees).Debugln("check if token fees meet threshold and send batch request")
+	logger.WithField("unbatched_fees_by_token", unbatchedTokensWithFees).Debugln("checking if batch fee is met")
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 		tokenAddr := eth.HexToAddress(unbatchedToken.Token)
@@ -62,7 +62,7 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 		logger.WithFields(log.Fields{
 			"denom":          denom,
 			"token_contract": tokenAddr,
-		}).Infoln("sending batch request to Injective")
+		}).Infoln("sending MsgRequestBatch to Injective")
 
 		_ = s.injective.SendRequestBatch(ctx, denom)
 	}

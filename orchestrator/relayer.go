@@ -19,7 +19,7 @@ import (
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
-	logger := log.WithField("loop", "RelayerMainLoop")
+	logger := log.WithField("loop", "Relayer")
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		var pg loops.ParanoidGroup
@@ -89,7 +89,7 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context, logger log.Logger)
 	}
 
 	if latestCosmosConfirmed == nil {
-		log.Debugln("no confirmed valsets found on Injective, nothing to relay...")
+		logger.Debugln("no confirmed valsets found on Injective, nothing to relay...")
 		return nil
 	}
 

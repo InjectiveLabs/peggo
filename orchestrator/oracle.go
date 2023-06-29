@@ -24,7 +24,7 @@ const (
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
 func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
-	logger := log.WithField("loop", "EthOracleMainLoop")
+	logger := log.WithField("loop", "EthOracle")
 	lastResync := time.Now()
 
 	var lastConfirmedEthHeight uint64
@@ -62,7 +62,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		// Relays events from Ethereum -> Cosmos
 		var currentHeight uint64
 		if err := retry.Do(func() (err error) {
-			currentHeight, err = s.relayEthEvents(ctx, lastConfirmedEthHeight)
+			currentHeight, err = s.relayEthEvents(ctx, lastConfirmedEthHeight, logger)
 			return
 		},
 			retry.Context(ctx),
@@ -125,10 +125,7 @@ func (s *PeggyOrchestrator) getLastConfirmedEthHeight(ctx context.Context) (uint
 
 // relayEthEvents checks for events such as a deposit to the Peggy Ethereum contract or a validator set update
 // or a transaction batch update. It then responds to these events by performing actions on the Cosmos chain if required
-func (s *PeggyOrchestrator) relayEthEvents(
-	ctx context.Context,
-	startingBlock uint64,
-) (uint64, error) {
+func (s *PeggyOrchestrator) relayEthEvents(ctx context.Context, startingBlock uint64, logger log.Logger) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
@@ -140,40 +137,40 @@ func (s *PeggyOrchestrator) relayEthEvents(
 	}
 
 	// add delay to ensure minimum confirmations are received and block is finalised
-	currentBlock := latestHeader.Number.Uint64() - ethBlockConfirmationDelay
-	if currentBlock < startingBlock {
-		return currentBlock, nil
+	latestBlock := latestHeader.Number.Uint64() - ethBlockConfirmationDelay
+	if latestBlock < startingBlock {
+		return latestBlock, nil
 	}
 
-	if currentBlock > startingBlock+defaultBlocksToSearch {
-		currentBlock = startingBlock + defaultBlocksToSearch
+	if latestBlock > startingBlock+defaultBlocksToSearch {
+		latestBlock = startingBlock + defaultBlocksToSearch
 	}
 
-	legacyDeposits, err := s.ethereum.GetSendToCosmosEvents(startingBlock, currentBlock)
+	legacyDeposits, err := s.ethereum.GetSendToCosmosEvents(startingBlock, latestBlock)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return 0, errors.Wrap(err, "failed to get SendToCosmos events")
 	}
 
-	deposits, err := s.ethereum.GetSendToInjectiveEvents(startingBlock, currentBlock)
+	deposits, err := s.ethereum.GetSendToInjectiveEvents(startingBlock, latestBlock)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return 0, errors.Wrap(err, "failed to get SendToInjective events")
 	}
 
-	withdrawals, err := s.ethereum.GetTransactionBatchExecutedEvents(startingBlock, currentBlock)
+	withdrawals, err := s.ethereum.GetTransactionBatchExecutedEvents(startingBlock, latestBlock)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return 0, errors.Wrap(err, "failed to get TransactionBatchExecuted events")
 	}
 
-	erc20Deployments, err := s.ethereum.GetPeggyERC20DeployedEvents(startingBlock, currentBlock)
+	erc20Deployments, err := s.ethereum.GetPeggyERC20DeployedEvents(startingBlock, latestBlock)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return 0, errors.Wrap(err, "failed to get ERC20Deployed events")
 	}
 
-	valsetUpdates, err := s.ethereum.GetValsetUpdatedEvents(startingBlock, currentBlock)
+	valsetUpdates, err := s.ethereum.GetValsetUpdatedEvents(startingBlock, latestBlock)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		return 0, errors.Wrap(err, "failed to get ValsetUpdated events")
@@ -190,49 +187,51 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		return 0, errors.New("failed to query last claim event from Injective")
 	}
 
-	log.Infof("sending event claims. Last event nonce is %d", lastClaimEvent.EthereumEventNonce)
-
 	legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
 
-	log.WithFields(log.Fields{
-		"start":        startingBlock,
-		"end":          currentBlock,
+	logger.WithFields(log.Fields{
+		"block_start":  startingBlock,
+		"block_end":    latestBlock,
 		"old_deposits": legacyDeposits,
 	}).Debugln("scanned SendToCosmos events from Ethereum")
 
 	deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
 
-	log.WithFields(log.Fields{
-		"start":    startingBlock,
-		"end":      currentBlock,
-		"deposits": deposits,
+	logger.WithFields(log.Fields{
+		"block_start": startingBlock,
+		"block_end":   latestBlock,
+		"deposits":    deposits,
 	}).Debugln("scanned SendToInjective events from Ethereum")
 
 	withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
 
-	log.WithFields(log.Fields{
-		"start":       startingBlock,
-		"end":         currentBlock,
+	logger.WithFields(log.Fields{
+		"block_start": startingBlock,
+		"block_end":   latestBlock,
 		"withdrawals": withdrawals,
 	}).Debugln("scanned TransactionBatchExecuted events from Ethereum")
 
 	erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
 
-	log.WithFields(log.Fields{
-		"start":             startingBlock,
-		"end":               currentBlock,
+	logger.WithFields(log.Fields{
+		"block_start":       startingBlock,
+		"block_end":         latestBlock,
 		"erc20_deployments": erc20Deployments,
 	}).Debugln("scanned FilterERC20Deployed events from Ethereum")
 
 	valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
 
-	log.WithFields(log.Fields{
-		"start":          startingBlock,
-		"end":            currentBlock,
+	logger.WithFields(log.Fields{
+		"block_start":    startingBlock,
+		"block_end":      latestBlock,
 		"valset_updates": valsetUpdates,
 	}).Debugln("scanned ValsetUpdated events from Ethereum")
 
-	if len(legacyDeposits) > 0 || len(deposits) > 0 || len(withdrawals) > 0 || len(erc20Deployments) > 0 || len(valsetUpdates) > 0 {
+	if len(legacyDeposits) > 0 ||
+		len(deposits) > 0 ||
+		len(withdrawals) > 0 ||
+		len(erc20Deployments) > 0 ||
+		len(valsetUpdates) > 0 {
 		// todo get eth chain id from the chain
 		if err := s.injective.SendEthereumClaims(ctx,
 			lastClaimEvent.EthereumEventNonce,
@@ -247,15 +246,16 @@ func (s *PeggyOrchestrator) relayEthEvents(
 		}
 	}
 
-	log.WithFields(log.Fields{
-		"legacy_deposits":  len(legacyDeposits),
-		"deposits":         len(deposits),
-		"withdrawals":      len(withdrawals),
-		"erc20Deployments": len(erc20Deployments),
-		"valsetUpdates":    len(valsetUpdates),
-	}).Infoln("sent event claims to Injective")
+	logger.WithFields(log.Fields{
+		"last_confirmed_event_nonce": lastClaimEvent.EthereumEventNonce,
+		"legacy_deposits":            len(legacyDeposits),
+		"deposits":                   len(deposits),
+		"withdrawals":                len(withdrawals),
+		"erc20Deployments":           len(erc20Deployments),
+		"valsetUpdates":              len(valsetUpdates),
+	}).Infoln("sent new claims to Injective")
 
-	return currentBlock, nil
+	return latestBlock, nil
 }
 
 func filterSendToCosmosEventsByNonce(

@@ -27,7 +27,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 0)
+		_, err := orch.relayEthEvents(context.TODO(), 0, nil)
 		assert.Error(t, err)
 	})
 
@@ -42,7 +42,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		currentBlock, err := orch.relayEthEvents(context.TODO(), 100)
+		currentBlock, err := orch.relayEthEvents(context.TODO(), 100, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, currentBlock, 50-ethBlockConfirmationDelay)
 	})
@@ -61,7 +61,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100)
+		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
 		assert.Error(t, err)
 	})
 
@@ -99,7 +99,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100)
+		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
 		assert.Error(t, err)
 	})
 
@@ -149,7 +149,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100)
+		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 0)
 	})
@@ -200,7 +200,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100)
+		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 1)
 	})
