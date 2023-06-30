@@ -137,50 +137,6 @@ func initCosmosKeyOptions(
 	})
 }
 
-func initEthereumOptions(
-	cmd *cli.Cmd,
-	ethChainID **int,
-	ethNodeRPC **string,
-	ethNodeAlchemyWS **string,
-	ethGasPriceAdjustment **float64,
-	ethMaxGasPrice **string,
-) {
-	*ethChainID = cmd.Int(cli.IntOpt{
-		Name:   "eth-chain-id",
-		Desc:   "Specify Chain ID of the Ethereum network.",
-		EnvVar: "PEGGO_ETH_CHAIN_ID",
-		Value:  42,
-	})
-
-	*ethNodeRPC = cmd.String(cli.StringOpt{
-		Name:   "eth-node-http",
-		Desc:   "Specify HTTP endpoint for an Ethereum node.",
-		EnvVar: "PEGGO_ETH_RPC",
-		Value:  "http://localhost:1317",
-	})
-
-	*ethNodeAlchemyWS = cmd.String(cli.StringOpt{
-		Name:   "eth-node-alchemy-ws",
-		Desc:   "Specify websocket url for an Alchemy ethereum node.",
-		EnvVar: "PEGGO_ETH_ALCHEMY_WS",
-		Value:  "",
-	})
-
-	*ethGasPriceAdjustment = cmd.Float64(cli.Float64Opt{
-		Name:   "eth_gas_price_adjustment",
-		Desc:   "gas price adjustment for Ethereum transactions",
-		EnvVar: "PEGGO_ETH_GAS_PRICE_ADJUSTMENT",
-		Value:  float64(1.3),
-	})
-
-	*ethMaxGasPrice = cmd.String(cli.StringOpt{
-		Name:   "eth-max-gas-price",
-		Desc:   "Specify Max gas price for Ethereum Transactions in GWei",
-		EnvVar: "PEGGO_ETH_MAX_GAS_PRICE",
-		Value:  "500gwei",
-	})
-}
-
 func initEthereumKeyOptions(
 	cmd *cli.Cmd,
 	ethKeystoreDir **string,
@@ -271,85 +227,6 @@ func initStatsdOptions(
 		Desc:   "Force disabling statsd reporting completely.",
 		EnvVar: "PEGGO_STATSD_DISABLED",
 		Value:  "true",
-	})
-}
-
-// initRelayerOption sets options for relayer.
-func initRelayerOptions(
-	cmd *cli.Cmd,
-	relayValsets **bool,
-	relayValsetOffsetDur **string,
-	relayBatches **bool,
-	relayBatchOffsetDur **string,
-	pendingTxWaitDuration **string,
-) {
-	*relayValsets = cmd.Bool(cli.BoolOpt{
-		Name:   "relay_valsets",
-		Desc:   "If enabled, relayer will relay valsets to ethereum",
-		EnvVar: "PEGGO_RELAY_VALSETS",
-		Value:  false,
-	})
-
-	*relayValsetOffsetDur = cmd.String(cli.StringOpt{
-		Name:   "relay_valset_offset_dur",
-		Desc:   "If set, relayer will broadcast valsetUpdate only after relayValsetOffsetDur has passed from time of valsetUpdate creation",
-		EnvVar: "PEGGO_RELAY_VALSET_OFFSET_DUR",
-		Value:  "5m",
-	})
-
-	*relayBatches = cmd.Bool(cli.BoolOpt{
-		Name:   "relay_batches",
-		Desc:   "If enabled, relayer will relay batches to ethereum",
-		EnvVar: "PEGGO_RELAY_BATCHES",
-		Value:  false,
-	})
-
-	*relayBatchOffsetDur = cmd.String(cli.StringOpt{
-		Name:   "relay_batch_offset_dur",
-		Desc:   "If set, relayer will broadcast batches only after relayBatchOffsetDur has passed from time of batch creation",
-		EnvVar: "PEGGO_RELAY_BATCH_OFFSET_DUR",
-		Value:  "5m",
-	})
-
-	*pendingTxWaitDuration = cmd.String(cli.StringOpt{
-		Name:   "relay_pending_tx_wait_duration",
-		Desc:   "If set, relayer will broadcast pending batches/valsetupdate only after pendingTxWaitDuration has passed",
-		EnvVar: "PEGGO_RELAY_PENDING_TX_WAIT_DURATION",
-		Value:  "20m",
-	})
-}
-
-// initBatchRequesterOptions sets options for batch requester.
-func initBatchRequesterOptions(
-	cmd *cli.Cmd,
-	minBatchFeeUSD **float64,
-	periodicBatchRequesting **bool,
-) {
-	*minBatchFeeUSD = cmd.Float64(cli.Float64Opt{
-		Name:   "min_batch_fee_usd",
-		Desc:   "If set, batch request will create batches only if fee threshold exceeds",
-		EnvVar: "PEGGO_MIN_BATCH_FEE_USD",
-		Value:  float64(23.3),
-	})
-
-	*periodicBatchRequesting = cmd.Bool(cli.BoolOpt{
-		Name:   "periodic_batch_requesting",
-		Desc:   "If set, batches will be requested every 8 hours regardless of the fee",
-		EnvVar: "PEGGO_PERIODIC_BATCH_REQUESTING",
-		Value:  false,
-	})
-}
-
-// initCoingeckoOptions sets options for coingecko.
-func initCoingeckoOptions(
-	cmd *cli.Cmd,
-	baseUrl **string,
-) {
-	*baseUrl = cmd.String(cli.StringOpt{
-		Name:   "coingecko_api",
-		Desc:   "Specify HTTP endpoint for coingecko api.",
-		EnvVar: "PEGGO_COINGECKO_API",
-		Value:  "https://api.coingecko.com/api/v3",
 	})
 }
 
