@@ -62,8 +62,10 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.Infoln("using Injective validator address", valAddress.String())
-		log.Infoln("using Ethereum address", ethKeyFromAddress.String())
+		log.WithFields(log.Fields{
+			"injective_addr": valAddress.String(),
+			"ethereum_addr":  ethKeyFromAddress.String(),
+		}).Infoln("starting peggo service")
 
 		// Connect to Injective network
 		injNetwork, err := cosmos.NewNetwork(

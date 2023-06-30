@@ -89,7 +89,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			logger.WithError(err).Warningf("failed to get unsigned valset, will retry (%d)", n)
+			logger.WithError(err).Warningf("failed to get unsigned valsets, will retry (%d)", n)
 		}),
 	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
@@ -97,7 +97,6 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 	}
 
 	for _, vs := range oldestUnsignedValsets {
-		logger.Infoln("sending MsgValsetConfirm for valset", vs.Nonce)
 		if err := retry.Do(func() error {
 			return s.injective.SendValsetConfirm(ctx, peggyID, vs, s.ethereum.FromAddress())
 		},
@@ -110,6 +109,8 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 			logger.WithError(err).Errorln("got error, loop exits")
 			return err
 		}
+
+		logger.WithField("valset_nonce", vs.Nonce).Infoln("sent MsgValsetConfirm to Injective")
 	}
 
 	return nil
@@ -145,18 +146,21 @@ func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger l
 		return nil
 	}
 
-	logger.Infoln("sending MsgConfirmBatch for batch", oldestUnsignedTransactionBatch.BatchNonce)
-
-	if err := retry.Do(func() error {
-		return s.injective.SendBatchConfirm(ctx, peggyID, oldestUnsignedTransactionBatch, s.ethereum.FromAddress())
-	}, retry.Context(ctx),
+	if err := retry.Do(
+		func() error {
+			return s.injective.SendBatchConfirm(ctx, peggyID, oldestUnsignedTransactionBatch, s.ethereum.FromAddress())
+		},
+		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
 			logger.WithError(err).Warningf("failed to sign and send batch confirmation to Injective, will retry (%d)", n)
-		})); err != nil {
+		}),
+	); err != nil {
 		logger.WithError(err).Errorln("got error, loop exits")
 		return err
 	}
+
+	logger.WithField("batch_nonce", oldestUnsignedTransactionBatch.BatchNonce).Infoln("sent MsgConfirmBatch to Injective")
 
 	return nil
 }

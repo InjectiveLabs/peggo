@@ -75,7 +75,7 @@ func NewNetwork(
 
 	log.WithFields(log.Fields{
 		"chain_id":   chainID,
-		"grpc":       injectiveGRPC,
+		"injective":  injectiveGRPC,
 		"tendermint": tendermintRPC,
 	}).Infoln("connected to Injective network")
 

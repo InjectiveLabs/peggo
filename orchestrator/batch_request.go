@@ -23,7 +23,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		mustRequestBatch := false
-		if isInjectiveRelayer && time.Since(startTime) > time.Hour*8 {
+		if isInjectiveRelayer && time.Since(startTime) >= time.Hour*8 {
 			mustRequestBatch = true
 			startTime = time.Now()
 		}
@@ -43,7 +43,7 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	}
 
 	if len(unbatchedTokensWithFees) == 0 {
-		logger.Debugln("no outgoing withdrawals or minimum batch fee is not met")
+		logger.WithField("min_fee", s.minBatchFeeUSD).Debugln("no outgoing withdrawals or minimum batch fee is not met")
 		return nil
 	}
 
@@ -51,17 +51,21 @@ func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logge
 	for _, unbatchedToken := range unbatchedTokensWithFees {
 		// check if the token is present in cosmos denom. if so, send batch request with cosmosDenom
 		tokenAddr := eth.HexToAddress(unbatchedToken.Token)
+		denom := s.getTokenDenom(tokenAddr)
 
 		thresholdMet := s.checkFeeThreshold(tokenAddr, unbatchedToken.TotalFees, s.minBatchFeeUSD)
 		if !thresholdMet && !mustRequest {
 			//	non-injective relayers only relay when the threshold is met
+			logger.WithFields(log.Fields{
+				"denom":          denom,
+				"token_contract": tokenAddr.String(),
+			}).Debugln("skipping batch creation")
 			continue
 		}
 
-		denom := s.getTokenDenom(tokenAddr)
 		logger.WithFields(log.Fields{
 			"denom":          denom,
-			"token_contract": tokenAddr,
+			"token_contract": tokenAddr.String(),
 		}).Infoln("sending MsgRequestBatch to Injective")
 
 		_ = s.injective.SendRequestBatch(ctx, denom)

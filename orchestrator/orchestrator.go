@@ -90,21 +90,20 @@ type EthereumNetwork interface {
 const defaultLoopDur = 60 * time.Second
 
 type PeggyOrchestrator struct {
-	svcTags   metrics.Tags
+	svcTags metrics.Tags
+
 	injective InjectiveNetwork
 	ethereum  EthereumNetwork
 	pricefeed PriceFeed
 
 	erc20ContractMapping map[eth.Address]string
+	relayValsetOffsetDur time.Duration
+	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
 	maxAttempts          uint // max number of times a retry func will be called before exiting
 
-	relayValsetOffsetDur,
-	relayBatchOffsetDur time.Duration
-
-	valsetRelayEnabled bool
-	batchRelayEnabled  bool
-
+	valsetRelayEnabled      bool
+	batchRelayEnabled       bool
 	periodicBatchRequesting bool
 }
 
@@ -171,18 +170,10 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error {
-		return s.EthOracleMainLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.BatchRequesterLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.EthSignerMainLoop(ctx)
-	})
-	pg.Go(func() error {
-		return s.RelayerMainLoop(ctx)
-	})
+	pg.Go(func() error { return s.EthOracleMainLoop(ctx) })
+	pg.Go(func() error { return s.BatchRequesterLoop(ctx) })
+	pg.Go(func() error { return s.EthSignerMainLoop(ctx) })
+	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
 
 	return pg.Wait()
 }
@@ -195,13 +186,8 @@ func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error {
-		return s.BatchRequesterLoop(ctx)
-	})
-
-	pg.Go(func() error {
-		return s.RelayerMainLoop(ctx)
-	})
+	pg.Go(func() error { return s.BatchRequesterLoop(ctx) })
+	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
 
 	return pg.Wait()
 }

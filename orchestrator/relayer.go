@@ -25,7 +25,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		var pg loops.ParanoidGroup
 		if s.valsetRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return s.relayValsets(ctx, log.WithField("loop", "ValsetRelaying")) },
+				return retry.Do(func() error { return s.relayValsets(ctx, logger.WithField("Relayer", "Valsets")) },
 					retry.Context(ctx),
 					retry.Attempts(s.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -37,7 +37,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 
 		if s.batchRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return s.relayBatches(ctx, log.WithField("loop", "BatchRelaying")) },
+				return retry.Do(func() error { return s.relayBatches(ctx, logger.WithField("Relayer", "Batch")) },
 					retry.Context(ctx),
 					retry.Attempts(s.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -102,7 +102,7 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context, logger log.Logger)
 	logger.WithFields(log.Fields{
 		"inj_valset": latestCosmosConfirmed,
 		"eth_valset": currentEthValset,
-	}).Debugln("found latest valsets")
+	}).Debugln("latest valsets")
 
 	if latestCosmosConfirmed.Nonce <= currentEthValset.Nonce {
 		return nil
@@ -200,7 +200,7 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 	logger.WithFields(log.Fields{
 		"inj_batch": oldestSignedBatch.BatchNonce,
 		"eth_batch": latestEthereumBatch.Uint64(),
-	}).Debugln("found latest batches")
+	}).Debugln("latest batches")
 
 	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
 		return nil
@@ -271,13 +271,13 @@ func (s *PeggyOrchestrator) findLatestValsetOnEthereum(ctx context.Context, logg
 	latestHeader, err := s.ethereum.HeaderByNumber(ctx, nil)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		return nil, errors.Wrap(err, "failed to get latest header")
+		return nil, errors.Wrap(err, "failed to get latest eth header")
 	}
 
 	latestEthereumValsetNonce, err := s.ethereum.GetValsetNonce(ctx)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		return nil, errors.Wrap(err, "failed to get latest valset nonce")
+		return nil, errors.Wrap(err, "failed to get latest valset nonce on Ethereum")
 	}
 
 	cosmosValset, err := s.injective.ValsetAt(ctx, latestEthereumValsetNonce.Uint64())

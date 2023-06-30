@@ -37,7 +37,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		if height == 0 {
 			peggyParams, err := s.injective.PeggyParams(ctx)
 			if err != nil {
-				logger.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
+				logger.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
 			}
 			height = peggyParams.BridgeContractStartHeight
 		}
@@ -101,7 +101,10 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 			}
 
 			lastResync = time.Now()
-			logger.WithFields(log.Fields{"last_resync": lastResync, "last_confirmed_eth_height": lastConfirmedEthHeight}).Infoln("auto resync")
+			logger.WithFields(log.Fields{
+				"last_resync":               lastResync,
+				"last_confirmed_eth_height": lastConfirmedEthHeight,
+			}).Infoln("auto resync")
 		}
 
 		return nil
@@ -227,32 +230,34 @@ func (s *PeggyOrchestrator) relayEthEvents(ctx context.Context, startingBlock ui
 		"valset_updates": valsetUpdates,
 	}).Debugln("scanned ValsetUpdated events from Ethereum")
 
-	if len(legacyDeposits) > 0 ||
-		len(deposits) > 0 ||
-		len(withdrawals) > 0 ||
-		len(erc20Deployments) > 0 ||
-		len(valsetUpdates) > 0 {
-		// todo get eth chain id from the chain
-		if err := s.injective.SendEthereumClaims(ctx,
-			lastClaimEvent.EthereumEventNonce,
-			legacyDeposits,
-			deposits,
-			withdrawals,
-			erc20Deployments,
-			valsetUpdates,
-		); err != nil {
-			metrics.ReportFuncError(s.svcTags)
-			return 0, errors.Wrap(err, "failed to send event claims to Injective")
-		}
+	if len(legacyDeposits) == 0 &&
+		len(deposits) == 0 &&
+		len(withdrawals) == 0 &&
+		len(erc20Deployments) == 0 &&
+		len(valsetUpdates) == 0 {
+		return latestBlock, nil
+	}
+
+	// todo get eth chain id from the chain
+	if err := s.injective.SendEthereumClaims(ctx,
+		lastClaimEvent.EthereumEventNonce,
+		legacyDeposits,
+		deposits,
+		withdrawals,
+		erc20Deployments,
+		valsetUpdates,
+	); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return 0, errors.Wrap(err, "failed to send event claims to Injective")
 	}
 
 	logger.WithFields(log.Fields{
-		"last_confirmed_event_nonce": lastClaimEvent.EthereumEventNonce,
-		"legacy_deposits":            len(legacyDeposits),
-		"deposits":                   len(deposits),
-		"withdrawals":                len(withdrawals),
-		"erc20Deployments":           len(erc20Deployments),
-		"valsetUpdates":              len(valsetUpdates),
+		"last_claim_event_nonce": lastClaimEvent.EthereumEventNonce,
+		"legacy_deposits":        len(legacyDeposits),
+		"deposits":               len(deposits),
+		"withdrawals":            len(withdrawals),
+		"erc20Deployments":       len(erc20Deployments),
+		"valsetUpdates":          len(valsetUpdates),
 	}).Infoln("sent new claims to Injective")
 
 	return latestBlock, nil
