@@ -3,6 +3,7 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD)
 BUILD_DATE = $(shell date -u "+%Y%m%d-%H%M")
 VERSION_PKG = github.com/InjectiveLabs/peggo/orchestrator/version
 IMAGE_NAME := gcr.io/injective-core/peggo
+DOCKER ?= false
 
 all:
 
@@ -18,9 +19,7 @@ push:
 install: export GOPROXY=direct
 install: export VERSION_FLAGS="-X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 install:
-	go install \
-		-ldflags $(VERSION_FLAGS) \
-		./cmd/...
+	$(DOCKER) && go install -tags muslc -ldflags $(VERSION_FLAGS) ./cmd/... || go install -ldflags $(VERSION_FLAGS) ./cmd/...
 
 .PHONY: install image push test gen
 

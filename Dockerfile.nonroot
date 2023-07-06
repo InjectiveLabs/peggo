@@ -19,7 +19,7 @@ COPY . .
 RUN go mod download
 
 #install binary
-RUN make install
+RUN DOCKER=true make install
 
 #build main container
 FROM alpine:latest
