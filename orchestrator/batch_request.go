@@ -35,7 +35,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 }
 
 func (s *PeggyOrchestrator) requestBatches(ctx context.Context, logger log.Logger, mustRequest bool) error {
-	logger.Infoln("scanning injective for potential batches")
+	logger.WithField("min_batch_fee", s.minBatchFeeUSD).Infoln("scanning injective for potential batches")
 
 	unbatchedTokensWithFees, err := s.getBatchFeesByToken(ctx, logger)
 	if err != nil {
