@@ -57,7 +57,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	}
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
-		logger.WithField("last_confirmed_eth_height", lastConfirmedEthHeight).Infoln("scanning for events")
+		logger.WithField("last_confirmed_eth_height", lastConfirmedEthHeight).Infoln("scanning for ethereum events")
 
 		// Relays events from Ethereum -> Cosmos
 		var currentHeight uint64
