@@ -2,13 +2,15 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/xlab/suplog"
-	"testing"
+	log "github.com/xlab/suplog"
+
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestEthSignerLoop(t *testing.T) {
@@ -18,7 +20,7 @@ func TestEthSignerLoop(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			maxAttempts: 1, // todo, hardcode do 10
+			maxAttempts: 1,
 			ethereum: mockEthereum{
 				getPeggyIDFn: func(context.Context) (common.Hash, error) {
 					return [32]byte{}, errors.New("fail")
@@ -32,130 +34,106 @@ func TestEthSignerLoop(t *testing.T) {
 	t.Run("no valset to sign", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
-					return nil, errors.New("fail")
-				},
-				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
-					return nil
-				},
-				oldestUnsignedTransactionBatchFn: func(context.Context) (*types.OutgoingTxBatch, error) {
-					return nil, nil
-				},
-				sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
-					return nil
-				},
+		injective := &mockInjective{
+			oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
+				return nil, errors.New("fail")
+			},
+			sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
+				return nil
+			},
+			oldestUnsignedTransactionBatchFn: func(context.Context) (*types.OutgoingTxBatch, error) {
+				return nil, nil
+			},
+			sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
+				return nil
 			},
 		}
 
-		assert.NoError(t, orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{1, 2, 3}))
+		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
+
+		assert.NoError(t, sig.run(context.TODO(), injective))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
-					return []*types.Valset{
-						{
-							Nonce: 5,
-							Members: []*types.BridgeValidator{
-								{
-									Power:           100,
-									EthereumAddress: "abcd",
-								},
+		injective := &mockInjective{
+			oldestUnsignedValsetsFn: func(context.Context) ([]*types.Valset, error) {
+				return []*types.Valset{
+					{
+						Nonce: 5,
+						Members: []*types.BridgeValidator{
+							{
+								Power:           100,
+								EthereumAddress: "abcd",
 							},
-							Height:       500,
-							RewardAmount: cosmtypes.NewInt(123),
-							RewardToken:  "dusanToken",
 						},
-					}, nil
-				},
-				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
-					return errors.New("fail")
-				},
+						Height:       500,
+						RewardAmount: cosmtypes.NewInt(123),
+						RewardToken:  "dusanToken",
+					},
+				}, nil
 			},
-			ethereum: mockEthereum{
-				fromAddressFn: func() common.Address {
-					return common.Address{}
-				},
+			sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error {
+				return errors.New("fail")
 			},
 		}
 
-		err := orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{1, 2, 3})
-		assert.Error(t, err)
+		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
+
+		assert.Error(t, sig.run(context.TODO(), injective))
 	})
 
 	t.Run("no transaction batch sign", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				oldestUnsignedValsetsFn:          func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
-				sendValsetConfirmFn:              func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
-				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) { return nil, errors.New("fail") },
-				sendBatchConfirmFn:               func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
-			},
+		injective := &mockInjective{
+			oldestUnsignedValsetsFn:          func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
+			sendValsetConfirmFn:              func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
+			oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) { return nil, errors.New("fail") },
+			sendBatchConfirmFn:               func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
 		}
 
-		err := orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{})
-		assert.NoError(t, err)
+		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
+
+		assert.NoError(t, sig.run(context.TODO(), injective))
 	})
 
 	t.Run("failed to send batch confirm", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
-				sendValsetConfirmFn:     func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
-				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
-					return &types.OutgoingTxBatch{}, nil // non-empty will do
-				},
-				sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
-					return errors.New("fail")
-				},
+		injective := &mockInjective{
+			oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) { return nil, nil },
+			sendValsetConfirmFn:     func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
+			oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
+				return &types.OutgoingTxBatch{}, nil // non-empty will do
 			},
-			ethereum: mockEthereum{
-				fromAddressFn: func() common.Address {
-					return common.Address{}
-				},
+			sendBatchConfirmFn: func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error {
+				return errors.New("fail")
 			},
 		}
 
-		err := orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{})
-		assert.Error(t, err)
+		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
+
+		assert.Error(t, sig.run(context.TODO(), injective))
 	})
 
 	t.Run("valset update and transaction batch are confirmed", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) {
-					return []*types.Valset{}, nil // non-empty will do
-				},
-				oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
-					return &types.OutgoingTxBatch{}, nil // non-empty will do
-				},
-				sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
-				sendBatchConfirmFn:  func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
+		injective := &mockInjective{
+			oldestUnsignedValsetsFn: func(_ context.Context) ([]*types.Valset, error) {
+				return []*types.Valset{}, nil // non-empty will do
 			},
-			ethereum: mockEthereum{
-				fromAddressFn: func() common.Address {
-					return common.Address{}
-				},
+			oldestUnsignedTransactionBatchFn: func(_ context.Context) (*types.OutgoingTxBatch, error) {
+				return &types.OutgoingTxBatch{}, nil // non-empty will do
 			},
+			sendValsetConfirmFn: func(context.Context, common.Hash, *types.Valset, common.Address) error { return nil },
+			sendBatchConfirmFn:  func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
 		}
 
-		err := orch.signerLoop(context.TODO(), suplog.DefaultLogger, [32]byte{})
-		assert.NoError(t, err)
+		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
+
+		assert.NoError(t, sig.run(context.TODO(), injective))
 	})
 }
