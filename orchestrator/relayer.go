@@ -137,7 +137,7 @@ func (s *PeggyOrchestrator) relayValsets(ctx context.Context, logger log.Logger)
 	logger.WithFields(log.Fields{
 		"inj_valset": latestCosmosConfirmed.Nonce,
 		"eth_valset": latestEthereumValsetNonce.Uint64(),
-	}).Infoln("detected new valset on Injective. Sending update to Ethereum...")
+	}).Infoln("detected new valset on Injective")
 
 	txHash, err := s.ethereum.SendEthValsetUpdate(
 		ctx,
@@ -244,7 +244,7 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 	logger.WithFields(log.Fields{
 		"inj_batch": oldestSignedBatch.BatchNonce,
 		"eth_batch": latestEthereumBatch.Uint64(),
-	}).Infoln("detected new transaction batch on Injective. Sending update to Ethereum...")
+	}).Infoln("detected new transaction batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
 	txHash, err := s.ethereum.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)

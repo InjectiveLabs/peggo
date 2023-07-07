@@ -57,7 +57,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	}
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
-		logger.WithField("last_confirmed_eth_height", lastConfirmedEthHeight).Infoln("scanning ethereum for events")
+		logger.WithField("last_confirmed_eth_height", lastConfirmedEthHeight).Infoln("scanning Ethereum for events")
 
 		// Relays events from Ethereum -> Cosmos
 		var currentHeight uint64
@@ -68,7 +68,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 			retry.Context(ctx),
 			retry.Attempts(s.maxAttempts),
 			retry.OnRetry(func(n uint, err error) {
-				logger.WithError(err).Warningf("error during Eth event checking, will retry (%d)", n)
+				logger.WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
 			}),
 		); err != nil {
 			logger.WithError(err).Errorln("got error, loop exits")
