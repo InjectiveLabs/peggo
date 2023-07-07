@@ -69,7 +69,7 @@ func (s *PeggyOrchestrator) signerLoop(ctx context.Context, logger log.Logger, p
 }
 
 func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Logger, peggyID common.Hash) error {
-	logger.Infoln("scanning injective for unsigned valset updates")
+	logger.Infoln("scanning Injective for unsigned valset updates")
 
 	var oldestUnsignedValsets []*types.Valset
 	retryFn := func() error {
@@ -119,7 +119,7 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 }
 
 func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger log.Logger, peggyID common.Hash) error {
-	logger.Infoln("scanning injective for unsigned batches")
+	logger.Infoln("scanning Injective for unsigned batches")
 
 	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
 	retryFn := func() error {
