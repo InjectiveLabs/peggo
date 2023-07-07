@@ -69,6 +69,8 @@ func (s *PeggyOrchestrator) signerLoop(ctx context.Context, logger log.Logger, p
 }
 
 func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Logger, peggyID common.Hash) error {
+	logger.Infoln("scanning injective for unsigned valset updates")
+
 	var oldestUnsignedValsets []*types.Valset
 	retryFn := func() error {
 		oldestValsets, err := s.injective.OldestUnsignedValsets(ctx)
@@ -117,6 +119,8 @@ func (s *PeggyOrchestrator) signValsetUpdates(ctx context.Context, logger log.Lo
 }
 
 func (s *PeggyOrchestrator) signTransactionBatches(ctx context.Context, logger log.Logger, peggyID common.Hash) error {
+	logger.Infoln("scanning injective for unsigned batches")
+
 	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
 	retryFn := func() error {
 		// sign the last unsigned batch, TODO check if we already have signed this

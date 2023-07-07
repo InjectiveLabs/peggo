@@ -24,8 +24,9 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		var pg loops.ParanoidGroup
 		if s.valsetRelayEnabled {
+			logger.Infoln("scanning injective for confirmed valset updates")
 			pg.Go(func() error {
-				return retry.Do(func() error { return s.relayValsets(ctx, logger.WithField("Relayer", "Valsets")) },
+				return retry.Do(func() error { return s.relayValsets(ctx, logger.WithField("Relayer", "Valset")) },
 					retry.Context(ctx),
 					retry.Attempts(s.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -36,6 +37,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		}
 
 		if s.batchRelayEnabled {
+			logger.Infoln("scanning injective for confirmed batches")
 			pg.Go(func() error {
 				return retry.Do(func() error { return s.relayBatches(ctx, logger.WithField("Relayer", "Batch")) },
 					retry.Context(ctx),

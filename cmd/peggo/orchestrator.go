@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/version"
 	"os"
 	"time"
 
@@ -32,6 +33,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 	cmd.Action = func() {
 		// ensure a clean exit
 		defer closer.Close()
+
+		log.WithFields(log.Fields{
+			"version":    version.AppVersion,
+			"git":        version.GitCommit,
+			"build_date": version.BuildDate,
+			"go_version": version.GoVersion,
+			"go_arch":    version.GoArch,
+		}).Infoln("peggo - injectived ethereum bridge")
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
 			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")

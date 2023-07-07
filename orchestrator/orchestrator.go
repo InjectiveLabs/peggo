@@ -166,7 +166,13 @@ func (s *PeggyOrchestrator) Run(ctx context.Context, validatorMode bool) error {
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
-	log.Infoln("running peggo in validator mode")
+	log.WithFields(log.Fields{
+		"BatchRequesterEnabled": true,
+		"EthOracleEnabled":      true,
+		"EthSignerEnabled":      true,
+		"ValsetRelayerEnabled":  s.valsetRelayEnabled,
+		"BatchRelayerEnabled":   s.batchRelayEnabled,
+	}).Infoln("running in validator mode")
 
 	var pg loops.ParanoidGroup
 
@@ -182,7 +188,13 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
 func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
-	log.Infoln("running peggo in relayer mode")
+	log.WithFields(log.Fields{
+		"BatchRequesterEnabled": true,
+		"EthOracleEnabled":      false,
+		"EthSignerEnabled":      false,
+		"ValsetRelayerEnabled":  s.valsetRelayEnabled,
+		"BatchRelayerEnabled":   s.batchRelayEnabled,
+	}).Infoln("running in relayer mode")
 
 	var pg loops.ParanoidGroup
 
