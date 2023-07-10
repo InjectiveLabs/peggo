@@ -13,135 +13,109 @@ import (
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-func TestLogger(t *testing.T) {
-	err := errors.New("dusan error")
-	err2 := errors.New("another dusan error")
-
-	logger := suplog.WithError(err).WithError(errors.New("wqerwerw d"))
-
-	suplog.Infoln("random info line")
-	suplog.WithFields(suplog.Fields{"field1": 42}).Infoln("info line with field")
-
-	logger.Errorln("descriptive error line")
-	logger.WithError(err2).Errorln("descriptive error line 2")
-
-	logger = suplog.WithField("dusan", "dusan value")
-	logger.Errorln("this is an error line")
-	logger.Infoln("this is an info line")
-	logger.Info("this is an info log")
-	num := 10
-	logger.Debugln("this", "is", "a", "debug", "log", "with num=", num)
-	num2 := 11
-	logger.WithFields(suplog.Fields{"field1": num, "field2": num2}).Warningln("warning with fields")
-
-	//suplog.WithError(err).Fatalln("failed to initialize Injective keyring")
-
-	suplog.WithFields(suplog.Fields{"chain_id": "888"}).Infoln("Connected to Injective chain")
-
-	suplog.WithFields(suplog.Fields{
-		"chain_id":       "*cfg.cosmosChainID",
-		"injective_grpc": "*cfg.cosmosGRPC",
-		"tendermint_rpc": "cfg.tendermintRPC",
-	}).Infoln("connected to Injective network")
-
-	logger = suplog.WithField("loop", "EthOracleMainLoop")
-
-	logger.WithField("lastConfirmedEthHeight", 1212).Infoln("Start scanning for events")
-}
-
 func TestRequestBatches(t *testing.T) {
 	t.Parallel()
 
 	t.Run("failed to get unbatched tokens from injective", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
-					return nil, errors.New("fail")
-				},
-			},
+		r := &batchRequester{
+			log:     suplog.DefaultLogger,
+			retries: 1,
 		}
 
-		assert.NoError(t, orch.requestBatches(context.TODO(), suplog.DefaultLogger, false))
+		inj := &mockInjective{
+			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
+				return nil, errors.New("fail")
+			},
+		}
+		feed := mockPriceFeed{}
+
+		assert.NoError(t, r.run(context.TODO(), inj, feed))
 	})
 
 	t.Run("no unbatched tokens", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
-			maxAttempts: 1,
-			injective: &mockInjective{
-				unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
-					return nil, nil
-				},
-			},
+		r := &batchRequester{
+			log:     suplog.DefaultLogger,
+			retries: 1,
 		}
 
-		assert.NoError(t, orch.requestBatches(context.TODO(), suplog.DefaultLogger, false))
+		inj := &mockInjective{
+			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
+				return nil, nil
+			},
+		}
+		feed := mockPriceFeed{}
+
+		assert.NoError(t, r.run(context.TODO(), inj, feed))
 	})
 
 	t.Run("batch does not meet fee threshold", func(t *testing.T) {
 		t.Parallel()
 
-		tokenAddr := eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
+		tokenAddr := "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30"
 
-		injective := &mockInjective{
+		r := &batchRequester{
+			log:         suplog.DefaultLogger,
+			minBatchFee: 51.0,
+			retries:     1,
+			erc20ContractMapping: map[eth.Address]string{
+				eth.HexToAddress(tokenAddr): "inj",
+			},
+		}
+
+		inj := &mockInjective{
 			sendRequestBatchFn: func(context.Context, string) error { return nil },
 			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
 				fees, _ := cosmtypes.NewIntFromString("50000000000000000000")
 				return []*peggy.BatchFees{
 					{
-						Token:     tokenAddr.String(),
+						Token:     eth.HexToAddress(tokenAddr).String(),
 						TotalFees: fees,
 					},
 				}, nil
 			},
 		}
 
-		orch := &PeggyOrchestrator{
-			maxAttempts:          1,
-			minBatchFeeUSD:       51.0,
-			erc20ContractMapping: map[eth.Address]string{tokenAddr: "inj"},
-			pricefeed:            mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }},
-			injective:            injective,
-		}
+		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		assert.NoError(t, orch.requestBatches(context.TODO(), suplog.DefaultLogger, false))
-		assert.Equal(t, injective.sendRequestBatchCallCount, 0)
+		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		assert.Equal(t, inj.sendRequestBatchCallCount, 0)
 	})
 
 	t.Run("batch meets threshold and a request is sent", func(t *testing.T) {
 		t.Parallel()
 
-		tokenAddr := eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
+		tokenAddr := "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30"
 
-		injective := &mockInjective{
+		r := &batchRequester{
+			log:         suplog.DefaultLogger,
+			minBatchFee: 49.0,
+			retries:     1,
+			erc20ContractMapping: map[eth.Address]string{
+				eth.HexToAddress(tokenAddr): "inj",
+			},
+		}
+
+		inj := &mockInjective{
 			sendRequestBatchFn: func(context.Context, string) error { return nil },
 			unbatchedTokenFeesFn: func(_ context.Context) ([]*peggy.BatchFees, error) {
 				fees, _ := cosmtypes.NewIntFromString("50000000000000000000")
 				return []*peggy.BatchFees{
 					{
-						Token:     tokenAddr.String(),
+						Token:     eth.HexToAddress(tokenAddr).String(),
 						TotalFees: fees,
 					},
 				}, nil
 			},
 		}
 
-		orch := &PeggyOrchestrator{
-			maxAttempts:          1,
-			minBatchFeeUSD:       49.0,
-			erc20ContractMapping: map[eth.Address]string{tokenAddr: "inj"},
-			pricefeed: mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {
-				return 1, nil
-			}},
-			injective: injective,
-		}
+		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		assert.NoError(t, orch.requestBatches(context.TODO(), suplog.DefaultLogger, false))
-		assert.Equal(t, injective.sendRequestBatchCallCount, 1)
+		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		assert.Equal(t, inj.sendRequestBatchCallCount, 1)
 	})
 
 }

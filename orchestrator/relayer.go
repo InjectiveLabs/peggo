@@ -199,15 +199,6 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 		return err
 	}
 
-	logger.WithFields(log.Fields{
-		"inj_batch": oldestSignedBatch.BatchNonce,
-		"eth_batch": latestEthereumBatch.Uint64(),
-	}).Debugln("latest batches")
-
-	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
-		return nil
-	}
-
 	currentValset, err := s.findLatestValsetOnEthereum(ctx, logger)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
@@ -215,6 +206,15 @@ func (s *PeggyOrchestrator) relayBatches(ctx context.Context, logger log.Logger)
 	} else if currentValset == nil {
 		metrics.ReportFuncError(s.svcTags)
 		return errors.Wrap(err, "latest valset not found")
+	}
+
+	logger.WithFields(log.Fields{
+		"inj_batch": oldestSignedBatch.BatchNonce,
+		"eth_batch": latestEthereumBatch.Uint64(),
+	}).Debugln("latest batches")
+
+	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		return nil
 	}
 
 	latestEthereumBatch, err = s.ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestSignedBatch.TokenContract))
