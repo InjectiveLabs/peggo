@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"github.com/xlab/suplog"
 	"math/big"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 0, nil)
+		_, err := orch.relayEthEvents(context.TODO(), 0, suplog.DefaultLogger)
 		assert.Error(t, err)
 	})
 
@@ -42,7 +43,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		currentBlock, err := orch.relayEthEvents(context.TODO(), 100, nil)
+		currentBlock, err := orch.relayEthEvents(context.TODO(), 100, suplog.DefaultLogger)
 		assert.NoError(t, err)
 		assert.Equal(t, currentBlock, 50-ethBlockConfirmationDelay)
 	})
@@ -61,7 +62,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
+		_, err := orch.relayEthEvents(context.TODO(), 100, suplog.DefaultLogger)
 		assert.Error(t, err)
 	})
 
@@ -99,7 +100,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
+		_, err := orch.relayEthEvents(context.TODO(), 100, suplog.DefaultLogger)
 		assert.Error(t, err)
 	})
 
@@ -149,7 +150,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
+		_, err := orch.relayEthEvents(context.TODO(), 100, suplog.DefaultLogger)
 		assert.NoError(t, err)
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 0)
 	})
@@ -200,7 +201,7 @@ func TestRelayEvents(t *testing.T) {
 			},
 		}
 
-		_, err := orch.relayEthEvents(context.TODO(), 100, nil)
+		_, err := orch.relayEthEvents(context.TODO(), 100, suplog.DefaultLogger)
 		assert.NoError(t, err)
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 1)
 	})
