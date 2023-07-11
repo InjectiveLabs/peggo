@@ -41,29 +41,29 @@ func (r *batchRequester) run(
 ) error {
 	r.log.WithField("min_batch_fee", r.minBatchFee).Infoln("scanning Injective for potential batches")
 
-	unbatchedTokensWithFees, err := r.getBatchFeesByToken(ctx, injective)
+	unbatchedFees, err := r.getUnbatchedFeesByToken(ctx, injective)
 	if err != nil {
 		// non-fatal, just alert
 		r.log.WithError(err).Warningln("unable to get unbatched fees from Injective")
 		return nil
 	}
 
-	if len(unbatchedTokensWithFees) == 0 {
+	if len(unbatchedFees) == 0 {
 		r.log.Debugln("no outgoing withdrawals or minimum batch fee is not met")
 		return nil
 	}
 
-	for _, unbatchedToken := range unbatchedTokensWithFees {
-		r.requestBatchCreation(ctx, injective, feed, unbatchedToken)
+	for _, tokenFee := range unbatchedFees {
+		r.requestBatchCreation(ctx, injective, feed, tokenFee)
 	}
 
 	return nil
 }
 
-func (r *batchRequester) getBatchFeesByToken(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
-	var unbatchedTokensWithFees []*types.BatchFees
+func (r *batchRequester) getUnbatchedFeesByToken(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
+	var unbatchedFees []*types.BatchFees
 	retryFn := func() (err error) {
-		unbatchedTokensWithFees, err = injective.UnbatchedTokenFees(ctx)
+		unbatchedFees, err = injective.UnbatchedTokenFees(ctx)
 		return err
 	}
 
@@ -77,7 +77,7 @@ func (r *batchRequester) getBatchFeesByToken(ctx context.Context, injective Inje
 		return nil, err
 	}
 
-	return unbatchedTokensWithFees, nil
+	return unbatchedFees, nil
 }
 
 func (r *batchRequester) requestBatchCreation(
