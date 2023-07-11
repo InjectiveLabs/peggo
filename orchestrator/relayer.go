@@ -97,28 +97,28 @@ func (r *relayer) relayValsets(
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := injective.LatestValsets(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch latest valsets from Injective")
+		return errors.Wrap(err, "failed to get latest valsets from Injective")
 	}
 
 	var (
-		latestCosmosSigs      []*types.MsgValsetConfirm
-		latestCosmosConfirmed *types.Valset
+		latestInjectiveConfirmed     *types.Valset
+		latestInjectiveConfirmedSigs []*types.MsgValsetConfirm
 	)
 
 	for _, set := range latestValsets {
 		sigs, err := injective.AllValsetConfirms(ctx, set.Nonce)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get valset confirms at nonce %d", set.Nonce)
+			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
 		} else if len(sigs) == 0 {
 			continue
 		}
 
-		latestCosmosSigs = sigs
-		latestCosmosConfirmed = set
+		latestInjectiveConfirmedSigs = sigs
+		latestInjectiveConfirmed = set
 		break
 	}
 
-	if latestCosmosConfirmed == nil {
+	if latestInjectiveConfirmed == nil {
 		r.log.Debugln("no confirmed valsets found on Injective, nothing to relay...")
 		return nil
 	}
@@ -129,11 +129,11 @@ func (r *relayer) relayValsets(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": latestCosmosConfirmed,
+		"inj_valset": latestInjectiveConfirmed,
 		"eth_valset": currentEthValset,
 	}).Debugln("latest valsets")
 
-	if latestCosmosConfirmed.Nonce <= currentEthValset.Nonce {
+	if latestInjectiveConfirmed.Nonce <= currentEthValset.Nonce {
 		return nil
 	}
 
@@ -143,30 +143,32 @@ func (r *relayer) relayValsets(
 	}
 
 	// Check if other validators already updated the valset
-	if latestCosmosConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
+	if latestInjectiveConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
 		return nil
 	}
 
 	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(latestCosmosConfirmed.Height))
+	blockResult, err := injective.GetBlock(ctx, int64(latestInjectiveConfirmed.Height))
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", latestCosmosConfirmed.Height)
+		return errors.Wrapf(err, "failed to get block %d from Injective", latestInjectiveConfirmed.Height)
 	}
 
-	if time.Since(blockResult.Block.Time) <= r.relayValsetOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": latestCosmosConfirmed.Nonce,
+		"inj_valset": latestInjectiveConfirmed.Nonce,
 		"eth_valset": latestEthereumValsetNonce.Uint64(),
 	}).Infoln("detected new valset on Injective")
 
 	txHash, err := ethereum.SendEthValsetUpdate(
 		ctx,
 		currentEthValset,
-		latestCosmosConfirmed,
-		latestCosmosSigs,
+		latestInjectiveConfirmed,
+		latestInjectiveConfirmedSigs,
 	)
 
 	if err != nil {
@@ -250,7 +252,9 @@ func (r *relayer) relayBatches(
 		return errors.Wrapf(err, "failed to get block %d from Injective", oldestSignedBatch.Block)
 	}
 
-	if time.Since(blockResult.Block.Time) <= r.relayBatchOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil
 	}
 
