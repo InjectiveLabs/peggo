@@ -40,7 +40,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			"build_date": version.BuildDate,
 			"go_version": version.GoVersion,
 			"go_arch":    version.GoArch,
-		}).Infoln("peggo - injectived ethereum bridge")
+		}).Infoln("peggo - injectived bridge binary for Ethereum")
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
 			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
@@ -72,8 +72,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}
 
 		log.WithFields(log.Fields{
-			"injective_addr": valAddress.String(),
-			"ethereum_addr":  ethKeyFromAddress.String(),
+			"inj_addr": valAddress.String(),
+			"eth_addr": ethKeyFromAddress.String(),
 		}).Infoln("starting peggo service")
 
 		// Connect to Injective network
@@ -124,9 +124,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		orShutdown(err)
 
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
-
-		// make the flag obsolete and hardcode
-		*cfg.minBatchFeeUSD = 49.0
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
