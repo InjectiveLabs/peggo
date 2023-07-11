@@ -86,7 +86,7 @@ func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwo
 	}
 
 	if oldestUnsignedTransactionBatch == nil {
-		s.log.Debugln("no new transaction batch waiting to be signed")
+		s.log.Debugln("no batch waiting to be confirmed")
 		return nil
 	}
 
@@ -113,8 +113,9 @@ func (s *ethSigner) getUnsignedBatch(ctx context.Context, injective InjectiveNet
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
-			s.log.WithError(err).Warningf("failed to get unsigned transaction batch, will retry (%d)", n)
-		})); err != nil {
+			s.log.WithError(err).Warningf("failed to get unconfirmed batch, will retry (%d)", n)
+		}),
+	); err != nil {
 		s.log.WithError(err).Errorln("got error, loop exits")
 		return nil, err
 	}
@@ -127,11 +128,12 @@ func (s *ethSigner) signBatch(
 	injective InjectiveNetwork,
 	batch *types.OutgoingTxBatch,
 ) error {
-	if err := retry.Do(func() error { return injective.SendBatchConfirm(ctx, s.peggyID, batch, s.ethFrom) },
+	if err := retry.Do(
+		func() error { return injective.SendBatchConfirm(ctx, s.peggyID, batch, s.ethFrom) },
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
-			s.log.WithError(err).Warningf("failed to sign and send batch confirmation to Injective, will retry (%d)", n)
+			s.log.WithError(err).Warningf("failed to confirm batch on Injective, will retry (%d)", n)
 		}),
 	); err != nil {
 		s.log.WithError(err).Errorln("got error, loop exits")
@@ -155,7 +157,7 @@ func (s *ethSigner) signNewValsetUpdates(
 	}
 
 	if len(oldestUnsignedValsets) == 0 {
-		s.log.Debugln("no new valset updates waiting to be signed")
+		s.log.Debugln("no valset updates waiting to be confirmed")
 		return nil
 	}
 
@@ -183,7 +185,7 @@ func (s *ethSigner) getUnsignedValsets(ctx context.Context, injective InjectiveN
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
-			s.log.WithError(err).Warningf("failed to get unsigned valsets, will retry (%d)", n)
+			s.log.WithError(err).Warningf("failed to get unconfirmed valsets, will retry (%d)", n)
 		}),
 	); err != nil {
 		s.log.WithError(err).Errorln("got error, loop exits")
@@ -198,11 +200,12 @@ func (s *ethSigner) signValset(
 	injective InjectiveNetwork,
 	vs *types.Valset,
 ) error {
-	if err := retry.Do(func() error { return injective.SendValsetConfirm(ctx, s.peggyID, vs, s.ethFrom) },
+	if err := retry.Do(
+		func() error { return injective.SendValsetConfirm(ctx, s.peggyID, vs, s.ethFrom) },
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
-			s.log.WithError(err).Warningf("failed to sign and send valset confirmation to Injective, will retry (%d)", n)
+			s.log.WithError(err).Warningf("failed to confirm valset update on Injective, will retry (%d)", n)
 		}),
 	); err != nil {
 		s.log.WithError(err).Errorln("got error, loop exits")

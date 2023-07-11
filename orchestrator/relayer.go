@@ -97,28 +97,28 @@ func (r *relayer) relayValsets(
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := injective.LatestValsets(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch latest valsets from Injective")
+		return errors.Wrap(err, "failed to get latest valsets from Injective")
 	}
 
 	var (
-		latestCosmosSigs      []*types.MsgValsetConfirm
-		latestCosmosConfirmed *types.Valset
+		oldestConfirmedValset     *types.Valset
+		oldestConfirmedValsetSigs []*types.MsgValsetConfirm
 	)
 
 	for _, set := range latestValsets {
 		sigs, err := injective.AllValsetConfirms(ctx, set.Nonce)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get valset confirms at nonce %d", set.Nonce)
+			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
 		} else if len(sigs) == 0 {
 			continue
 		}
 
-		latestCosmosSigs = sigs
-		latestCosmosConfirmed = set
+		oldestConfirmedValsetSigs = sigs
+		oldestConfirmedValset = set
 		break
 	}
 
-	if latestCosmosConfirmed == nil {
+	if oldestConfirmedValset == nil {
 		r.log.Debugln("no confirmed valsets found on Injective, nothing to relay...")
 		return nil
 	}
@@ -129,11 +129,11 @@ func (r *relayer) relayValsets(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": latestCosmosConfirmed,
+		"inj_valset": oldestConfirmedValset,
 		"eth_valset": currentEthValset,
 	}).Debugln("latest valsets")
 
-	if latestCosmosConfirmed.Nonce <= currentEthValset.Nonce {
+	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil
 	}
 
@@ -143,30 +143,32 @@ func (r *relayer) relayValsets(
 	}
 
 	// Check if other validators already updated the valset
-	if latestCosmosConfirmed.Nonce <= latestEthereumValsetNonce.Uint64() {
+	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
 		return nil
 	}
 
 	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(latestCosmosConfirmed.Height))
+	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedValset.Height))
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", latestCosmosConfirmed.Height)
+		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedValset.Height)
 	}
 
-	if time.Since(blockResult.Block.Time) <= r.relayValsetOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": latestCosmosConfirmed.Nonce,
+		"inj_valset": oldestConfirmedValset.Nonce,
 		"eth_valset": latestEthereumValsetNonce.Uint64(),
 	}).Infoln("detected new valset on Injective")
 
 	txHash, err := ethereum.SendEthValsetUpdate(
 		ctx,
 		currentEthValset,
-		latestCosmosConfirmed,
-		latestCosmosSigs,
+		oldestConfirmedValset,
+		oldestConfirmedValsetSigs,
 	)
 
 	if err != nil {
@@ -189,8 +191,8 @@ func (r *relayer) relayBatches(
 	}
 
 	var (
-		oldestSignedBatch *types.OutgoingTxBatch
-		oldestSigs        []*types.MsgConfirmBatch
+		oldestConfirmedBatch     *types.OutgoingTxBatch
+		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
 	)
 
 	for _, batch := range latestBatches {
@@ -201,18 +203,18 @@ func (r *relayer) relayBatches(
 			continue
 		}
 
-		oldestSignedBatch = batch
-		oldestSigs = sigs
+		oldestConfirmedBatch = batch
+		oldestConfirmedBatchSigs = sigs
 	}
 
-	if oldestSignedBatch == nil {
+	if oldestConfirmedBatch == nil {
 		r.log.Debugln("no confirmed transaction batches on Injective, nothing to relay...")
 		return nil
 	}
 
 	latestEthereumBatch, err := ethereum.GetTxBatchNonce(
 		ctx,
-		common.HexToAddress(oldestSignedBatch.TokenContract),
+		common.HexToAddress(oldestConfirmedBatch.TokenContract),
 	)
 	if err != nil {
 		return err
@@ -226,41 +228,43 @@ func (r *relayer) relayBatches(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch": oldestSignedBatch.BatchNonce,
+		"inj_batch": oldestConfirmedBatch.BatchNonce,
 		"eth_batch": latestEthereumBatch.Uint64(),
 	}).Debugln("latest batches")
 
-	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
 		return nil
 	}
 
-	latestEthereumBatch, err = ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestSignedBatch.TokenContract))
+	latestEthereumBatch, err = ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestConfirmedBatch.TokenContract))
 	if err != nil {
 		return err
 	}
 
 	// Check if ethereum batch was updated by other validators
-	if oldestSignedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
 		return nil
 	}
 
 	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(oldestSignedBatch.Block))
+	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedBatch.Block))
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", oldestSignedBatch.Block)
+		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
 	}
 
-	if time.Since(blockResult.Block.Time) <= r.relayBatchOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch": oldestSignedBatch.BatchNonce,
+		"inj_batch": oldestConfirmedBatch.BatchNonce,
 		"eth_batch": latestEthereumBatch.Uint64(),
 	}).Infoln("detected new transaction batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, oldestSignedBatch, oldestSigs)
+	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, oldestConfirmedBatch, oldestConfirmedBatchSigs)
 	if err != nil {
 		return err
 	}
