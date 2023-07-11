@@ -113,23 +113,21 @@ func NewPeggyOrchestrator(
 	priceFeed PriceFeed,
 	erc20ContractMapping map[eth.Address]string,
 	minBatchFeeUSD float64,
-	periodicBatchRequesting,
 	valsetRelayingEnabled,
 	batchRelayingEnabled bool,
 	valsetRelayingOffset,
 	batchRelayingOffset string,
 ) (*PeggyOrchestrator, error) {
 	orch := &PeggyOrchestrator{
-		svcTags:                 metrics.Tags{"svc": "peggy_orchestrator"},
-		injective:               injective,
-		ethereum:                ethereum,
-		pricefeed:               priceFeed,
-		erc20ContractMapping:    erc20ContractMapping,
-		minBatchFeeUSD:          minBatchFeeUSD,
-		periodicBatchRequesting: periodicBatchRequesting,
-		valsetRelayEnabled:      valsetRelayingEnabled,
-		batchRelayEnabled:       batchRelayingEnabled,
-		maxAttempts:             10, // default is 10 for retry pkg
+		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
+		injective:            injective,
+		ethereum:             ethereum,
+		pricefeed:            priceFeed,
+		erc20ContractMapping: erc20ContractMapping,
+		minBatchFeeUSD:       minBatchFeeUSD,
+		valsetRelayEnabled:   valsetRelayingEnabled,
+		batchRelayEnabled:    batchRelayingEnabled,
+		maxAttempts:          10, // default is 10 for retry pkg
 	}
 
 	if valsetRelayingEnabled {

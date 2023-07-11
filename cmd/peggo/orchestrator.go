@@ -40,7 +40,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			"build_date": version.BuildDate,
 			"go_version": version.GoVersion,
 			"go_arch":    version.GoArch,
-		}).Infoln("peggo - injectived bridge binary for Ethereum")
+		}).Infoln("peggo - peggy binary for Ethereum bridge")
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
 			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
@@ -132,7 +132,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			coingeckoFeed,
 			erc20ContractMapping,
 			*cfg.minBatchFeeUSD,
-			*cfg.periodicBatchRequesting,
 			*cfg.relayValsets,
 			*cfg.relayBatches,
 			*cfg.relayValsetOffsetDur,

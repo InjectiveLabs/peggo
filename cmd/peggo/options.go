@@ -271,8 +271,6 @@ type Config struct {
 	// Batch requester config
 	minBatchFeeUSD *float64
 
-	periodicBatchRequesting *bool
-
 	coingeckoApi *string
 }
 
@@ -468,13 +466,6 @@ func initConfig(cmd *cli.Cmd) Config {
 		Desc:   "If set, batch request will create batches only if fee threshold exceeds",
 		EnvVar: "PEGGO_MIN_BATCH_FEE_USD",
 		Value:  float64(23.3),
-	})
-
-	cfg.periodicBatchRequesting = cmd.Bool(cli.BoolOpt{
-		Name:   "periodic_batch_requesting",
-		Desc:   "If set, batches will be requested every 8 hours regardless of the fee",
-		EnvVar: "PEGGO_PERIODIC_BATCH_REQUESTING",
-		Value:  false,
 	})
 
 	/** Coingecko **/
