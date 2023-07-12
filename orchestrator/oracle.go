@@ -16,7 +16,7 @@ import (
 // we broadcast only 20 events in each iteration.
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
 const (
-	ethBlockConfirmationDelay uint64 = 12
+	ethBlockConfirmationDelay uint64 = 96
 	defaultBlocksToSearch     uint64 = 20
 )
 
