@@ -24,10 +24,10 @@ func (s *peggyContract) SendTransactionBatch(
 
 	log.WithFields(log.Fields{
 		"token_contract": batch.TokenContract,
-		"new_nonce":      batch.BatchNonce,
+		"nonce":          batch.BatchNonce,
+		"transactions":   len(batch.Transactions),
 		"confirmations":  len(confirms),
-	}).Infoln("Checking signatures and submitting TransactionBatch to Ethereum")
-	log.Debugf("Batch %s", batch.String())
+	}).Infoln("checking signatures and submitting batch to Ethereum")
 
 	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {

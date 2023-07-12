@@ -314,7 +314,7 @@ func (r *relayer) findLatestValsetOnEth(
 		r.log.WithFields(log.Fields{
 			"block_start": startSearchBlock,
 			"block_end":   currentBlock,
-		}).Debugln("looking back into Ethereum history to find the last valset update")
+		}).Debugln("looking for the most recent ValsetUpdatedEvent on Ethereum")
 
 		valsetUpdatedEvents, err := ethereum.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
 		if err != nil {
@@ -331,8 +331,6 @@ func (r *relayer) findLatestValsetOnEth(
 			currentBlock = startSearchBlock
 			continue
 		}
-
-		r.log.Debugln("found events", valsetUpdatedEvents)
 
 		// we take only the first event if we find any at all.
 		event := valsetUpdatedEvents[0]
