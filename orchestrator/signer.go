@@ -78,7 +78,7 @@ func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
 }
 
 func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwork) error {
-	s.log.Infoln("scanning Injective for new batches")
+	s.log.Infoln("scanning Injective for unconfirmed batch")
 
 	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
 	if err != nil {
@@ -86,7 +86,7 @@ func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwo
 	}
 
 	if oldestUnsignedTransactionBatch == nil {
-		s.log.Debugln("no batch waiting to be confirmed")
+		s.log.Debugln("no batch to confirm")
 		return nil
 	}
 
@@ -149,7 +149,7 @@ func (s *ethSigner) signNewValsetUpdates(
 	ctx context.Context,
 	injective InjectiveNetwork,
 ) error {
-	s.log.Infoln("scanning Injective for new valset updates")
+	s.log.Infoln("scanning Injective for unconfirmed valset updates")
 
 	oldestUnsignedValsets, err := s.getUnsignedValsets(ctx, injective)
 	if err != nil {
@@ -157,7 +157,7 @@ func (s *ethSigner) signNewValsetUpdates(
 	}
 
 	if len(oldestUnsignedValsets) == 0 {
-		s.log.Debugln("no valset updates waiting to be confirmed")
+		s.log.Debugln("no valset updates to confirm")
 		return nil
 	}
 
@@ -185,7 +185,7 @@ func (s *ethSigner) getUnsignedValsets(ctx context.Context, injective InjectiveN
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
-			s.log.WithError(err).Warningf("failed to get unconfirmed valsets, will retry (%d)", n)
+			s.log.WithError(err).Warningf("failed to get unconfirmed valset updates, will retry (%d)", n)
 		}),
 	); err != nil {
 		s.log.WithError(err).Errorln("got error, loop exits")
@@ -212,7 +212,7 @@ func (s *ethSigner) signValset(
 		return err
 	}
 
-	s.log.WithField("valset_nonce", vs.Nonce).Infoln("confirmed valset on Injective")
+	s.log.WithField("valset_nonce", vs.Nonce).Infoln("confirmed valset update on Injective")
 
 	return nil
 }

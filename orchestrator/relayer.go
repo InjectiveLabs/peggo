@@ -97,7 +97,7 @@ func (r *relayer) relayValsets(
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := injective.LatestValsets(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest valsets from Injective")
+		return errors.Wrap(err, "failed to get latest valset updates from Injective")
 	}
 
 	var (
@@ -119,19 +119,19 @@ func (r *relayer) relayValsets(
 	}
 
 	if oldestConfirmedValset == nil {
-		r.log.Debugln("no confirmed valsets found on Injective, nothing to relay...")
+		r.log.Debugln("no confirmed valset updates to relay")
 		return nil
 	}
 
 	currentEthValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
 	if err != nil {
-		return errors.Wrap(err, "failed to find latest confirmed valset on Ethereum")
+		return errors.Wrap(err, "failed to find latest confirmed valset update on Ethereum")
 	}
 
 	r.log.WithFields(log.Fields{
 		"inj_valset": oldestConfirmedValset,
 		"eth_valset": currentEthValset,
-	}).Debugln("latest valsets")
+	}).Debugln("latest valset updates")
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil

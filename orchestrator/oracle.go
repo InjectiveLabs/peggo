@@ -181,38 +181,38 @@ func (o *ethOracle) relayEvents(
 
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
 		o.log.WithFields(log.Fields{
-			"block_start":  currentHeight,
-			"block_end":    latestHeight,
-			"old_deposits": legacyDeposits,
-		}).Debugln("scanned SendToCosmos events from Ethereum")
+			"block_start": currentHeight,
+			"block_end":   latestHeight,
+			"events":      legacyDeposits,
+		}).Debugln("scanned SendToCosmos events")
 
 		deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
 		o.log.WithFields(log.Fields{
 			"block_start": currentHeight,
 			"block_end":   latestHeight,
-			"deposits":    deposits,
-		}).Debugln("scanned SendToInjective events from Ethereum")
+			"events":      deposits,
+		}).Debugln("scanned SendToInjective events")
 
 		withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
 		o.log.WithFields(log.Fields{
 			"block_start": currentHeight,
 			"block_end":   latestHeight,
-			"withdrawals": withdrawals,
-		}).Debugln("scanned TransactionBatchExecuted events from Ethereum")
+			"events":      withdrawals,
+		}).Debugln("scanned TransactionBatchExecuted events")
 
 		erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
 		o.log.WithFields(log.Fields{
-			"block_start":       currentHeight,
-			"block_end":         latestHeight,
-			"erc20_deployments": erc20Deployments,
-		}).Debugln("scanned FilterERC20Deployed events from Ethereum")
+			"block_start": currentHeight,
+			"block_end":   latestHeight,
+			"events":      erc20Deployments,
+		}).Debugln("scanned FilterERC20Deployed events")
 
 		valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
 		o.log.WithFields(log.Fields{
-			"block_start":    currentHeight,
-			"block_end":      latestHeight,
-			"valset_updates": valsetUpdates,
-		}).Debugln("scanned ValsetUpdated events from Ethereum")
+			"block_start": currentHeight,
+			"block_end":   latestHeight,
+			"events":      valsetUpdates,
+		}).Debugln("scanned ValsetUpdated events")
 
 		if len(legacyDeposits) == 0 &&
 			len(deposits) == 0 &&
