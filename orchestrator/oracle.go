@@ -17,7 +17,7 @@ import (
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
 const (
 	ethBlockConfirmationDelay uint64 = 12
-	defaultBlocksToSearch     uint64 = 20
+	defaultBlocksToSearch     uint64 = 1000
 )
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
