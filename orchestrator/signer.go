@@ -22,10 +22,11 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 	}
 
 	signer := &ethSigner{
-		log:     log.WithField("loop", "EthSigner"),
-		peggyID: peggyID,
-		ethFrom: s.ethereum.FromAddress(),
-		retries: s.maxAttempts,
+		log:         log.WithField("loop", "EthSigner"),
+		peggyID:     peggyID,
+		ethFrom:     s.ethereum.FromAddress(),
+		retries:     s.maxAttempts,
+		minBatchFee: s.minBatchFeeUSD,
 	}
 
 	return loops.RunLoop(
@@ -59,10 +60,11 @@ func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error)
 }
 
 type ethSigner struct {
-	log     log.Logger
-	peggyID common.Hash
-	ethFrom common.Address
-	retries uint
+	log         log.Logger
+	peggyID     common.Hash
+	ethFrom     common.Address
+	retries     uint
+	minBatchFee float64
 }
 
 func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
