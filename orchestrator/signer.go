@@ -80,20 +80,22 @@ func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
 }
 
 func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwork) error {
-	s.log.Infoln("scanning Injective for unconfirmed batch")
+	s.log.Infoln("scanning Injective for unconfirmed batches")
 
+	// todo: extend peggy to send mutiple batches instead of the oldest
 	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
 	if err != nil {
 		return err
 	}
 
-	if oldestUnsignedTransactionBatch == nil {
-		s.log.Debugln("no batch to confirm")
-		return nil
-	}
+	unsignedBatches := []*types.OutgoingTxBatch{oldestUnsignedTransactionBatch}
 
-	if err := s.signBatch(ctx, injective, oldestUnsignedTransactionBatch); err != nil {
-		return err
+	for _, b := range unsignedBatches {
+		// if batch does not satisfy fee, skip it
+
+		if err := s.signBatch(ctx, injective, b); err != nil {
+			return err
+		}
 	}
 
 	return nil
