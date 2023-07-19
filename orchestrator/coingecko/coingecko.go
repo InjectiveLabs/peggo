@@ -92,11 +92,32 @@ func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float
 	_ = resp.Body.Close()
 
 	var f interface{}
-	err = json.Unmarshal(respBody, &f)
-	m := f.(map[string]interface{})
+	if err := json.Unmarshal(respBody, &f); err != nil {
+		metrics.ReportFuncError(cp.svcTags)
+		cp.logger.WithError(err).Errorln("failed to unmarshal response")
+		return zeroPrice, err
+	}
+
+	m, ok := f.(map[string]interface{})
+	if !ok {
+		metrics.ReportFuncError(cp.svcTags)
+		cp.logger.WithError(err).Errorln("failed to cast response type: map[string]interface{}")
+		return zeroPrice, err
+	}
 
 	v := m[strings.ToLower(erc20Contract.String())]
-	n := v.(map[string]interface{})
+	if v == nil {
+		metrics.ReportFuncError(cp.svcTags)
+		cp.logger.WithError(err).Errorln("failed to get contract address")
+		return zeroPrice, err
+	}
+
+	n, ok := v.(map[string]interface{})
+	if !ok {
+		metrics.ReportFuncError(cp.svcTags)
+		cp.logger.WithError(err).Errorln("failed to cast value type: map[string]interface{}")
+		return zeroPrice, err
+	}
 
 	tokenPriceInUSD := n["usd"].(float64)
 	return tokenPriceInUSD, nil
