@@ -16,7 +16,7 @@ import (
 // Considering blocktime of up to 3 seconds approx on the Injective Chain and an oracle loop duration = 1 minute,
 // we broadcast only 20 events in each iteration.
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
-const defaultBlocksToSearch = 20
+const defaultBlocksToSearch = 2000
 
 const ethBlockConfirmationDelay = 12
 
