@@ -259,9 +259,10 @@ func (r *relayer) relayBatches(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch": oldestConfirmedBatch.BatchNonce,
-		"eth_batch": latestEthereumBatch.Uint64(),
-	}).Infoln("detected new transaction batch on Injective")
+		"inj_batch":      oldestConfirmedBatch.BatchNonce,
+		"eth_batch":      latestEthereumBatch.Uint64(),
+		"token_contract": common.HexToAddress(oldestConfirmedBatch.TokenContract),
+	}).Infoln("detected new batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
 	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, oldestConfirmedBatch, oldestConfirmedBatchSigs)
@@ -269,7 +270,7 @@ func (r *relayer) relayBatches(
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("updated transaction batch on Ethereum")
+	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
 
 	return nil
 }
