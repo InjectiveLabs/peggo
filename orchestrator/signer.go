@@ -66,6 +66,8 @@ type ethSigner struct {
 }
 
 func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
+	s.log.Infoln("scanning Injective for unconfirmed batches and valset updates")
+
 	if err := s.signNewValsetUpdates(ctx, injective); err != nil {
 		return err
 	}
@@ -78,8 +80,6 @@ func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
 }
 
 func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwork) error {
-	s.log.Infoln("scanning Injective for unconfirmed batch")
-
 	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
 	if err != nil {
 		return err
@@ -149,8 +149,6 @@ func (s *ethSigner) signNewValsetUpdates(
 	ctx context.Context,
 	injective InjectiveNetwork,
 ) error {
-	s.log.Infoln("scanning Injective for unconfirmed valset updates")
-
 	oldestUnsignedValsets, err := s.getUnsignedValsets(ctx, injective)
 	if err != nil {
 		return err
