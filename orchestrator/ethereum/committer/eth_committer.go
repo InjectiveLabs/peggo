@@ -150,9 +150,8 @@ func (e *ethCommitter) SendTx(
 				return nil
 			} else {
 				log.WithFields(log.Fields{
-					"txHash":    txHash.Hex(),
-					"txHashRet": txHashRet.Hex(),
-				}).WithError(err).Warningln("SendTransaction failed with error")
+					"tx_hash": txHash.Hex(),
+				}).WithError(err).Warningln("failed to send tx")
 			}
 
 			switch {
@@ -198,6 +197,8 @@ func (e *ethCommitter) SendTx(
 		}
 	}); err != nil {
 		metrics.ReportFuncError(e.svcTags)
+
+		log.WithError(err).Errorln("SendTx serialize failed")
 
 		return common.Hash{}, err
 	}
