@@ -93,7 +93,7 @@ func (s *ethSigner) signNewBatches(
 ) error {
 	s.log.Infoln("scanning Injective for unconfirmed batches")
 
-	// todo: extend peggy to send multiple batches instead of the oldest
+	// todo: extend peggy module to send multiple batches instead of the oldest
 	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
 	if err != nil {
 		return err
