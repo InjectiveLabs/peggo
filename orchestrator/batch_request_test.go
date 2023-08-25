@@ -119,3 +119,39 @@ func TestRequestBatches(t *testing.T) {
 	})
 
 }
+
+func TestCheckFeeThreshold(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fee threshold is met", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			requester    = &batchRequester{minBatchFee: 21}
+			tokenAddr    = eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
+			totalFees, _ = cosmtypes.NewIntFromString("10000000000000000000") // 10inj
+			feed         = mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {
+				return 2.5, nil
+			}}
+		)
+
+		// 2.5 * 10 > 21
+		assert.True(t, requester.checkFeeThreshold(feed, tokenAddr, totalFees))
+	})
+
+	t.Run("fee threshold is met", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			requester    = &batchRequester{minBatchFee: 333.333}
+			tokenAddr    = eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
+			totalFees, _ = cosmtypes.NewIntFromString("100000000000000000000") // 10inj
+			feed         = mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {
+				return 2.5, nil
+			}}
+		)
+
+		// 2.5 * 100 < 333.333
+		assert.False(t, requester.checkFeeThreshold(feed, tokenAddr, totalFees))
+	})
+}
