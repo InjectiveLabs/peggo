@@ -2,6 +2,7 @@ package coingecko
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -93,10 +94,20 @@ func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float
 
 	var f interface{}
 	err = json.Unmarshal(respBody, &f)
-	m := f.(map[string]interface{})
+	m, ok := f.(map[string]interface{})
+	if !ok {
+		fmt.Printf("failed to type cast f")
+		fmt.Printf("%v\n", f)
+		return 0, errors.New("response conversion failed")
+	}
 
 	v := m[strings.ToLower(erc20Contract.String())]
-	n := v.(map[string]interface{})
+	n, ok := v.(map[string]interface{})
+	if !ok {
+		fmt.Printf("failed to type cast f")
+		fmt.Printf("%v\n", n)
+		return 0, errors.New("response conversion failed")
+	}
 
 	tokenPriceInUSD := n["usd"].(float64)
 	return tokenPriceInUSD, nil
