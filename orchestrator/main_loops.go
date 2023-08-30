@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -329,9 +330,14 @@ func (s *peggyOrchestrator) CheckFeeThreshold(erc20Contract common.Address, tota
 		return false
 	}
 
+	fmt.Printf("totalFee=%v minFeeInUSD=%v\n", totalFee.String(), minFeeInUSD)
+	fmt.Printf("totalFee (scaled)=%s\n", decimal.NewFromBigInt(totalFee.BigInt(), -18).String())
+
 	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalFee.BigInt(), -18).Mul(tokenPriceInUSDDec)
 	minFeeInUSDDec := decimal.NewFromFloat(minFeeInUSD)
+
+	fmt.Printf("totalFeeInUSDDec=%s minFeeInUSDDec=%s\n", totalFeeInUSDDec.String(), minFeeInUSDDec.String())
 
 	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
 		return true
