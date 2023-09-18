@@ -5,6 +5,9 @@ import (
 	"time"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
@@ -12,6 +15,7 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
+
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )
@@ -176,5 +180,25 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 
 		log.Infof("Registered Ethereum address %s for validator address %s",
 			ethKeyFromAddress, valAddress.String())
+	}
+}
+
+// waitForService awaits an active ClientConn to a GRPC service.
+func waitForService(ctx context.Context, clientconn *grpc.ClientConn) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Fatalln("GRPC service wait timed out")
+		default:
+			state := clientconn.GetState()
+
+			if state != connectivity.Ready {
+				log.WithField("state", state.String()).Warningln("state of GRPC connection not ready")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			return
+		}
 	}
 }
