@@ -189,17 +189,13 @@ func (r *relayer) relayBatches(
 	ethereum EthereumNetwork,
 ) error {
 	// get latest valset from ethereum
-	currentValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
-	if err != nil {
-		return errors.Wrap(err, "failed to find latest valset")
-	}
-
-	if currentValset == nil {
-		return errors.Wrap(err, "latest valset not found")
+	latestEthValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
+	if err != nil || latestEthValset == nil {
+		return errors.Wrap(err, "failed to find latest valset on Ethereum")
 	}
 
 	// get signed batches from injective and select the oldest one with sufficient votes
-	latestInjBatch, latestInjBatchConfirms, err := r.getOldestBatchConfirmedByMajority(ctx, injective, currentValset)
+	latestInjBatch, latestInjBatchConfirms, err := r.getOldestBatchConfirmedByMajority(ctx, injective, latestEthValset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get batch confirms")
 	}
@@ -220,14 +216,12 @@ func (r *relayer) relayBatches(
 	}
 
 	// check if batch relay offset has passed
-	blockResult, err := injective.GetBlock(ctx, int64(latestInjBatch.Block))
+	block, err := injective.GetBlock(ctx, int64(latestInjBatch.Block))
 	if err != nil {
 		return errors.Wrapf(err, "failed to get block %d from Injective", latestInjBatch.Block)
 	}
 
-	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+	if !r.shouldRelayBatch(block.Block.Time) {
 		return nil
 	}
 
@@ -239,7 +233,7 @@ func (r *relayer) relayBatches(
 	}).Infoln("detected new batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, latestInjBatch, latestInjBatchConfirms)
+	txHash, err := ethereum.SendTransactionBatch(ctx, latestEthValset, latestInjBatch, latestInjBatchConfirms)
 	if err != nil {
 		return err
 	}
@@ -247,6 +241,17 @@ func (r *relayer) relayBatches(
 	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
 
 	return nil
+}
+
+func (r *relayer) shouldRelayBatch(t time.Time) bool {
+	if timeElapsed := time.Since(t); timeElapsed <= r.relayBatchOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+		return false
+	}
+
+	return true
 }
 
 func (r *relayer) getOldestBatchConfirmedByMajority(

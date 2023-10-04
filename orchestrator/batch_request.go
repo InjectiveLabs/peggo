@@ -87,13 +87,13 @@ func (r *batchRequester) requestBatchCreation(
 	batchFee *types.BatchFees,
 ) {
 	var (
-		tokenAddr = eth.HexToAddress(batchFee.Token)
-		denom     = r.tokenDenom(tokenAddr)
+		tokenAddr  = eth.HexToAddress(batchFee.Token)
+		tokenDenom = r.tokenDenom(tokenAddr)
 	)
 
 	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, batchFee.TotalFees); !thresholdMet {
 		r.log.WithFields(log.Fields{
-			"denom":          denom,
+			"token_denom":    tokenDenom,
 			"token_contract": tokenAddr.String(),
 			"total_fees":     batchFee.TotalFees.String(),
 		}).Debugln("skipping underpriced batch")
@@ -101,11 +101,11 @@ func (r *batchRequester) requestBatchCreation(
 	}
 
 	r.log.WithFields(log.Fields{
-		"denom":          denom,
+		"token_denom":    tokenDenom,
 		"token_contract": tokenAddr.String(),
 	}).Infoln("requesting batch creation on Injective")
 
-	_ = injective.SendRequestBatch(ctx, denom)
+	_ = injective.SendRequestBatch(ctx, tokenDenom)
 }
 
 func (r *batchRequester) tokenDenom(tokenAddr eth.Address) string {
@@ -135,9 +135,9 @@ func (r *batchRequester) checkFeeThreshold(
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
 	minFeeInUSDDec := decimal.NewFromFloat(r.minBatchFee)
 
-	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
-		return true
+	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		return false
 	}
 
-	return false
+	return true
 }
