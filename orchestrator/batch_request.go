@@ -91,7 +91,12 @@ func (r *batchRequester) requestBatchCreation(
 		tokenDenom = r.tokenDenom(tokenAddr)
 	)
 
-	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, batchFee.TotalFees); !thresholdMet {
+	if !checkPriceThreshold(
+		feed,
+		tokenAddr,
+		batchFee.TotalFees,
+		r.minBatchFee,
+	) {
 		r.log.WithFields(log.Fields{
 			"token_denom":    tokenDenom,
 			"token_contract": tokenAddr.String(),
@@ -134,6 +139,32 @@ func (r *batchRequester) checkFeeThreshold(
 	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
 	minFeeInUSDDec := decimal.NewFromFloat(r.minBatchFee)
+
+	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		return false
+	}
+
+	return true
+}
+
+func checkPriceThreshold(
+	feed PriceFeed,
+	tokenAddr eth.Address,
+	totalFees cosmtypes.Int,
+	minFee float64,
+) bool {
+	if minFee == 0 {
+		return true
+	}
+
+	tokenPriceInUSD, err := feed.QueryUSDPrice(tokenAddr)
+	if err != nil {
+		return false
+	}
+
+	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
+	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+	minFeeInUSDDec := decimal.NewFromFloat(minFee)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		return false

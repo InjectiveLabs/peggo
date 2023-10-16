@@ -93,16 +93,22 @@ func (s *ethSigner) signNewBatches(
 ) error {
 	s.log.Infoln("scanning Injective for unconfirmed batches")
 
-	// todo: extend peggy module to send multiple batches instead of the oldest
-	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
+	unsignedBatches, err := s.getUnsignedBatches(ctx, injective)
 	if err != nil {
 		return err
 	}
 
-	unsignedBatches := []*types.OutgoingTxBatch{oldestUnsignedTransactionBatch}
-
 	for _, b := range unsignedBatches {
-		if !s.checkFeeThreshold(b, feed) {
+		var (
+			totalFee  = cosmtypes.ZeroInt()
+			tokenAddr = common.HexToAddress(b.TokenContract)
+		)
+
+		for _, tx := range b.Transactions {
+			totalFee.Add(tx.Erc20Fee.Amount)
+		}
+
+		if !checkPriceThreshold(feed, tokenAddr, totalFee, s.minBatchFee) {
 			continue //	skip underpriced batch
 		}
 
@@ -114,19 +120,22 @@ func (s *ethSigner) signNewBatches(
 	return nil
 }
 
-func (s *ethSigner) getUnsignedBatch(ctx context.Context, injective InjectiveNetwork) (*types.OutgoingTxBatch, error) {
-	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-	retryFn := func() (err error) {
-		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedTransactionBatch, err = injective.OldestUnsignedTransactionBatch(ctx)
-		if err == cosmos.ErrNotFound || oldestUnsignedTransactionBatch == nil {
-			return nil
+func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveNetwork) ([]*types.OutgoingTxBatch, error) {
+	var (
+		// todo: extend peggy module to return multiple unsigned batches instead of one
+		oldestUnsignedTransactionBatch *types.OutgoingTxBatch
+		getBatchFn                     = func() (err error) {
+			// sign the last unsigned batch, TODO check if we already have signed this
+			oldestUnsignedTransactionBatch, err = injective.OldestUnsignedTransactionBatch(ctx)
+			if err == cosmos.ErrNotFound || oldestUnsignedTransactionBatch == nil {
+				return nil
+			}
+
+			return err
 		}
+	)
 
-		return err
-	}
-
-	if err := retry.Do(retryFn,
+	if err := retry.Do(getBatchFn,
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
@@ -137,7 +146,12 @@ func (s *ethSigner) getUnsignedBatch(ctx context.Context, injective InjectiveNet
 		return nil, err
 	}
 
-	return oldestUnsignedTransactionBatch, nil
+	// temporary check until peggy query is extended
+	if oldestUnsignedTransactionBatch == nil {
+		return nil, nil
+	}
+
+	return []*types.OutgoingTxBatch{oldestUnsignedTransactionBatch}, nil
 }
 
 func (s *ethSigner) checkFeeThreshold(batch *types.OutgoingTxBatch, feed PriceFeed) bool {
