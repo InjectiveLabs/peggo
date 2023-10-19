@@ -6,13 +6,15 @@ CWD=$(pwd)
 
 # These options can be overridden by env
 GETH_NETWORK_ID="${GETH_NETWORK_ID:-50}"
-GETH_ALGO="${GETH_ALGO:-ethash}"
+GETH_ALGO="${GETH_ALGO:-clique}"
 CHAIN_DIR="${CHAIN_DIR:-$CWD/data}"
 
 hdir="$CHAIN_DIR/$GETH_NETWORK_ID"
 ddir="--datadir $hdir"
 
 cd "${0%/*}" # cd to current script dir
+
+echo $(pwd)
 
 if [[ $GETH_ALGO == "ethash" ]]; then
 	geth init $ddir ./geth/genesis.json
@@ -23,3 +25,7 @@ else
 	echo "Unsupported Geth algo: $GETH_ALGO, use ethash or clique"
 	exit 1
 fi
+
+
+touch "./data/50.geth.pid"
+touch "./data/50.geth.log"
