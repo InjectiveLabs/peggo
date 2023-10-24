@@ -21,10 +21,15 @@ SCALE_FACTOR="${SCALE_FACTOR:-000000000000000000}"
 # Default 3 account keys + 1 user key with no special grants
 VAL0_KEY="val"
 VAL0_MNEMONIC="copper push brief egg scan entry inform record adjust fossil boss egg comic alien upon aspect dry avoid interest fury window hint race symptom"
+# todo: add eth FROM/PK for peggo
 VAL1_KEY="val"
 VAL1_MNEMONIC="maximum display century economy unlock van census kite error heart snow filter midnight usage egg venture cash kick motor survey drastic edge muffin visual"
+# todo: add eth FROM/PK for peggo
+
 VAL2_KEY="val"
 VAL2_MNEMONIC="keep liar demand upon shed essence tip undo eagle run people strong sense another salute double peasant egg royal hair report winner student diamond"
+# todo: add eth FROM/PK for peggo
+
 USER_KEY="user"
 USER_MNEMONIC="pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"
 NEWLINE=$'\n'
