@@ -1,0 +1,35 @@
+{
+  "title": "Set Peggy Params",
+  "description": ".",
+  "changes": [
+    {
+      "subspace": "peggy",
+      "key": "BridgeContractAddress",
+      "value": "0x4B25A1FA4CbfA2E35CF8dD78b889207b1244671F"
+    },
+    {
+      "subspace": "peggy",
+      "key": "CosmosCoinErc20Contract",
+      "value": "0xd5eD21EA32f4db5B3665829446CaCDa491372E3C"
+    },
+    {
+      "subspace": "peggy",
+      "key": "BridgeContractChainHeight",
+      "value": "1540"
+    },
+    {
+      "subspace": "peggy",
+      "key": "BridgeChainID",
+      "value": "50"
+    },
+    {
+      "subspace": "peggy",
+      "key": "ValsetReward",
+      "value": {
+        "denom": "inj",
+        "amount": "0"
+      }
+    }
+  ],
+  "deposit": "1000000000000000000inj"
+}

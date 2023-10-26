@@ -2,12 +2,17 @@
 
 PASSPHRASE="12345678"
 
+set -e
+
+cd "${0%/*}" # cd in the script dir
+
 vote() {
         PROPOSAL_ID=$1
         echo $PROPOSAL_ID
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-777 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=block --yes --home ~/injective/injective-exchange/var/data/injective-777/n0 --from=val
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-777 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=block --yes --home ~/injective/injective-exchange/var/data/injective-777/n1 --from=val
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-777 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=block --yes --home ~/injective/injective-exchange/var/data/injective-777/n2 --from=val
+        echo "Voting on proposal: $PROPOSAL_ID"
+        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r
+        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs
+        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz
 }
 
 fetch_proposal_id() {
@@ -15,25 +20,55 @@ fetch_proposal_id() {
 proposal=$((current_proposal_id))
 }
 
-TX_OPTS="--gas=2000000 --chain-id=injective-777 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=block --yes --home ~/injective/injective-exchange/var/data/injective-777/n0 --from=val"
+TX_OPTS="--gas=2000000 --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=user"
 
-cat /root/scripts/peggo_params.json | jq ".changes[0].value=\"$(cat /root/scripts/peggy_proxy_address.txt)\"" > /root/scripts/peggo_params.json
+#cat ./peggo_params.json | jq ".changes[0].value=\"$(cat ./peggy_proxy_address.txt)\"" > ./peggo_params.json
+#cat ./peggo_params.json | jq ".changes[1].value=\"$(cat ./peggy_coin_address.txt)\"" > ./peggo_params.json
+#cat ./peggo_params.json | jq ".changes[2].value=\"$(cat ./peggy_block_number.txt)\"" > ./peggo_params.json
 
-cat /root/scripts/peggo_params.json | jq ".changes[2].value=\"$(cat /root/scripts/peggy_block_number.txt)\"" > /root/scripts/peggo_params.json
+#jq --arg peggy_proxy "$(cat ./peggy_proxy_address.txt)" \
+#   --arg peggy_coin "$(cat ./peggy_coin_address.txt)" \
+#   --arg peggy_block "$(cat ./peggy_block_number.txt)" \
+#   '.changes[0].value = $peggy_proxy | .changes[1].value = $peggy_coin | .changes[2].value = $peggy_block' \
+#   ./peggy_params.json > tmpfile && mv tmpfile ./peggo_params.json
 
-yes $PASSPHRASE | injectived tx gov submit-proposal param-change /root/scripts/peggo_params.json $TX_OPTS
+
+
+# Use jq to update the JSON file
+jq --arg cosmos_coin_erc20 "$(cat ./peggy_coin_address.txt)" \
+   --arg bridge_contract_height "$(cat ./peggy_block_number.txt)" \
+   --arg bridge_ethereum "$(cat ./peggy_proxy_address.txt)" \
+   '.messages[0].params.cosmos_coin_erc20_contract = $cosmos_coin_erc20 |
+    .messages[0].params.bridge_contract_start_height = $bridge_contract_height |
+    .messages[0].params.bridge_ethereum_address = $bridge_ethereum' \
+   ./peggy_params.json > tmpfile
+
+# Replace the original JSON file with the updated one
+mv tmpfile ./peggy_params.json
+
+
+#echo "Peggy params json:"
+#echo $(cat ./peggy_params.json)
+
+echo "Submitting gov proposal for peggy params update..."
+yes $PASSPHRASE | injectived tx gov submit-proposal ./peggy_params.json $TX_OPTS
+
+sleep 1
+
 fetch_proposal_id
 vote $proposal
 
-rm /root/scripts/peggy_proxy_address.txt
-rm /root/scripts/peggy_block_number.txt
 
-injectived tx peggy set-orchestrator-address inj15gnk95hvqrsr343ecqjuv7yf2af9rkdqeax52d inj15gnk95hvqrsr343ecqjuv7yf2af9rkdqeax52d 0x5ae7c0fcbf5014972e71a2841be295f57fbae929 --chain-id=injective-777 --broadcast-mode=block --yes --keyring-backend test --home ~/injective/injective-exchange/var/data/injective-777/n0 --from=val
+#echo $(pwd)
+#rm ./peggy_proxy_address.txt
+#rm ./peggy_block_number.txt
+#
+#injectived tx peggy set-orchestrator-address inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r 0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4 --chain-id=injective-333 --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=val
+#
+#injectived tx peggy set-orchestrator-address inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs 0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c --chain-id=injective-333 --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from=val
+#
+#injectived tx peggy set-orchestrator-address inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz 0x8B094eD440900CEB75B83A22eD8A2C7582B442C2 --chain-id=injective-333 --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from=val
 
-injectived tx peggy set-orchestrator-address inj1q8nh58utz78ree7e4cnxnvmyt0mrq5ww307jsk inj1q8nh58utz78ree7e4cnxnvmyt0mrq5ww307jsk 0xc1858d219ef878a4e774b3558556bb4b7bd6d286 --chain-id=injective-777 --broadcast-mode=block --yes --keyring-backend test --home ~/injective/injective-exchange/var/data/injective-777/n1 --from=val
-
-injectived tx peggy set-orchestrator-address inj1lrr6tf29yjz4q8ewjgcd4sjj97mh9xy90t56zh inj1lrr6tf29yjz4q8ewjgcd4sjj97mh9xy90t56zh 0x7590dF78DE45a72F02724435d3ca164DA894B5b9 --chain-id=injective-777 --broadcast-mode=block --yes --keyring-backend test --home ~/injective/injective-exchange/var/data/injective-777/n2 --from=val
-
-sudo systemctl start peggo
-sudo systemctl start peggo1
-sudo systemctl start peggo2
+#sudo systemctl start peggo
+#sudo systemctl start peggo1
+#sudo systemctl start peggo2

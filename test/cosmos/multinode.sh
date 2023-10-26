@@ -7,12 +7,14 @@
 
 set -e
 
+cd "${0%/*}" # cd to current script dir
+
 CWD=$(pwd)
 
 # These options can be overridden by env
 CHAIN_ID="${CHAIN_ID:-"injective-333"}"
 CHAIN_DIR="${CHAIN_DIR:-$CWD/data}"
-DENOM="${DENOM:-uatom}"
+DENOM="${DENOM:-inj}"
 STAKE_DENOM="${STAKE_DENOM:-$DENOM}"
 CLEANUP="${CLEANUP:-0}"
 LOG_LEVEL="${LOG_LEVEL:-main:info,state:info,statesync:info,*:error}"
@@ -82,6 +84,11 @@ fi
 n0dir="$hdir/n0"
 n1dir="$hdir/n1"
 n2dir="$hdir/n2"
+
+# peggo .env files
+n0_peggo_env="$n0dir/peggo.env"
+n1_peggo_env="$n1dir/peggo.env"
+n2_peggo_env="$n2dir/peggo.env"
 
 # Home flag for folder
 home0="--home $n0dir"
@@ -159,6 +166,7 @@ if [[ ! -d "$hdir" ]]; then
 
 	echo "NOTE: Setting Governance Voting Period to 10 seconds for rapid testing"
 	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["voting_params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 
 
 	# Copy genesis around to sign
@@ -230,6 +238,20 @@ if [[ ! -d "$hdir" ]]; then
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer1','$peer2'"|g' $n0cfg
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer2'"|g' $n1cfg
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer1'"|g' $n2cfg
+
+  # Initialize peggo env files for each validator
+  # todo: PEGGO_COSMOS_GRPC
+  # todo: PEGGO_TENDERMINT_RPC
+  # todo: PEGGO_COSMOS_KEYRING_DIR
+  # todo: PEGGO_COSMOS_FROM
+  # todo: PEGGO_COSMOS_PK
+  # todo: PEGGO_ETH_RPC
+  # todo: PEGGO_ETH_KEYSTORE_DIR
+  # todo: PEGGO_ETH_FROM
+  # todo: PEGGO_ETH_PK
+  # todo: PEGGO_MIN_BATCH_FEE_USD
+
+
 fi # data dir check
 
 # Start the instances

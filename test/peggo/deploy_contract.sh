@@ -5,8 +5,9 @@ set -e
 cd "${0%/*}" # cd in the script dir
 
 PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}" # this is arbitrary
+#PEGGY_ID="${PEGGY_ID:-"peggo-333"}" # this is arbitrary
 POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
-VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x5AE7c0FcBf5014972e71A2841bE295f57fbae929,0x7590dF78DE45a72F02724435d3ca164DA894B5b9,0xC1858d219Ef878a4e774B3558556BB4b7BD6d286}"
+VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
 VALIDATOR_POWERS="${VALIDATOR_POWERS:-1431655765,1431655765,1431655765}"
 
 #if [[ ! -f .env ]]; then
@@ -80,8 +81,13 @@ echo -e "===\n"
 #
 #echo "Deployed inj token: $inj_token"
 
+# Deploy Cosmos Coin ERC20 contract
+coin_contract_path="/Users/dbrajovic/Desktop/dev/Injective/peggo/solidity/contracts/CosmosToken.sol"
+coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$coin_contract_path" deploy 0x696e6a6563746976652d70656767796964 "Injective" "inj" 18)
+echo "Deployed Cosmos Coin contract: $coin_contract_address"
 
 echo "Peggy deployment done! Use $peggy_proxy_address"
 echo "Block number is $peggy_block_number"
 echo "$peggy_proxy_address" > ./peggy_proxy_address.txt
 echo "$peggy_block_number" > ./peggy_block_number.txt
+echo "$coin_contract_address" > ./peggy_coin_address.txt
