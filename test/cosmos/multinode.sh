@@ -67,6 +67,8 @@ NODE_BIN="$1"
 
 echo "Using $CHAIN_ID as Chain ID and $CHAIN_DIR as data prefix."
 echo "Using $DENOM as Cosmos Coin Denom."
+echo "Using $STAKE_DENOM as Cosmos Stake Denom."
+
 if [[ "$CLEANUP" == 1 || "$CLEANUP" == "1" ]]; then
 	echo "Will remove $CHAIN_DIR"
 fi
@@ -162,6 +164,7 @@ if [[ ! -d "$hdir" ]]; then
 		cat $n0cfgDir/genesis.json | jq '.app_state["crisis"]["constant_fee"]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 		cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["deposit_params"]["min_deposit"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 		cat $n0cfgDir/genesis.json | jq '.app_state["mint"]["params"]["mint_denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+		cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["min_deposit"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 	fi
 
 	echo "NOTE: Setting Governance Voting Period to 10 seconds for rapid testing"
