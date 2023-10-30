@@ -154,7 +154,7 @@ func (r *relayer) relayValsets(
 	}
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		timeRemaining := r.relayBatchOffsetDur - timeElapsed
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}

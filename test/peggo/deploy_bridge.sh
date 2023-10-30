@@ -62,7 +62,7 @@ echo "ID before proposal: $current_proposal_id"
 echo "Submitting gov proposal for peggy params update..."
 yes $PASSPHRASE | injectived tx gov submit-proposal ./peggy_params.json $TX_OPTS
 
-sleep 3
+sleep 2
 
 fetch_proposal_id
 
@@ -74,13 +74,18 @@ vote $proposal
 #echo $(pwd)
 #rm ./peggy_proxy_address.txt
 #rm ./peggy_block_number.txt
-#
-#injectived tx peggy set-orchestrator-address inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r 0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=val
-#
-#injectived tx peggy set-orchestrator-address inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs 0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from=val
-#
-#injectived tx peggy set-orchestrator-address inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz 0x8B094eD440900CEB75B83A22eD8A2C7582B442C2 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from=val
+
+sleep 2
+
+injectived tx peggy set-orchestrator-address inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r 0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=val
+
+injectived tx peggy set-orchestrator-address inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs 0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from=val
+
+injectived tx peggy set-orchestrator-address inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz 0x8B094eD440900CEB75B83A22eD8A2C7582B442C2 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from=val
 
 #sudo systemctl start peggo
 #sudo systemctl start peggo1
 #sudo systemctl start peggo2
+
+
+# Start peggo service

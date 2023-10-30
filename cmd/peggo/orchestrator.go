@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
 	"os"
 	"time"
@@ -158,6 +159,8 @@ func isValidatorAddress(peggyQuery cosmos.PeggyQueryClient, addr ethcmn.Address)
 	if err != nil {
 		return false, err
 	}
+
+	fmt.Printf("valset = %#v\n", currentValset)
 
 	var isValidator bool
 	for _, validator := range currentValset.Members {
