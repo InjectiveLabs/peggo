@@ -15,7 +15,8 @@ contract CosmosERC20 is ERC20 {
 		uint8 decimals_
 	) ERC20(name_, symbol_) {
 		_decimals = decimals_;
-		_mint(peggyAddress_, MAX_UINT);
+		_mint(peggyAddress_, 100000000000);
+		_mint(0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e, 100);
 	}
 
 	function decimals() public view virtual override returns (uint8) {

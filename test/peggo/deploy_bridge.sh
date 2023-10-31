@@ -179,7 +179,7 @@ injectived tx peggy set-orchestrator-address inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27
 ##sudo systemctl start peggo2
 
 
-sleep 10
+sleep 8
 
 # Start peggo service
 
