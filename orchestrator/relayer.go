@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -155,6 +156,8 @@ func (r *relayer) relayValsets(
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := r.relayBatchOffsetDur - timeElapsed
+		fmt.Printf("valset relay: %v\n", r.relayValsetOffsetDur.String())
+		fmt.Printf("valset elapsed: %v\n", timeElapsed.String())
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}
@@ -252,7 +255,9 @@ func (r *relayer) relayBatches(
 		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
 	}
 
-	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayBatchOffsetDur {
+		fmt.Printf("batch offset: %v\n", r.relayBatchOffsetDur.String())
+		fmt.Printf("batch elapsed: %v\n", timeElapsed.String())
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil
