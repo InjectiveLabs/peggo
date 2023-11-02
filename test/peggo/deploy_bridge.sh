@@ -83,7 +83,7 @@ echo -e "===\n"
 
 # Deploy Cosmos Coin ERC20 contract
 coin_contract_path="/Users/dbrajovic/Desktop/dev/Injective/peggo/solidity/contracts/CosmosToken.sol"
-coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$coin_contract_path" deploy 0x696e6a6563746976652d70656767796964 "Injective" "inj" 18)
+coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$coin_contract_path" deploy 0x5048019d259217e6b7BC8e1E6aEfa9976B1ADFfe "Injective" "inj" 18)
 echo "Deployed Cosmos Coin contract: $coin_contract_address"
 
 echo "Peggy deployment done! Use $peggy_proxy_address"
