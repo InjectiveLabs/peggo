@@ -4,264 +4,193 @@ set -e
 
 cd "${0%/*}" # cd in the script dir
 
-PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}" # this is arbitrary
-#PEGGY_ID="${PEGGY_ID:-"peggo-333"}" # this is arbitrary
+# bytes32 encoding of "injective-peggyid". See peggy_params.json
+PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}"
 POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
 VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
 VALIDATOR_POWERS="${VALIDATOR_POWERS:-1431655765,1431655765,1431655765}"
 
-#if [[ ! -f .env ]]; then
-#        echo "Please create .env file, example is in .env.example"
-#        exit 1
-#fi
-
-#peggy_impl_address=`etherman \
-#        --name Peggy \
-#        --source ../contracts/Peggy.sol \
-#        deploy`
+echo "** Deploying Peggy contract suite **"
 
 deployer_pk=$(cat ../ethereum/geth/clique_signer.key)
-peggy_impl_address=$(etherman --name Peggy --source ../../solidity/contracts/Peggy.sol -P "$deployer_pk" deploy)
 
-echo "Deployed Peggy implementation contract: $peggy_impl_address"
-echo -e "===\n"
-
-peggy_init_data=$(etherman \
-        --name Peggy \
-        --source ../../solidity/contracts/Peggy.sol \
-        -P "$deployer_pk" \
-        tx --bytecode $peggy_impl_address initialize \
-        $PEGGY_ID \
-        $POWER_THRESHOLD \
-        $VALIDATOR_ADDRESSES \
-        $VALIDATOR_POWERS)
+peggy_contract_path="../../solidity/contracts/Peggy.sol"
+peggy_admin_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol"
+upgradeable_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/TransparentUpgradeableProxy.sol"
+cosmos_coin_contract_path="../../solidity/contracts/CosmosToken.sol"
 
 echo "Using PEGGY_ID $PEGGY_ID"
 echo "Using POWER_THRESHOLD $POWER_THRESHOLD"
 echo "Using VALIDATOR_ADDRESSES $VALIDATOR_ADDRESSES"
 echo "Using VALIDATOR_POWERS $VALIDATOR_POWERS"
-echo -e "===\n"
-echo "Peggy Init data: $peggy_init_data"
-echo -e "===\n"
+echo -e "\n"
 
-proxy_admin_address=$(etherman \
-        --name ProxyAdmin \
-        -P "$deployer_pk" \
-        --source ../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol \
-        deploy)
+peggy_impl_address=$(etherman --name Peggy \
+                    --source $peggy_contract_path \
+                    -P "$deployer_pk" \
+                    deploy)
+echo "Deployed Peggy implementation contract: $peggy_impl_address"
 
-echo "Deployed ProxyAdmin contract: $proxy_admin_address"
-echo -e "===\n"
+peggy_init_data=$(etherman --name Peggy \
+                --source $peggy_contract_path \
+                -P "$deployer_pk" \
+                tx --bytecode "$peggy_impl_address" \
+                initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+echo "Initialized Peggy implementation contract. Init data:"
+echo "$peggy_init_data"
 
-peggy_proxy_address=$(etherman \
-        --name TransparentUpgradeableProxy \
-        --source ../../solidity/contracts/@openzeppelin/contracts/TransparentUpgradeableProxy.sol \
-        -P "$deployer_pk" \
-        deploy $peggy_impl_address $proxy_admin_address $peggy_init_data)
+proxy_admin_address=$(etherman --name ProxyAdmin \
+                    -P "$deployer_pk" \
+                    --source "$peggy_admin_proxy_contract_path" \
+                    deploy)
+echo "Deployed ProxyAdmin contract for Peggy: $proxy_admin_address"
+
+peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy \
+                    --source "$upgradeable_proxy_contract_path" \
+                    -P "$deployer_pk" \
+                    deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
+echo "Deployed TransparentUpgradeableProxy for $peggy_impl_address (Peggy) with $proxy_admin_address (ProxyAdmin) as the admin"
+
+coin_contract_address=$(etherman --name CosmosERC20 \
+                      -P "$deployer_pk" \
+                      --source "$cosmos_coin_contract_path" \
+                      deploy "$peggy_proxy_address" "Injective" "inj" 18)
+echo "Deployed Cosmos Coin contract: $coin_contract_address"
 
 peggy_block_number=$(curl http://localhost:8545 \
                 -X POST \
                 -H "Content-Type: application/json" \
-                -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' \
+                -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' 2>/dev/null \
                 | python3 -c "import sys, json; print(int(json.load(sys.stdin)['result']['number'], 0))")
 
-echo "Deployed TransparentUpgradeableProxy for $peggy_impl_address (Peggy), with $proxy_admin_address (ProxyAdmin) as the admin"
-echo -e "===\n"
-#
-#echo "Deploying Injective token on Peggy.sol:"
-#inj_token=$(etherman \
-#        --name Peggy \
-#        --source ../../solidity/contracts/Peggy.sol \
-#        -P "$deployer_pk" \
-#        tx --bytecode $peggy_impl_address deployERC20 \
-#        "whatever_this_is" \
-#        "Injective" \
-#        "inj" \
-#        18)
-#
-#echo "Deployed inj token: $inj_token"
-
-# Deploy Cosmos Coin ERC20 contract
-coin_contract_path="/Users/dbrajovic/Desktop/dev/Injective/peggo/solidity/contracts/CosmosToken.sol"
-coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$coin_contract_path" deploy 0x5048019d259217e6b7BC8e1E6aEfa9976B1ADFfe "Injective" "inj" 18)
-echo "Deployed Cosmos Coin contract: $coin_contract_address"
-
-echo "Peggy deployment done! Use $peggy_proxy_address"
-echo "Block number is $peggy_block_number"
-echo "$peggy_proxy_address" > ./peggy_proxy_address.txt
-echo "$peggy_block_number" > ./peggy_block_number.txt
-echo "$coin_contract_address" > ./peggy_coin_address.txt
-
+echo "Peggy deployment done!"
+echo "  * Contract address: $peggy_proxy_address"
+echo "  * Contract deployment height: $peggy_block_number"
+echo -e "=======================\n"
 
 sleep 2
 
 PASSPHRASE="12345678"
+TX_OPTS="--chain-id injective-333 --keyring-backend test --broadcast-mode sync --yes"
 
-vote() {
-        PROPOSAL_ID=$1
-        echo $PROPOSAL_ID
-        echo "Voting on proposal: $PROPOSAL_ID"
+peggy_params_json="./peggy_params.json"
+chain_dir="/Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333"
+n0_home_dir=$chain_dir/n0
+n1_home_dir=$chain_dir/n1
+n2_home_dir=$chain_dir/n2
 
-        echo "val0 voting yes"
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r
-
-        echo "val1 voting yes"
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs
-
-        echo "val2 voting yes"
-        yes $PASSPHRASE | injectived tx gov vote $PROPOSAL_ID yes --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz
-}
-
-fetch_proposal_id() {
-        current_proposal_id=$(curl 'http://localhost:10337/cosmos/gov/v1beta1/proposals?proposal_status=0&pagination.limit=1&pagination.reverse=true' | jq -r '.proposals[].proposal_id')
-proposal=$((current_proposal_id))
-}
-
-TX_OPTS="--gas=2000000 --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=user"
-
-#cat ./peggo_params.json | jq ".changes[0].value=\"$(cat ./peggy_proxy_address.txt)\"" > ./peggo_params.json
-#cat ./peggo_params.json | jq ".changes[1].value=\"$(cat ./peggy_coin_address.txt)\"" > ./peggo_params.json
-#cat ./peggo_params.json | jq ".changes[2].value=\"$(cat ./peggy_block_number.txt)\"" > ./peggo_params.json
-
-#jq --arg peggy_proxy "$(cat ./peggy_proxy_address.txt)" \
-#   --arg peggy_coin "$(cat ./peggy_coin_address.txt)" \
-#   --arg peggy_block "$(cat ./peggy_block_number.txt)" \
-#   '.changes[0].value = $peggy_proxy | .changes[1].value = $peggy_coin | .changes[2].value = $peggy_block' \
-#   ./peggy_params.json > tmpfile && mv tmpfile ./peggo_params.json
-
-
-
-# Use jq to update the JSON file
-jq --arg cosmos_coin_erc20 "$(cat ./peggy_coin_address.txt)" \
-   --arg bridge_contract_height "$(cat ./peggy_block_number.txt)" \
-   --arg bridge_ethereum "$(cat ./peggy_proxy_address.txt)" \
+# Update peggy_params.json
+jq --arg cosmos_coin_erc20 "$coin_contract_address" \
+   --arg bridge_contract_height "$peggy_block_number" \
+   --arg bridge_ethereum "$peggy_proxy_address" \
    '.messages[0].params.cosmos_coin_erc20_contract = $cosmos_coin_erc20 |
     .messages[0].params.bridge_contract_start_height = $bridge_contract_height |
     .messages[0].params.bridge_ethereum_address = $bridge_ethereum' \
-   ./peggy_params.json > tmpfile
+   $peggy_params_json > tmpfile && mv tmpfile $peggy_params_json
 
-# Replace the original JSON file with the updated one
-mv tmpfile ./peggy_params.json
+# usage: resp_check [resp] [err_msg]
+resp_check() {
+  if [ "$(echo -e "$1" | awk -F"'" '/raw_log: /{print $2}')" != "[]" ]; then
+    echo "$2"
+    exit 1
+  fi
+}
 
+echo "Submitting gov proposal for Peggy module params update..."
+cat $peggy_params_json
 
-#echo "Peggy params json:"
-#echo $(cat ./peggy_params.json)
-
-echo "ID before proposal: $current_proposal_id"
-
-
-echo "Submitting gov proposal for peggy params update..."
-yes $PASSPHRASE | injectived tx gov submit-proposal ./peggy_params.json $TX_OPTS
-
-sleep 2
-
-fetch_proposal_id
-
-echo "ID after proposal: $current_proposal_id"
-
-vote $proposal
-
-
-#echo $(pwd)
-#rm ./peggy_proxy_address.txt
-#rm ./peggy_block_number.txt
+resp="$(yes $PASSPHRASE | injectived tx gov submit-proposal $peggy_params_json --home $n0_home_dir --from user --gas 2000000 --gas-prices 500000000inj $TX_OPTS)"
+resp_check "$resp" "Failed to submit gov proposal"
 
 sleep 2
 
-injectived tx peggy set-orchestrator-address inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r 0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0 --from=val
+current_proposal_id=$(curl 'http://localhost:10337/cosmos/gov/v1beta1/proposals?proposal_status=0&pagination.limit=1&pagination.reverse=true' 2>/dev/null | jq -r '.proposals[].proposal_id')
 
-injectived tx peggy set-orchestrator-address inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs 0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1 --from=val
+resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n0_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
+resp_check "$resp" "val0 failed to vote on gov proposal"
 
-injectived tx peggy set-orchestrator-address inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz 0x8B094eD440900CEB75B83A22eD8A2C7582B442C2 --chain-id=injective-333 --gas-prices 100000000000000inj --broadcast-mode=sync --yes --keyring-backend test --home /Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2 --from=val
+resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n1_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
+resp_check "$resp" "val1 failed to vote on gov proposal"
 
-##sudo systemctl start peggo
-##sudo systemctl start peggo1
-##sudo systemctl start peggo2
+resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n2_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
+resp_check "$resp" "val2 failed to vote on gov proposal"
 
-
+echo "Waiting for proposal to pass..."
 sleep 8
 
+echo "Registering orchestrator ETH addresses..."
+
+n0_inj_addr="inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r"
+n1_inj_addr="inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs"
+n2_inj_addr="inj1dzqd00lfd4y4qy2pxa0dsdwzfnmsu27hgttswz"
+
+n0_eth_addr="0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4"
+n1_eth_addr="0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c"
+n2_eth_addr="0x8B094eD440900CEB75B83A22eD8A2C7582B442C2"
+
+resp="$(injectived tx peggy set-orchestrator-address $n0_inj_addr $n0_inj_addr $n0_eth_addr --home $n0_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
+resp_check "$resp" "val0 failed to register orchestrator address"
+
+resp="$(injectived tx peggy set-orchestrator-address $n1_inj_addr $n1_inj_addr $n1_eth_addr --home $n1_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
+resp_check "$resp" "val1 failed to register orchestrator address"
+
+resp="$(injectived tx peggy set-orchestrator-address $n2_inj_addr $n2_inj_addr $n2_eth_addr --home $n2_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
+resp_check "$resp" "val2 failed to register orchestrator address"
+
+sleep 2
+
 # Start peggo service
+echo "Starting 3x Peggo orchestrators..."
 
 cwd=$(pwd)
-data_dir=$cwd/data
 example_env=$cwd/example.env
 localhost_tcp="tcp://localhost"
 localhost_http="http://localhost"
 
+n0_peggo_dir=$cwd/data/n0
+n1_peggo_dir=$cwd/data/n1
+n2_peggo_dir=$cwd/data/n2
 
+n0_peggo_env=$n0_peggo_dir/.env
+n1_peggo_env=$n1_peggo_dir/.env
+n2_peggo_env=$n2_peggo_dir/.env
 
-n0_data_dir=$cwd/data/n0
-n0_peggo_env=$n0_data_dir/.env
-n0_eth_from="0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4"
-n0_eth_pk="e85344fa1e00f06bd286b716e410ee0ad73541956c4cf59520f6db13599eb3f3"
+mkdir -p "$n0_peggo_dir" && touch "$n0_peggo_env"
+mkdir -p "$n1_peggo_dir" && touch "$n1_peggo_env"
+mkdir -p "$n2_peggo_dir" && touch "$n2_peggo_env"
+
 n0_cosmos_grpc="$localhost_tcp:9090"
+n1_cosmos_grpc="$localhost_tcp:9091"
+n2_cosmos_grpc="$localhost_tcp:9092"
+
 n0_tendermint_rpc="$localhost_http:26657"
-n0_cosmos_keyring="/Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0"
+n1_tendermint_rpc="$localhost_http:26667"
+n2_tendermint_rpc="$localhost_http:26677"
 
-#n0_data_dir=$data_data/n0
-#n0_data_dir=$data_data/n0
+n0_eth_pk="e85344fa1e00f06bd286b716e410ee0ad73541956c4cf59520f6db13599eb3f3"
+n1_eth_pk="60f6ee19454b8ff45693cd54c55860785e4af9eeb06d6c5617568458e4ca5c54"
+n2_eth_pk="21eeff959d9752704e3f1ad6562fd0458c003bce0947e5aecf07b602f4e457aa"
 
-
-mkdir -p "$n0_data_dir"
-touch "$n0_peggo_env"
-
-sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n0_eth_from\"|" \
+sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n0_eth_addr\"|" \
     -e "s|^PEGGO_ETH_PK=.*|PEGGO_ETH_PK=\"$n0_eth_pk\"|" \
-    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n0_cosmos_keyring\"|" \
+    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n0_home_dir\"|" \
     -e "s|^PEGGO_COSMOS_GRPC=.*|PEGGO_COSMOS_GRPC=\"$n0_cosmos_grpc\"|" \
     -e "s|^PEGGO_TENDERMINT_RPC=.*|PEGGO_TENDERMINT_RPC=\"$n0_tendermint_rpc\"|" \
     "$example_env" > "$n0_peggo_env"
 
-
-
-
-n1_data_dir=$cwd/data/n1
-n1_peggo_env=$n1_data_dir/.env
-n1_eth_from="0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c"
-n1_eth_pk="60f6ee19454b8ff45693cd54c55860785e4af9eeb06d6c5617568458e4ca5c54"
-n1_cosmos_keyring="/Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n1"
-n1_cosmos_grpc="$localhost_tcp:9091"
-n1_tendermint_rpc="$localhost_http:26667"
-
-#n0_data_dir=$data_data/n0
-#n0_data_dir=$data_data/n0
-
-
-mkdir -p "$n1_data_dir"
-touch "$n1_peggo_env"
-
-sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n1_eth_from\"|" \
+sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n1_eth_addr\"|" \
     -e "s|^PEGGO_ETH_PK=.*|PEGGO_ETH_PK=\"$n1_eth_pk\"|" \
-    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n1_cosmos_keyring\"|" \
+    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n1_home_dir\"|" \
     -e "s|^PEGGO_COSMOS_GRPC=.*|PEGGO_COSMOS_GRPC=\"$n1_cosmos_grpc\"|" \
     -e "s|^PEGGO_TENDERMINT_RPC=.*|PEGGO_TENDERMINT_RPC=\"$n1_tendermint_rpc\"|" \
     "$example_env" > "$n1_peggo_env"
 
-
-
-n2_data_dir=$cwd/data/n2
-n2_peggo_env=$n2_data_dir/.env
-n2_eth_from="0x8B094eD440900CEB75B83A22eD8A2C7582B442C2"
-n2_eth_pk="21eeff959d9752704e3f1ad6562fd0458c003bce0947e5aecf07b602f4e457aa"
-n2_cosmos_keyring="/Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n2"
-n2_cosmos_grpc="$localhost_tcp:9092"
-n2_tendermint_rpc="$localhost_http:26677"
-
-#n0_data_dir=$data_data/n0
-#n0_data_dir=$data_data/n0
-
-
-mkdir -p "$n2_data_dir"
-touch "$n2_peggo_env"
-
-sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n2_eth_from\"|" \
+sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n2_eth_addr\"|" \
     -e "s|^PEGGO_ETH_PK=.*|PEGGO_ETH_PK=\"$n2_eth_pk\"|" \
-    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n2_cosmos_keyring\"|" \
+    -e "s|^PEGGO_COSMOS_KEYRING_DIR=.*|PEGGO_COSMOS_KEYRING_DIR=\"$n2_home_dir\"|" \
     -e "s|^PEGGO_COSMOS_GRPC=.*|PEGGO_COSMOS_GRPC=\"$n2_cosmos_grpc\"|" \
     -e "s|^PEGGO_TENDERMINT_RPC=.*|PEGGO_TENDERMINT_RPC=\"$n2_tendermint_rpc\"|" \
     "$example_env" > "$n2_peggo_env"
-
 
 # Start a new tmux session
 tmux new-session -d -s mysession
@@ -273,9 +202,9 @@ tmux select-layout even-vertical
 
 # Select each pane and run a command from a different directory
 peggo_cmd="peggo orchestrator"
-tmux send-keys -t 0 "cd $n0_data_dir" C-m "$peggo_cmd" C-m
-tmux send-keys -t 1 "cd $n1_data_dir" C-m "$peggo_cmd" C-m
-tmux send-keys -t 2 "cd $n2_data_dir" C-m "$peggo_cmd" C-m
+tmux send-keys -t 0 "cd $n0_peggo_dir" C-m "$peggo_cmd" C-m
+tmux send-keys -t 1 "cd $n1_peggo_dir" C-m "$peggo_cmd" C-m
+tmux send-keys -t 2 "cd $n2_peggo_dir" C-m "$peggo_cmd" C-m
 
 # Attach to the tmux session to view the processes
 tmux attach-session -t mysession

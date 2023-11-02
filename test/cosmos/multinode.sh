@@ -19,22 +19,20 @@ STAKE_DENOM="${STAKE_DENOM:-$DENOM}"
 CLEANUP="${CLEANUP:-0}"
 LOG_LEVEL="${LOG_LEVEL:-main:info,state:info,statesync:info,*:error}"
 SCALE_FACTOR="${SCALE_FACTOR:-000000000000000000}"
+NEWLINE=$'\n'
 
 # Default 3 account keys + 1 user key with no special grants
 VAL0_KEY="val"
 VAL0_MNEMONIC="copper push brief egg scan entry inform record adjust fossil boss egg comic alien upon aspect dry avoid interest fury window hint race symptom"
-# todo: add eth FROM/PK for peggo
+
 VAL1_KEY="val"
 VAL1_MNEMONIC="maximum display century economy unlock van census kite error heart snow filter midnight usage egg venture cash kick motor survey drastic edge muffin visual"
-# todo: add eth FROM/PK for peggo
 
 VAL2_KEY="val"
 VAL2_MNEMONIC="keep liar demand upon shed essence tip undo eagle run people strong sense another salute double peasant egg royal hair report winner student diamond"
-# todo: add eth FROM/PK for peggo
 
 USER_KEY="user"
 USER_MNEMONIC="pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"
-NEWLINE=$'\n'
 
 hdir="$CHAIN_DIR/$CHAIN_ID"
 
@@ -49,18 +47,6 @@ then
     echo "jq is a lightweight and flexible command-line JSON processor."
     echo "Install it by checking https://stedolan.github.io/jq/download/"
     exit 1
-fi
-
-# Expect Chain ID to be provided
-if [[ -z "$CHAIN_ID" ]]; then
-  echo "Please provide Cosmos CHAIN_ID env"
-  exit 1
-fi
-
-# Expect data prefix to be provided
-if [[ -z "$CHAIN_DIR" ]]; then
-  echo "Please provide CHAIN_DIR data prefix"
-  exit 1
 fi
 
 NODE_BIN="$1"
@@ -86,11 +72,6 @@ fi
 n0dir="$hdir/n0"
 n1dir="$hdir/n1"
 n2dir="$hdir/n2"
-
-# peggo .env files
-n0_peggo_env="$n0dir/peggo.env"
-n1_peggo_env="$n1dir/peggo.env"
-n2_peggo_env="$n2dir/peggo.env"
 
 # Home flag for folder
 home0="--home $n0dir"
@@ -135,7 +116,6 @@ if [[ ! -d "$hdir" ]]; then
 	$NODE_BIN $home1 $cid init n1 &>/dev/null
 	$NODE_BIN $home2 $cid init n2 &>/dev/null
 
-
 	# Generate new random keys
 	# $NODE_BIN $home0 keys add val $kbt &>/dev/null
 	# $NODE_BIN $home1 keys add val $kbt &>/dev/null
@@ -149,14 +129,11 @@ if [[ ! -d "$hdir" ]]; then
 	yes "$USER_MNEMONIC$NEWLINE" | $NODE_BIN $home1 keys add $USER_KEY $kbt --recover &>/dev/null
 	yes "$USER_MNEMONIC$NEWLINE" | $NODE_BIN $home2 keys add $USER_KEY $kbt --recover &>/dev/null
 
-
-
 	# Add addresses to genesis
 	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home0 keys show $VAL0_KEY -a $kbt)  $coins
 	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home1 keys show $VAL1_KEY -a $kbt) $coins &>/dev/null
 	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home2 keys show $VAL2_KEY -a $kbt) $coins &>/dev/null
 	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home0 keys show $USER_KEY -a $kbt) $coins_user &>/dev/null
-
 
 	# Patch genesis.json to better configure stuff for testing purposes
 	if [[ "$STAKE_DENOM" == "$DENOM" ]]; then
@@ -181,12 +158,9 @@ if [[ ! -d "$hdir" ]]; then
 	$NODE_BIN $home1 gentx $VAL1_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 	$NODE_BIN $home2 gentx $VAL2_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 
-
-
 	cp $n1cfgDir/gentx/*.json $n0cfgDir/gentx/
 	cp $n2cfgDir/gentx/*.json $n0cfgDir/gentx/
 	$NODE_BIN $home0 collect-gentxs &>/dev/null
-
 
 	# Copy genesis file into n1 and n2s
 	cp $n0cfgDir/genesis.json $n1cfgDir/genesis.json
@@ -242,23 +216,10 @@ if [[ ! -d "$hdir" ]]; then
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer2'"|g' $n1cfg
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer1'"|g' $n2cfg
 
-  # Initialize peggo env files for each validator
-  # todo: PEGGO_COSMOS_GRPC
-  # todo: PEGGO_TENDERMINT_RPC
-  # todo: PEGGO_COSMOS_KEYRING_DIR
-  # todo: PEGGO_COSMOS_FROM
-  # todo: PEGGO_COSMOS_PK
-  # todo: PEGGO_ETH_RPC
-  # todo: PEGGO_ETH_KEYSTORE_DIR
-  # todo: PEGGO_ETH_FROM
-  # todo: PEGGO_ETH_PK
-  # todo: PEGGO_MIN_BATCH_FEE_USD
-
-
 fi # data dir check
 
 # Start the instances
-echo "Starting nodes..."
+echo "Starting injectived nodes..."
 
 echo $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080"
 $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080" > $hdir.n0.log 2>&1 &
@@ -272,8 +233,8 @@ $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" --grpc-web.address "0.0.0.0
 
 
 # Wait for chains to start
-echo "Waiting for chains to start..."
-sleep 8
+echo "Waiting for chain to start..."
+sleep 5
 
 echo
 echo "Logs:"

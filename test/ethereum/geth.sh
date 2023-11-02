@@ -25,8 +25,6 @@ fi
 pid="$(cat "$DATA_DIR.geth.pid")"
 if kill "$pid"  &>/dev/null; then
     rm "$DATA_DIR.geth.pid"
-else
-    true
 fi
 
 sleep 1
@@ -34,7 +32,7 @@ sleep 1
 # Start the local geth node
 geth --datadir "$DATA_DIR" --networkid "$GETH_NETWORK_ID" --nodiscover \
   --http --http.port "$GETH_PORT" --http.api personal,eth,net,web3 --allow-insecure-unlock \
-  --miner.etherbase=$MINER_ADDR --unlock $MINER_ADDR --password ./geth/clique_password.txt \
+  --miner.etherbase $MINER_ADDR --unlock $MINER_ADDR --password ./geth/clique_password.txt \
   --mine --miner.gaslimit "$GETH_BLOCK_GAS_LIMIT" > "$DATA_DIR".geth.log 2>&1 &
 
 echo $! > "$DATA_DIR".geth.pid # overwrite previous PID
