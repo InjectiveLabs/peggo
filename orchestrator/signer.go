@@ -86,7 +86,7 @@ func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwo
 	}
 
 	if oldestUnsignedTransactionBatch == nil {
-		s.log.Debugln("no batch to confirm")
+		s.log.Debugln("no token batch to confirm")
 		return nil
 	}
 
@@ -143,7 +143,7 @@ func (s *ethSigner) signBatch(
 	s.log.WithFields(log.Fields{
 		"batch_nonce": batch.BatchNonce,
 		"batch_txs":   len(batch.Transactions),
-	}).Infoln("confirmed batch on Injective")
+	}).Infoln("confirmed token batch on Injective")
 
 	return nil
 }

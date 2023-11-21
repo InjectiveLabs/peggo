@@ -209,7 +209,7 @@ func (r *relayer) relayBatches(
 	}
 
 	if oldestConfirmedBatch == nil {
-		r.log.Debugln("no token batches on Injective to relay")
+		r.log.Debugln("no confirmed token batches on Injective to relay")
 		return nil
 	}
 
