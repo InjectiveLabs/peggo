@@ -44,3 +44,4 @@ data/
 test/solidity/build
 solidity/deployment/build
 solidity/deployment/.env
+test/peggo/peggy_params.json
