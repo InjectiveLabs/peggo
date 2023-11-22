@@ -149,12 +149,52 @@ if [[ ! -d "$hdir" ]]; then
 	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 
 
+  # Mint Watever tokens for each validator
+  jq '.app_state.bank.supply += [
+    {
+      "denom": "wat",
+      "amount": "4000000000000000000000000"
+    }
+  ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
+  jq '.app_state.bank.balances |= map(.coins += [
+    {
+      "denom": "wat",
+      "amount": "1000000000000000000000000"
+    }
+  ])' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
+  jq '.app_state.bank.denom_metadata += [
+    {
+      "description": "Some token I made for testing the bridge",
+      "denom_units": [
+        {
+          "denom": "wut",
+          "exponent": 0,
+          "aliases": []
+        },
+        {
+          "denom": "wat",
+          "exponent": 18,
+          "aliases": []
+        }
+      ],
+      "base": "wut",
+      "display": "wat",
+      "name": "Watever",
+      "symbol": "wat",
+      "uri": "",
+      "uri_hash": ""
+    }
+  ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
+
 	# Copy genesis around to sign
 	cp $n0cfgDir/genesis.json $n1cfgDir/genesis.json
 	cp $n0cfgDir/genesis.json $n2cfgDir/genesis.json
 
 	# Create gentxs and collect them in n0
-	$NODE_BIN $home0 gentx $VAL0_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
+	$NODE_BIN $home0 gentx $VAL0_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid
 	$NODE_BIN $home1 gentx $VAL1_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 	$NODE_BIN $home2 gentx $VAL2_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 
