@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
 	"os"
 	"time"
@@ -124,13 +123,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
+		//coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
+		dummyFeed := coingecko.NewDummyCoingeckoFeed()
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
 			injNetwork,
 			ethNetwork,
-			coingeckoFeed,
+			dummyFeed,
 			erc20ContractMapping,
 			*cfg.minBatchFeeUSD,
 			*cfg.relayValsets,
@@ -159,8 +159,6 @@ func isValidatorAddress(peggyQuery cosmos.PeggyQueryClient, addr ethcmn.Address)
 	if err != nil {
 		return false, err
 	}
-
-	fmt.Printf("valset = %#v\n", currentValset)
 
 	var isValidator bool
 	for _, validator := range currentValset.Members {

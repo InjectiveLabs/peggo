@@ -2,7 +2,6 @@ package peggy
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -80,8 +79,6 @@ func (s *peggyContract) SendTransactionBatch(
 		common.HexToAddress(batch.TokenContract),
 		batchTimeout,
 	)
-
-	fmt.Printf("batch timeout: %v\n", batchTimeout.String())
 
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
