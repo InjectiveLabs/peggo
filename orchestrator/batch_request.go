@@ -39,17 +39,12 @@ func (r *batchRequester) run(
 	injective InjectiveNetwork,
 	feed PriceFeed,
 ) error {
-	r.log.WithField("min_batch_fee", r.minBatchFee).Infoln("scanning Injective for potential batches")
+	r.log.WithField("min_batch_fee_usd", r.minBatchFee).Debugln("scanning Injective for potential token batches...")
 
 	unbatchedFees, err := r.getUnbatchedFeesByToken(ctx, injective)
 	if err != nil {
 		// non-fatal, just alert
 		r.log.WithError(err).Warningln("unable to get unbatched fees from Injective")
-		return nil
-	}
-
-	if len(unbatchedFees) == 0 {
-		r.log.Debugln("no outgoing withdrawals or minimum batch fee is not met")
 		return nil
 	}
 
@@ -61,17 +56,20 @@ func (r *batchRequester) run(
 }
 
 func (r *batchRequester) getUnbatchedFeesByToken(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
-	var unbatchedFees []*types.BatchFees
-	retryFn := func() (err error) {
-		unbatchedFees, err = injective.UnbatchedTokenFees(ctx)
-		return err
-	}
+	var (
+		unbatchedFees      []*types.BatchFees
+		getUnbatchedFeesFn = func() (err error) {
+			unbatchedFees, err = injective.UnbatchedTokenFees(ctx)
+			return err
+		}
+	)
 
-	if err := retry.Do(retryFn,
+	if err := retry.Do(
+		getUnbatchedFeesFn,
 		retry.Context(ctx),
 		retry.Attempts(r.retries),
 		retry.OnRetry(func(n uint, err error) {
-			log.WithError(err).Errorf("failed to get unbatched fees, will retry (%d)", n)
+			log.WithError(err).Warningf("failed to get unbatched fees, will retry (%d)", n)
 		}),
 	); err != nil {
 		return nil, err
@@ -89,13 +87,14 @@ func (r *batchRequester) requestBatchCreation(
 	var (
 		tokenAddr = eth.HexToAddress(batchFee.Token)
 		denom     = r.tokenDenom(tokenAddr)
+		fees      = batchFee.TotalFees
 	)
 
-	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, batchFee.TotalFees); !thresholdMet {
+	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, fees); !thresholdMet {
 		r.log.WithFields(log.Fields{
 			"denom":          denom,
 			"token_contract": tokenAddr.String(),
-			"total_fees":     batchFee.TotalFees.String(),
+			"fees":           fees.String(),
 		}).Debugln("skipping underpriced batch")
 		return
 	}
@@ -103,9 +102,12 @@ func (r *batchRequester) requestBatchCreation(
 	r.log.WithFields(log.Fields{
 		"denom":          denom,
 		"token_contract": tokenAddr.String(),
-	}).Infoln("requesting batch creation on Injective")
+		"fees":           fees.String(),
+	}).Infoln("creating token batch on Injective")
 
-	_ = injective.SendRequestBatch(ctx, denom)
+	if err := injective.SendRequestBatch(ctx, denom); err != nil {
+		r.log.WithError(err).Warningln("failed to create batch")
+	}
 }
 
 func (r *batchRequester) tokenDenom(tokenAddr eth.Address) string {

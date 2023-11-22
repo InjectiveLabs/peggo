@@ -43,28 +43,30 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 }
 
 func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
-	var lastConfirmedEthHeight uint64
-	retryFn := func() error {
-		lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
-		if err == nil && lastClaimEvent != nil && lastClaimEvent.EthereumEventHeight != 0 {
-			lastConfirmedEthHeight = lastClaimEvent.EthereumEventHeight
+	var (
+		lastConfirmedEthHeight      uint64
+		getLastConfirmedEthHeightFn = func() error {
+			lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
+			if err == nil && lastClaimEvent != nil && lastClaimEvent.EthereumEventHeight != 0 {
+				lastConfirmedEthHeight = lastClaimEvent.EthereumEventHeight
+				return nil
+			}
+
+			log.WithError(err).Warningln("failed to get last event claim from Injective. Querying peggy module params...")
+
+			peggyParams, err := s.injective.PeggyParams(ctx)
+			if err != nil {
+				log.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
+				return err
+			}
+
+			lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
 			return nil
-
 		}
+	)
 
-		log.WithError(err).Warningf("failed to get last claim from Injective. Querying peggy params...")
-
-		peggyParams, err := s.injective.PeggyParams(ctx)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
-			return err
-		}
-
-		lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
-		return nil
-	}
-
-	if err := retry.Do(retryFn,
+	if err := retry.Do(
+		getLastConfirmedEthHeightFn,
 		retry.Context(ctx),
 		retry.Attempts(s.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -90,7 +92,7 @@ func (o *ethOracle) run(
 	injective InjectiveNetwork,
 	ethereum EthereumNetwork,
 ) error {
-	o.log.WithField("last_checked_eth_height", o.lastCheckedEthHeight).Infoln("scanning Ethereum for events")
+	o.log.WithField("last_checked_eth_height", o.lastCheckedEthHeight).Debugln("scanning Ethereum for events...")
 
 	// Relays events from Ethereum -> Cosmos
 	newHeight, err := o.relayEvents(ctx, injective, ethereum)
@@ -136,7 +138,6 @@ func (o *ethOracle) relayEvents(
 		// add delay to ensure minimum confirmations are received and block is finalised
 		latestHeight = latestHeader.Number.Uint64() - ethBlockConfirmationDelay
 		if latestHeight < currentHeight {
-			println(latestHeight)
 			return nil
 		}
 
@@ -180,45 +181,17 @@ func (o *ethOracle) relayEvents(
 		}
 
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
-		o.log.WithFields(log.Fields{
-			"block_start": currentHeight,
-			"block_end":   latestHeight,
-			"events":      legacyDeposits,
-		}).Debugln("scanned SendToCosmos events")
-
 		deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
-		o.log.WithFields(log.Fields{
-			"block_start": currentHeight,
-			"block_end":   latestHeight,
-			"events":      deposits,
-		}).Debugln("scanned SendToInjective events")
-
 		withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
-		o.log.WithFields(log.Fields{
-			"block_start": currentHeight,
-			"block_end":   latestHeight,
-			"events":      withdrawals,
-		}).Debugln("scanned TransactionBatchExecuted events")
-
 		erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
-		o.log.WithFields(log.Fields{
-			"block_start": currentHeight,
-			"block_end":   latestHeight,
-			"events":      erc20Deployments,
-		}).Debugln("scanned FilterERC20Deployed events")
-
 		valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
-		o.log.WithFields(log.Fields{
-			"block_start": currentHeight,
-			"block_end":   latestHeight,
-			"events":      valsetUpdates,
-		}).Debugln("scanned ValsetUpdated events")
 
-		if len(legacyDeposits) == 0 &&
+		if noEvents := len(legacyDeposits) == 0 &&
 			len(deposits) == 0 &&
 			len(withdrawals) == 0 &&
 			len(erc20Deployments) == 0 &&
-			len(valsetUpdates) == 0 {
+			len(valsetUpdates) == 0; noEvents {
+			o.log.Debugln("no new events on Ethereum")
 			return nil
 		}
 
@@ -238,9 +211,9 @@ func (o *ethOracle) relayEvents(
 			"legacy_deposits":        len(legacyDeposits),
 			"deposits":               len(deposits),
 			"withdrawals":            len(withdrawals),
-			"erc20Deployments":       len(erc20Deployments),
-			"valsetUpdates":          len(valsetUpdates),
-		}).Infoln("sent new claims to Injective")
+			"erc20_deployments":      len(erc20Deployments),
+			"valset_updates":         len(valsetUpdates),
+		}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
@@ -286,8 +259,8 @@ func (o *ethOracle) autoResync(ctx context.Context, injective InjectiveNetwork) 
 	o.lastResyncWithInjective = time.Now()
 
 	o.log.WithFields(log.Fields{
-		"last_resync":               o.lastResyncWithInjective.String(),
-		"last_confirmed_eth_height": o.lastCheckedEthHeight,
+		"last_resync":             o.lastResyncWithInjective.String(),
+		"last_checked_eth_height": o.lastCheckedEthHeight,
 	}).Infoln("auto resync")
 
 	return nil
