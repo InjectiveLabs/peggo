@@ -152,15 +152,15 @@ if [[ ! -d "$hdir" ]]; then
   # Mint Watever tokens for each validator
   jq '.app_state.bank.supply += [
     {
-      "denom": "wat",
-      "amount": "4000000000000000000000000"
+      "denom": "wut",
+      "amount": "16000000000000000000000000"
     }
   ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
 
   jq '.app_state.bank.balances |= map(.coins += [
     {
-      "denom": "wat",
-      "amount": "1000000000000000000000000"
+      "denom": "wut",
+      "amount": "4000000000000000000000000"
     }
   ])' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
 
