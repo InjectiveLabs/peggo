@@ -39,8 +39,6 @@ func (r *batchRequester) run(
 	injective InjectiveNetwork,
 	feed PriceFeed,
 ) error {
-	r.log.WithField("min_batch_fee_usd", r.minBatchFee).Debugln("scanning Injective for potential token batches...")
-
 	unbatchedFees, err := r.getUnbatchedFeesByToken(ctx, injective)
 	if err != nil {
 		// non-fatal, just alert
@@ -91,11 +89,6 @@ func (r *batchRequester) requestBatchCreation(
 	)
 
 	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, fees); !thresholdMet {
-		r.log.WithFields(log.Fields{
-			"denom":          denom,
-			"token_contract": tokenAddr.String(),
-			"fees":           fees.String(),
-		}).Debugln("skipping underpriced batch")
 		return
 	}
 
@@ -103,7 +96,7 @@ func (r *batchRequester) requestBatchCreation(
 		"denom":          denom,
 		"token_contract": tokenAddr.String(),
 		"fees":           fees.String(),
-	}).Infoln("creating token batch on Injective")
+	}).Infoln("creating new token batch on Injective")
 
 	if err := injective.SendRequestBatch(ctx, denom); err != nil {
 		r.log.WithError(err).Warningln("failed to create batch")
@@ -140,6 +133,13 @@ func (r *batchRequester) checkFeeThreshold(
 	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
 		return true
 	}
+
+	r.log.WithFields(log.Fields{
+		"token_contract": tokenAddr.String(),
+		"token_denom":    r.tokenDenom(tokenAddr),
+		"batch_fee":      totalFeeInUSDDec.String(),
+		"min_fee":        r.minBatchFee,
+	}).Debugln("skipping underpriced batch")
 
 	return false
 }

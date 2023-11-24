@@ -51,7 +51,6 @@ func (r *relayer) run(
 	var pg loops.ParanoidGroup
 
 	if r.valsetRelaying {
-		r.log.Debugln("scanning Injective for confirmed valset updates...")
 		pg.Go(func() error {
 			return retry.Do(
 				func() error { return r.relayValsets(ctx, injective, ethereum) },
@@ -65,7 +64,6 @@ func (r *relayer) run(
 	}
 
 	if r.batchRelaying {
-		r.log.Debugln("scanning Injective for confirmed token batches...")
 		pg.Go(func() error {
 			return retry.Do(
 				func() error { return r.relayBatches(ctx, injective, ethereum) },
@@ -119,7 +117,7 @@ func (r *relayer) relayValsets(
 	}
 
 	if oldestConfirmedValset == nil {
-		r.log.Debugln("no confirmed valset updates to relay")
+		r.log.Debugln("no valset update to relay")
 		return nil
 	}
 
@@ -131,7 +129,7 @@ func (r *relayer) relayValsets(
 	r.log.WithFields(log.Fields{
 		"inj_valset_nonce": oldestConfirmedValset.Nonce,
 		"eth_valset_nonce": currentEthValset.Nonce,
-	}).Debugln("latest valset updates")
+	}).Debugln("no new valset updates")
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil
@@ -155,14 +153,13 @@ func (r *relayer) relayValsets(
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("relay offset duration not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"valset_members": len(oldestConfirmedValset.Members),
-		"valset_nonce":   oldestConfirmedValset.Nonce,
-		"confirmations":  len(oldestConfirmedValsetSigs),
+		"inj_valset_nonce": oldestConfirmedValset.Nonce,
+		"eth_valset_nonce": latestEthereumValsetNonce,
 	}).Infoln("detected new valset update on Injective")
 
 	txHash, err := ethereum.SendEthValsetUpdate(
@@ -171,12 +168,16 @@ func (r *relayer) relayValsets(
 		oldestConfirmedValset,
 		oldestConfirmedValsetSigs,
 	)
-
 	if err != nil {
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("updated valset on Ethereum")
+	r.log.WithFields(log.Fields{
+		"nonce":         oldestConfirmedValset.Nonce,
+		"members":       len(oldestConfirmedValset.Members),
+		"confirmations": len(oldestConfirmedValsetSigs),
+		"tx_hash":       txHash.String(),
+	}).Infoln("sent new valset update to Ethereum")
 
 	return nil
 }
@@ -209,7 +210,7 @@ func (r *relayer) relayBatches(
 	}
 
 	if oldestConfirmedBatch == nil {
-		r.log.Debugln("no confirmed token batches on Injective to relay")
+		r.log.Debugln("no token batches to relay")
 		return nil
 	}
 
@@ -260,9 +261,8 @@ func (r *relayer) relayBatches(
 	}
 
 	r.log.WithFields(log.Fields{
-		"batch_nonce":   oldestConfirmedBatch.BatchNonce,
-		"batch_txs":     len(oldestConfirmedBatch.Transactions),
-		"confirmations": len(oldestConfirmedBatchSigs),
+		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestEthereumBatch.Uint64(),
 	}).Infoln("detected new token batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
@@ -272,6 +272,13 @@ func (r *relayer) relayBatches(
 	}
 
 	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
+
+	r.log.WithFields(log.Fields{
+		"nonce":         oldestConfirmedBatch.BatchNonce,
+		"batch_txs":     len(oldestConfirmedBatch.Transactions),
+		"confirmations": len(oldestConfirmedBatchSigs),
+		"tx_hash":       txHash.String(),
+	}).Infoln("sent new token batch to Ethereum")
 
 	return nil
 }
