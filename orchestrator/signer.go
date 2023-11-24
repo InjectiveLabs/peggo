@@ -66,8 +66,6 @@ type ethSigner struct {
 }
 
 func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
-	s.log.Debugln("scanning Injective for unconfirmed token batches and valset updates")
-
 	if err := s.signNewValsetUpdates(ctx, injective); err != nil {
 		return err
 	}

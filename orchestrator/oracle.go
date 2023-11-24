@@ -92,8 +92,6 @@ func (o *ethOracle) run(
 	injective InjectiveNetwork,
 	ethereum EthereumNetwork,
 ) error {
-	o.log.WithField("last_checked_eth_height", o.lastCheckedEthHeight).Debugln("scanning Ethereum for events...")
-
 	// Relays events from Ethereum -> Cosmos
 	newHeight, err := o.relayEvents(ctx, injective, ethereum)
 	if err != nil {
@@ -101,6 +99,7 @@ func (o *ethOracle) run(
 	}
 
 	o.lastCheckedEthHeight = newHeight
+	o.log.WithField("block_num", o.lastCheckedEthHeight).Debugln("last checked Ethereum block")
 
 	if time.Since(o.lastResyncWithInjective) >= 48*time.Hour {
 		/**
@@ -207,12 +206,11 @@ func (o *ethOracle) relayEvents(
 		}
 
 		o.log.WithFields(log.Fields{
-			"last_claim_event_nonce": lastClaimEvent.EthereumEventNonce,
-			"legacy_deposits":        len(legacyDeposits),
-			"deposits":               len(deposits),
-			"withdrawals":            len(withdrawals),
-			"erc20_deployments":      len(erc20Deployments),
-			"valset_updates":         len(valsetUpdates),
+			"legacy_deposits":   len(legacyDeposits),
+			"deposits":          len(deposits),
+			"withdrawals":       len(withdrawals),
+			"erc20_deployments": len(erc20Deployments),
+			"valset_updates":    len(valsetUpdates),
 		}).Infoln("sent new event claims to Injective")
 
 		return nil
