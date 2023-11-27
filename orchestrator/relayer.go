@@ -54,7 +54,6 @@ func (r *relayer) run(
 	var pg loops.ParanoidGroup
 
 	if r.valsetRelaying {
-		r.log.Infoln("scanning Injective for confirmed valset updates")
 		pg.Go(func() error {
 			return retry.Do(
 				func() error { return r.relayValsets(ctx, injective, ethereum) },
@@ -68,7 +67,6 @@ func (r *relayer) run(
 	}
 
 	if r.batchRelaying {
-		r.log.Infoln("scanning Injective for confirmed batches")
 		pg.Go(func() error {
 			return retry.Do(
 				func() error { return r.relayBatches(ctx, injective, ethereum) },
@@ -122,7 +120,7 @@ func (r *relayer) relayValsets(
 	}
 
 	if oldestConfirmedValset == nil {
-		r.log.Debugln("no confirmed valset updates to relay")
+		r.log.Debugln("no valset update to relay")
 		return nil
 	}
 
@@ -132,9 +130,9 @@ func (r *relayer) relayValsets(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": oldestConfirmedValset,
-		"eth_valset": currentEthValset,
-	}).Debugln("latest valset updates")
+		"inj_valset_nonce": oldestConfirmedValset.Nonce,
+		"eth_valset_nonce": currentEthValset.Nonce,
+	}).Debugln("no new valset updates")
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil
@@ -158,14 +156,14 @@ func (r *relayer) relayValsets(
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("relay offset duration not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_valset": oldestConfirmedValset.Nonce,
-		"eth_valset": latestEthereumValsetNonce.Uint64(),
-	}).Infoln("detected new valset on Injective")
+		"inj_valset_nonce": oldestConfirmedValset.Nonce,
+		"eth_valset_nonce": latestEthereumValsetNonce,
+	}).Infoln("detected new valset update on Injective")
 
 	txHash, err := ethereum.SendEthValsetUpdate(
 		ctx,
@@ -173,12 +171,16 @@ func (r *relayer) relayValsets(
 		oldestConfirmedValset,
 		oldestConfirmedValsetSigs,
 	)
-
 	if err != nil {
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("updated valset on Ethereum")
+	r.log.WithFields(log.Fields{
+		"nonce":         oldestConfirmedValset.Nonce,
+		"members":       len(oldestConfirmedValset.Members),
+		"confirmations": len(oldestConfirmedValsetSigs),
+		"tx_hash":       txHash.String(),
+	}).Infoln("sent new valset update to Ethereum")
 
 	return nil
 }
@@ -188,57 +190,96 @@ func (r *relayer) relayBatches(
 	injective InjectiveNetwork,
 	ethereum EthereumNetwork,
 ) error {
-	// get latest valset from ethereum
-	latestEthValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
-	if err != nil || latestEthValset == nil {
-		return errors.Wrap(err, "failed to find latest valset on Ethereum")
-	}
-
-	// get signed batches from injective and select the oldest one with sufficient votes
-	latestInjBatch, latestInjBatchConfirms, err := r.getOldestBatchConfirmedByMajority(ctx, injective, latestEthValset)
-	if err != nil {
-		return errors.Wrap(err, "failed to get batch confirms")
-	}
-
-	if latestInjBatch == nil {
-		r.log.Debugln("no confirmed transaction batches on Injective, nothing to relay...")
-		return nil
-	}
-
-	// get latest batch from ethereum and see if it's been updated in the meantime (finding valset can take some time)
-	latestEthBatchNonce, err := ethereum.GetTxBatchNonce(ctx, common.HexToAddress(latestInjBatch.TokenContract))
+	latestBatches, err := injective.LatestTransactionBatches(ctx)
 	if err != nil {
 		return err
 	}
 
-	if latestInjBatch.BatchNonce <= latestEthBatchNonce.Uint64() {
+	var (
+		oldestConfirmedBatch     *types.OutgoingTxBatch
+		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
+	)
+
+	for _, batch := range latestBatches {
+		sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
+		if err != nil {
+			return err
+		} else if len(sigs) == 0 {
+			continue
+		}
+
+		oldestConfirmedBatch = batch
+		oldestConfirmedBatchSigs = sigs
+	}
+
+	if oldestConfirmedBatch == nil {
+		r.log.Debugln("no token batches to relay")
 		return nil
 	}
 
-	// check if batch relay offset has passed
-	block, err := injective.GetBlock(ctx, int64(latestInjBatch.Block))
+	latestEthereumBatch, err := ethereum.GetTxBatchNonce(
+		ctx,
+		common.HexToAddress(oldestConfirmedBatch.TokenContract),
+	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", latestInjBatch.Block)
+		return err
 	}
 
-	if !r.shouldRelayBatch(block.Block.Time) {
+	currentValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
+	if err != nil {
+		return errors.Wrap(err, "failed to find latest valset")
+	} else if currentValset == nil {
+		return errors.Wrap(err, "latest valset not found")
+	}
+
+	r.log.WithFields(log.Fields{
+		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestEthereumBatch.Uint64(),
+	}).Debugln("latest token batches")
+
+	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
 		return nil
 	}
 
-	// all good, send the tx
+	latestEthereumBatch, err = ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestConfirmedBatch.TokenContract))
+	if err != nil {
+		return err
+	}
+
+	// Check if ethereum batch was updated by other validators
+	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		return nil
+	}
+
+	// Check custom time delay offset
+	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedBatch.Block))
+	if err != nil {
+		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
+	}
+
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+		return nil
+	}
+
 	r.log.WithFields(log.Fields{
-		"inj_batch":      latestInjBatch.BatchNonce,
-		"eth_batch":      latestEthBatchNonce.Uint64(),
-		"token_contract": common.HexToAddress(latestInjBatch.TokenContract),
-	}).Infoln("detected new batch on Injective")
+		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestEthereumBatch.Uint64(),
+	}).Infoln("detected new token batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := ethereum.SendTransactionBatch(ctx, latestEthValset, latestInjBatch, latestInjBatchConfirms)
+	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, oldestConfirmedBatch, oldestConfirmedBatchSigs)
 	if err != nil {
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
+	r.log.WithFields(log.Fields{
+		"nonce":         oldestConfirmedBatch.BatchNonce,
+		"batch_txs":     len(oldestConfirmedBatch.Transactions),
+		"confirmations": len(oldestConfirmedBatchSigs),
+		"tx_hash":       txHash.String(),
+	}).Infoln("sent new token batch to Ethereum")
 
 	return nil
 }
@@ -357,11 +398,6 @@ func (r *relayer) findLatestValsetOnEth(
 		} else {
 			startSearchBlock = currentBlock - valsetBlocksToSearch
 		}
-
-		r.log.WithFields(log.Fields{
-			"block_start": startSearchBlock,
-			"block_end":   currentBlock,
-		}).Debugln("looking for the most recent ValsetUpdatedEvent on Ethereum")
 
 		valsetUpdatedEvents, err := ethereum.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
 		if err != nil {

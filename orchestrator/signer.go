@@ -98,6 +98,7 @@ func (s *ethSigner) signNewBatches(
 		return err
 	}
 
+
 	for _, b := range unsignedBatches {
 		var (
 			totalFee  = cosmtypes.ZeroInt()
@@ -199,7 +200,10 @@ func (s *ethSigner) signBatch(
 		return err
 	}
 
-	s.log.WithField("batch_nonce", batch.BatchNonce).Infoln("confirmed batch on Injective")
+	s.log.WithFields(log.Fields{
+		"batch_nonce": batch.BatchNonce,
+		"batch_txs":   len(batch.Transactions),
+	}).Infoln("confirmed token batch on Injective")
 
 	return nil
 }
@@ -208,8 +212,6 @@ func (s *ethSigner) signNewValsetUpdates(
 	ctx context.Context,
 	injective InjectiveNetwork,
 ) error {
-	s.log.Infoln("scanning Injective for unconfirmed valset updates")
-
 	oldestUnsignedValsets, err := s.getUnsignedValsets(ctx, injective)
 	if err != nil {
 		return err
@@ -271,7 +273,10 @@ func (s *ethSigner) signValset(
 		return err
 	}
 
-	s.log.WithField("valset_nonce", vs.Nonce).Infoln("confirmed valset update on Injective")
+	s.log.WithFields(log.Fields{
+		"valset_nonce":   vs.Nonce,
+		"valset_members": len(vs.Members),
+	}).Infoln("confirmed valset update on Injective")
 
 	return nil
 }
