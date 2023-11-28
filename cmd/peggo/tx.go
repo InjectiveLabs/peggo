@@ -147,22 +147,26 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 
 		clientCtx = clientCtx.WithClient(tmRPC)
 
-		net := common.Network{
-			LcdEndpoint:          "",
-			TmEndpoint:           *tendermintRPC,
-			ChainGrpcEndpoint:    *cosmosGRPC,
-			ChainTlsCert:         nil,
-			ExchangeGrpcEndpoint: "",
-			ExplorerGrpcEndpoint: "",
-			ExchangeTlsCert:      nil,
-			ExplorerTlsCert:      nil,
-			//ChainId:              "injective-" + chainID,
-			ChainId:   *cosmosChainID,
-			Fee_denom: "inj",
-			Name:      "local",
+		// todo: this must be expanded with other environments other than local (mainnet, testnet)
+		//net := common.LoadNetwork("devnet", "")
+		//net.LcdEndpoint = ""
+		//net.TmEndpoint = *tendermintRPC
+		//net.ChainGrpcEndpoint = *cosmosGRPC
+		//net.ExplorerGrpcEndpoint = ""
+		//net.ExplorerGrpcEndpoint = ""
+		//net.Name = "local"
+		//net.ChainId = "injective-" + *cosmosChainID
+
+		cfg := cosmos.NetworkConfig{
+			Name:          *envName,
+			ChainID:       "injective-" + *cosmosChainID,
+			FeeDenom:      "inj", // todo
+			GasPrices:     *cosmosGasPrices,
+			TendermintRPC: *tendermintRPC,
+			CosmosGRPC:    *cosmosGRPC,
 		}
 
-		daemonClient, err := chainclient.NewChainClient(clientCtx, net, common.OptionGasPrices(*cosmosGasPrices))
+		daemonClient, err := chainclient.NewChainClient(clientCtx, cosmos.LoadNetwork(cfg), common.OptionGasPrices(*cosmosGasPrices))
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"endpoint": *cosmosGRPC,
