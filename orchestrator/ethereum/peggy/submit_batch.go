@@ -79,6 +79,7 @@ func (s *peggyContract) SendTransactionBatch(
 		common.HexToAddress(batch.TokenContract),
 		batchTimeout,
 	)
+
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
 		log.WithError(err).Errorln("ABI Pack (Peggy submitBatch) method")

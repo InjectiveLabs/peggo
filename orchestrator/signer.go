@@ -146,6 +146,8 @@ func (s *ethSigner) signBatch(
 	return nil
 }
 
+// asdasd
+
 func (s *ethSigner) signNewValsetUpdates(
 	ctx context.Context,
 	injective InjectiveNetwork,

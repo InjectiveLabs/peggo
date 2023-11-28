@@ -129,7 +129,7 @@ func (r *relayer) relayValsets(
 	r.log.WithFields(log.Fields{
 		"inj_valset_nonce": oldestConfirmedValset.Nonce,
 		"eth_valset_nonce": currentEthValset.Nonce,
-	}).Debugln("no new valset updates")
+	}).Debugln("latest valset updates")
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil
@@ -152,8 +152,8 @@ func (r *relayer) relayValsets(
 	}
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("relay offset duration not expired")
+		timeRemaining := r.relayBatchOffsetDur - timeElapsed
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}
 
@@ -254,7 +254,7 @@ func (r *relayer) relayBatches(
 		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
 	}
 
-	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayBatchOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil
