@@ -16,7 +16,6 @@ import (
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
 
-
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )
 
@@ -147,7 +146,27 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 		}
 
 		clientCtx = clientCtx.WithClient(tmRPC)
-		daemonClient, err := chainclient.NewChainClient(clientCtx, *cosmosGRPC, common.OptionGasPrices(*cosmosGasPrices))
+
+		// todo: this must be expanded with other environments other than local (mainnet, testnet)
+		//net := common.LoadNetwork("devnet", "")
+		//net.LcdEndpoint = ""
+		//net.TmEndpoint = *tendermintRPC
+		//net.ChainGrpcEndpoint = *cosmosGRPC
+		//net.ExplorerGrpcEndpoint = ""
+		//net.ExplorerGrpcEndpoint = ""
+		//net.Name = "local"
+		//net.ChainId = "injective-" + *cosmosChainID
+
+		cfg := cosmos.NetworkConfig{
+			Name:          *envName,
+			ChainID:       "injective-" + *cosmosChainID,
+			FeeDenom:      "inj", // todo
+			GasPrices:     *cosmosGasPrices,
+			TendermintRPC: *tendermintRPC,
+			CosmosGRPC:    *cosmosGRPC,
+		}
+
+		daemonClient, err := chainclient.NewChainClient(clientCtx, cosmos.LoadNetwork(cfg), common.OptionGasPrices(*cosmosGasPrices))
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"endpoint": *cosmosGRPC,
