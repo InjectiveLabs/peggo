@@ -23,39 +23,69 @@ import (
 	"github.com/InjectiveLabs/sdk-go/client/common"
 )
 
+type NetworkConfig struct {
+	Name,
+	ChainID,
+	FeeDenom,
+	GasPrices,
+	TendermintRPC,
+	CosmosGRPC string
+}
+
 type Network struct {
 	tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
 }
 
+func LoadNetwork(cfg NetworkConfig) common.Network {
+	switch cfg.Name {
+	case "mainnet", "testnet":
+		// todo: see if "lb" is an appropriate value
+		return common.LoadNetwork(cfg.Name, "lb")
+	case "devnet", "devnet-1":
+		return common.LoadNetwork(cfg.Name, "")
+	case "local":
+		//	todo:
+		net := common.LoadNetwork("devnet", "")
+		net.Name = "local"
+		net.ChainId = cfg.ChainID
+		net.Fee_denom = cfg.FeeDenom
+		net.TmEndpoint = cfg.TendermintRPC
+		net.ChainGrpcEndpoint = cfg.CosmosGRPC
+		net.ExplorerGrpcEndpoint = ""
+		net.LcdEndpoint = ""
+		net.ExplorerGrpcEndpoint = ""
+
+		return net
+	}
+
+	return common.Network{}
+}
+
 func NewNetwork(
-	chainID,
-	validatorAddress,
-	injectiveGRPC,
-	injectiveGasPrices,
-	tendermintRPC string,
+	validatorAddress string,
+	cfg NetworkConfig,
 	keyring keyring.Keyring,
 	signerFn bind.SignerFn,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*Network, error) {
-	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	clientCtx, err := chainclient.NewClientContext(cfg.ChainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	clientCtx = clientCtx.WithNodeURI(tendermintRPC)
-
-	tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
+	tmRPC, err := rpchttp.New(cfg.TendermintRPC, "/websocket")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
+		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", cfg.TendermintRPC)
 	}
 
+	clientCtx = clientCtx.WithNodeURI(cfg.TendermintRPC)
 	clientCtx = clientCtx.WithClient(tmRPC)
 
-	daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chainclient.NewChainClient(clientCtx, LoadNetwork(cfg), common.OptionGasPrices(cfg.GasPrices))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
+		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", cfg.CosmosGRPC)
 	}
 
 	time.Sleep(1 * time.Second)
@@ -68,15 +98,15 @@ func NewNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &Network{
-		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
+		TendermintClient:     tmclient.NewRPCClient(cfg.TendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
 	}
 
 	log.WithFields(log.Fields{
-		"chain_id":   chainID,
-		"injective":  injectiveGRPC,
-		"tendermint": tendermintRPC,
+		"chain_id":   cfg.ChainID,
+		"injective":  cfg.CosmosGRPC,
+		"tendermint": cfg.TendermintRPC,
 	}).Infoln("connected to Injective network")
 
 	return n, nil

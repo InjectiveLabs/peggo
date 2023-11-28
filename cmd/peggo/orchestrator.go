@@ -76,13 +76,19 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			"eth_addr": ethKeyFromAddress.String(),
 		}).Infoln("starting peggo service")
 
+		netCfg := cosmos.NetworkConfig{
+			Name:    *envName,
+			ChainID: *cfg.cosmosChainID,
+			//FeeDenom:      *cfg., todo
+			GasPrices:     *cfg.cosmosGasPrices,
+			TendermintRPC: *cfg.tendermintRPC,
+			CosmosGRPC:    *cfg.cosmosGRPC,
+		}
+
 		// Connect to Injective network
 		injNetwork, err := cosmos.NewNetwork(
-			*cfg.cosmosChainID,
 			valAddress.String(),
-			*cfg.cosmosGRPC,
-			*cfg.cosmosGasPrices,
-			*cfg.tendermintRPC,
+			netCfg,
 			cosmosKeyring,
 			signerFn,
 			personalSignFn,
