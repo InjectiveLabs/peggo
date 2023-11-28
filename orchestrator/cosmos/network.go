@@ -47,14 +47,15 @@ func LoadNetwork(cfg NetworkConfig) common.Network {
 		return common.LoadNetwork(cfg.Name, "")
 	case "local":
 		//	todo:
-		net := common.LoadNetwork(cfg.Name, "")
-		net.LcdEndpoint = ""
-		//net.TmEndpoint = tendermintRPC
-		//net.ChainGrpcEndpoint = injectiveGRPC
-		net.ExplorerGrpcEndpoint = ""
-		net.ExplorerGrpcEndpoint = ""
-		//net.ChainId = "injective-" + chainID
+		net := common.LoadNetwork("devnet", "")
 		net.Name = "local"
+		net.ChainId = cfg.ChainID
+		net.Fee_denom = cfg.FeeDenom
+		net.TmEndpoint = cfg.TendermintRPC
+		net.ChainGrpcEndpoint = cfg.CosmosGRPC
+		net.ExplorerGrpcEndpoint = ""
+		net.LcdEndpoint = ""
+		net.ExplorerGrpcEndpoint = ""
 
 		return net
 	}
@@ -82,20 +83,7 @@ func NewNetwork(
 	clientCtx = clientCtx.WithNodeURI(cfg.TendermintRPC)
 	clientCtx = clientCtx.WithClient(tmRPC)
 
-	net := LoadNetwork(cfg)
-
-	// todo: this must be expanded with other environments other than local (mainnet, testnet)
-	//net := common.LoadNetwork("devnet", "")
-	//net.LcdEndpoint = ""
-	//net.TmEndpoint = cfg.TendermintRPC
-	//net.ChainGrpcEndpoint = cfg.CosmosGRPC
-	//net.ExplorerGrpcEndpoint = ""
-	//net.ExplorerGrpcEndpoint = ""
-	//net.ChainId = "injective-" + cfg.ChainID
-	//net.Name = "local"
-
-	//daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
-	daemonClient, err := chainclient.NewChainClient(clientCtx, net, common.OptionGasPrices(cfg.GasPrices))
+	daemonClient, err := chainclient.NewChainClient(clientCtx, LoadNetwork(cfg), common.OptionGasPrices(cfg.GasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", cfg.CosmosGRPC)
 	}

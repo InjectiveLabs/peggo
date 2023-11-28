@@ -138,28 +138,18 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 		if err != nil {
 			log.WithError(err).Fatalln("failed to initialize cosmos client context")
 		}
-		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
 
 		tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
 		if err != nil {
 			log.WithError(err)
 		}
 
+		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
 		clientCtx = clientCtx.WithClient(tmRPC)
-
-		// todo: this must be expanded with other environments other than local (mainnet, testnet)
-		//net := common.LoadNetwork("devnet", "")
-		//net.LcdEndpoint = ""
-		//net.TmEndpoint = *tendermintRPC
-		//net.ChainGrpcEndpoint = *cosmosGRPC
-		//net.ExplorerGrpcEndpoint = ""
-		//net.ExplorerGrpcEndpoint = ""
-		//net.Name = "local"
-		//net.ChainId = "injective-" + *cosmosChainID
 
 		cfg := cosmos.NetworkConfig{
 			Name:          *envName,
-			ChainID:       "injective-" + *cosmosChainID,
+			ChainID:       *cosmosChainID,
 			FeeDenom:      "inj", // todo
 			GasPrices:     *cosmosGasPrices,
 			TendermintRPC: *tendermintRPC,
