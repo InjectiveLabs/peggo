@@ -53,7 +53,24 @@ func NewNetwork(
 
 	clientCtx = clientCtx.WithClient(tmRPC)
 
-	daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
+	//net := common.LoadNetwork("", "")
+	net := common.Network{
+		LcdEndpoint:          "",
+		TmEndpoint:           tendermintRPC,
+		ChainGrpcEndpoint:    injectiveGRPC,
+		ChainTlsCert:         nil,
+		ExchangeGrpcEndpoint: "",
+		ExplorerGrpcEndpoint: "",
+		ExchangeTlsCert:      nil,
+		ExplorerTlsCert:      nil,
+		//ChainId:              "injective-" + chainID,
+		ChainId:   chainID,
+		Fee_denom: "inj",
+		Name:      "local",
+	}
+
+	//daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chainclient.NewChainClient(clientCtx, net, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
 	}
