@@ -108,6 +108,11 @@ func (s *ethSigner) signNewBatches(
 		}
 
 		if !checkPriceThreshold(feed, tokenAddr, totalFee, s.minBatchFee) {
+			s.log.WithFields(log.Fields{
+				"token_contract": tokenAddr.String(),
+				"batch_fee":      totalFee.String(),
+				"min_fee":        s.minBatchFee,
+			}).Debugln("skipping token batch confirmation")
 			continue //	skip underpriced batch
 		}
 

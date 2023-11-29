@@ -89,17 +89,12 @@ func (r *batchRequester) requestBatchCreation(
 		fees       = batchFee.TotalFees
 	)
 
-	if !checkPriceThreshold(
-		feed,
-		tokenAddr,
-		fees,
-		r.minBatchFee,
-	) {
+	if !checkPriceThreshold(feed, tokenAddr, fees, r.minBatchFee) {
 		r.log.WithFields(log.Fields{
 			"token_denom":    tokenDenom,
 			"token_contract": tokenAddr.String(),
 			"total_fees":     batchFee.TotalFees.String(),
-		}).Debugln("skipping underpriced batch")
+		}).Debugln("skipping token batch creation")
 		return
 	}
 
