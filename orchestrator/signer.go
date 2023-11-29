@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/pkg/errors"
 
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/common"
@@ -98,7 +99,6 @@ func (s *ethSigner) signNewBatches(
 		return err
 	}
 
-
 	for _, b := range unsignedBatches {
 		var (
 			totalFee  = cosmtypes.ZeroInt()
@@ -123,12 +123,10 @@ func (s *ethSigner) signNewBatches(
 
 func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveNetwork) ([]*types.OutgoingTxBatch, error) {
 	var (
-		// todo: extend peggy module to return multiple unsigned batches instead of one
-		oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-		getBatchFn                     = func() (err error) {
-			// sign the last unsigned batch, TODO check if we already have signed this
-			oldestUnsignedTransactionBatch, err = injective.OldestUnsignedTransactionBatch(ctx)
-			if err == cosmos.ErrNotFound || oldestUnsignedTransactionBatch == nil {
+		unsignedBatches      []*types.OutgoingTxBatch
+		getUnsignedBatchesFn = func() (err error) {
+			unsignedBatches, err = injective.UnconfirmedTransactionBatches(ctx)
+			if errors.Is(err, cosmos.ErrNotFound) || len(unsignedBatches) == 0 {
 				return nil
 			}
 
@@ -136,7 +134,7 @@ func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveN
 		}
 	)
 
-	if err := retry.Do(getBatchFn,
+	if err := retry.Do(getUnsignedBatchesFn,
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
@@ -147,12 +145,7 @@ func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveN
 		return nil, err
 	}
 
-	// temporary check until peggy query is extended
-	if oldestUnsignedTransactionBatch == nil {
-		return nil, nil
-	}
-
-	return []*types.OutgoingTxBatch{oldestUnsignedTransactionBatch}, nil
+	return unsignedBatches, nil
 }
 
 func (s *ethSigner) checkFeeThreshold(batch *types.OutgoingTxBatch, feed PriceFeed) bool {

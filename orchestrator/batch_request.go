@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"github.com/avast/retry-go"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -83,9 +84,9 @@ func (r *batchRequester) requestBatchCreation(
 	batchFee *types.BatchFees,
 ) {
 	var (
-		tokenAddr = eth.HexToAddress(batchFee.Token)
-		tokenDenom     = r.tokenDenom(tokenAddr)
-		fees      = batchFee.TotalFees
+		tokenAddr  = eth.HexToAddress(batchFee.Token)
+		tokenDenom = r.tokenDenom(tokenAddr)
+		fees       = batchFee.TotalFees
 	)
 
 	if !checkPriceThreshold(
@@ -167,6 +168,7 @@ func checkPriceThreshold(
 	minFeeInUSDDec := decimal.NewFromFloat(minFee)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		fmt.Printf("Skipping signing underpriced batch: token_addr=%v fee=%v min_fee=%v\n", tokenAddr.String(), totalFeeInUSDDec.String(), minFee)
 		return false
 	}
 
