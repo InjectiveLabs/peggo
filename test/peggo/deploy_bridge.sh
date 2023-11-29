@@ -115,10 +115,9 @@ resp_check "$resp" "val1 failed to vote on gov proposal"
 resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n2_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
 resp_check "$resp" "val2 failed to vote on gov proposal"
 
-echo "Waiting for proposal to pass..."
+echo -n "Waiting for proposal to pass..."
 sleep 8
-
-echo "Registering orchestrator ETH addresses..."
+echo "DONE"
 
 n0_inj_addr="inj1cml96vmptgw99syqrrz8az79xer2pcgp0a885r"
 n1_inj_addr="inj1jcltmuhplrdcwp7stlr4hlhlhgd4htqhe4c0cs"
@@ -137,7 +136,9 @@ resp_check "$resp" "val1 failed to register orchestrator address"
 resp="$(injectived tx peggy set-orchestrator-address $n2_inj_addr $n2_inj_addr $n2_eth_addr --home $n2_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
 resp_check "$resp" "val2 failed to register orchestrator address"
 
+echo -n "Registering orchestrator ETH addresses..."
 sleep 2
+echo "DONE"
 
 # Start peggo service
 echo "Starting 3x Peggo orchestrators..."
@@ -191,6 +192,14 @@ sed -e "s|^PEGGO_ETH_FROM=.*|PEGGO_ETH_FROM=\"$n2_eth_addr\"|" \
     -e "s|^PEGGO_COSMOS_GRPC=.*|PEGGO_COSMOS_GRPC=\"$n2_cosmos_grpc\"|" \
     -e "s|^PEGGO_TENDERMINT_RPC=.*|PEGGO_TENDERMINT_RPC=\"$n2_tendermint_rpc\"|" \
     "$example_env" > "$n2_peggo_env"
+
+# One relayer has lower min batch fee
+CHEAP_RELAYER="${CHEAP_RELAYER:-false}"
+if [[ "$CHEAP_RELAYER" == true ]]; then
+  echo "Setting n2 orchestrator with PEGGO_MIN_BATCH_FEE_USD to 10"
+  echo "$n2_peggo_env"
+  sed -i '' 's/^PEGGO_MIN_BATCH_FEE_USD=.*/PEGGO_MIN_BATCH_FEE_USD=10/' "$n2_peggo_env"
+fi
 
 # Start a new tmux session
 tmux new-session -d -s mysession

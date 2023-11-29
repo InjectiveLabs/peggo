@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
 	"github.com/avast/retry-go"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -163,7 +162,6 @@ func checkPriceThreshold(
 	minFeeInUSDDec := decimal.NewFromFloat(minFee)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
-		fmt.Printf("Skipping signing underpriced batch: token_addr=%v fee=%v min_fee=%v\n", tokenAddr.String(), totalFeeInUSDDec.String(), minFee)
 		return false
 	}
 
