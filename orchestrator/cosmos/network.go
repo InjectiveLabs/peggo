@@ -176,8 +176,8 @@ func (n *Network) SendValsetConfirm(
 	return n.PeggyBroadcastClient.SendValsetConfirm(ctx, ethFrom, peggyID, valset)
 }
 
-func (n *Network) OldestUnsignedTransactionBatch(ctx context.Context) (*peggy.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.AccFromAddress())
+func (n *Network) UnconfirmedTransactionBatches(ctx context.Context) ([]*peggy.OutgoingTxBatch, error) {
+	return n.PeggyQueryClient.UnconfirmedTransactionBatches(ctx, n.AccFromAddress())
 }
 
 func (n *Network) LatestTransactionBatches(ctx context.Context) ([]*peggy.OutgoingTxBatch, error) {

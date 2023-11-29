@@ -2,6 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/shopspring/decimal"
+	"math"
+	"math/big"
 	"sort"
 	"time"
 
@@ -271,8 +274,6 @@ func (r *relayer) relayBatches(
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
-
 	r.log.WithFields(log.Fields{
 		"nonce":         oldestConfirmedBatch.BatchNonce,
 		"batch_txs":     len(oldestConfirmedBatch.Transactions),
@@ -281,6 +282,84 @@ func (r *relayer) relayBatches(
 	}).Infoln("sent new token batch to Ethereum")
 
 	return nil
+}
+
+func (r *relayer) shouldRelayBatch(t time.Time) bool {
+	if timeElapsed := time.Since(t); timeElapsed <= r.relayBatchOffsetDur {
+		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
+
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+		return false
+	}
+
+	return true
+}
+
+func (r *relayer) getOldestBatchConfirmedByMajority(
+	ctx context.Context,
+	injective InjectiveNetwork,
+	valset *types.Valset,
+) (
+	*types.OutgoingTxBatch,
+	[]*types.MsgConfirmBatch,
+	error,
+) {
+	latestBatches, err := injective.LatestTransactionBatches(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var (
+		oldestConfirmedBatch     *types.OutgoingTxBatch
+		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
+	)
+
+	for _, batch := range latestBatches {
+		sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
+		// make sure the batch is signed by majority
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !majorityConfirms(valset, sigs) {
+			continue
+		}
+
+		oldestConfirmedBatch = batch
+		oldestConfirmedBatchSigs = sigs
+
+		break
+	}
+
+	return oldestConfirmedBatch, oldestConfirmedBatchSigs, nil
+}
+
+func majorityConfirms(vs *types.Valset, confirms []*types.MsgConfirmBatch) bool {
+	if len(confirms) == 0 {
+		return false
+	}
+
+	validatorConfirms := make(map[string]*types.MsgConfirmBatch, len(confirms))
+	for _, c := range confirms {
+		validatorConfirms[c.EthSigner] = c
+	}
+
+	votingPower := big.NewInt(0)
+	for _, validator := range vs.Members {
+		confirm, ok := validatorConfirms[validator.EthereumAddress]
+		if !ok || confirm.EthSigner != validator.EthereumAddress {
+			continue
+		}
+
+		votingPower.Add(votingPower, big.NewInt(0).SetUint64(validator.Power))
+	}
+
+	powerPercentage, _ := decimal.NewFromBigInt(votingPower, 0).Div(decimal.NewFromInt(math.MaxUint32)).Shift(2).Float64()
+	if float32(powerPercentage) < 66 {
+		return false
+	}
+
+	return true
 }
 
 const valsetBlocksToSearch = 2000

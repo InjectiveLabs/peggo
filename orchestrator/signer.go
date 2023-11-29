@@ -2,14 +2,18 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/pkg/errors"
 
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
+
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
@@ -22,16 +26,17 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 	}
 
 	signer := &ethSigner{
-		log:     log.WithField("loop", "EthSigner"),
-		peggyID: peggyID,
-		ethFrom: s.ethereum.FromAddress(),
-		retries: s.maxAttempts,
+		log:         log.WithField("loop", "EthSigner"),
+		peggyID:     peggyID,
+		ethFrom:     s.ethereum.FromAddress(),
+		retries:     s.maxAttempts,
+		minBatchFee: s.minBatchFeeUSD,
 	}
 
 	return loops.RunLoop(
 		ctx,
 		defaultLoopDur,
-		func() error { return signer.run(ctx, s.injective) },
+		func() error { return signer.run(ctx, s.injective, s.pricefeed) },
 	)
 }
 
@@ -59,55 +64,75 @@ func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error)
 }
 
 type ethSigner struct {
-	log     log.Logger
-	peggyID common.Hash
-	ethFrom common.Address
-	retries uint
+	log         log.Logger
+	peggyID     common.Hash
+	ethFrom     common.Address
+	retries     uint
+	minBatchFee float64
 }
 
-func (s *ethSigner) run(ctx context.Context, injective InjectiveNetwork) error {
+func (s *ethSigner) run(
+	ctx context.Context,
+	injective InjectiveNetwork,
+	feed PriceFeed,
+) error {
 	if err := s.signNewValsetUpdates(ctx, injective); err != nil {
 		return err
 	}
 
-	if err := s.signNewBatches(ctx, injective); err != nil {
+	if err := s.signNewBatches(ctx, injective, feed); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *ethSigner) signNewBatches(ctx context.Context, injective InjectiveNetwork) error {
-	oldestUnsignedTransactionBatch, err := s.getUnsignedBatch(ctx, injective)
+func (s *ethSigner) signNewBatches(
+	ctx context.Context,
+	injective InjectiveNetwork,
+	feed PriceFeed,
+) error {
+	unsignedBatches, err := s.getUnsignedBatches(ctx, injective)
 	if err != nil {
 		return err
 	}
 
-	if oldestUnsignedTransactionBatch == nil {
-		s.log.Debugln("no token batch to confirm")
-		return nil
-	}
+	for _, b := range unsignedBatches {
+		var (
+			totalFee  = cosmtypes.ZeroInt()
+			tokenAddr = common.HexToAddress(b.TokenContract)
+		)
 
-	if err := s.signBatch(ctx, injective, oldestUnsignedTransactionBatch); err != nil {
-		return err
+		for _, tx := range b.Transactions {
+			totalFee.Add(tx.Erc20Fee.Amount)
+		}
+
+		if !checkPriceThreshold(feed, tokenAddr, totalFee, s.minBatchFee) {
+			continue //	skip underpriced batch
+		}
+
+		if err := s.signBatch(ctx, injective, b); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *ethSigner) getUnsignedBatch(ctx context.Context, injective InjectiveNetwork) (*types.OutgoingTxBatch, error) {
-	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-	retryFn := func() (err error) {
-		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedTransactionBatch, err = injective.OldestUnsignedTransactionBatch(ctx)
-		if err == cosmos.ErrNotFound || oldestUnsignedTransactionBatch == nil {
-			return nil
+func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveNetwork) ([]*types.OutgoingTxBatch, error) {
+	var (
+		unsignedBatches      []*types.OutgoingTxBatch
+		getUnsignedBatchesFn = func() (err error) {
+			unsignedBatches, err = injective.UnconfirmedTransactionBatches(ctx)
+			if errors.Is(err, cosmos.ErrNotFound) || len(unsignedBatches) == 0 {
+				return nil
+			}
+
+			return err
 		}
+	)
 
-		return err
-	}
-
-	if err := retry.Do(retryFn,
+	if err := retry.Do(getUnsignedBatchesFn,
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
@@ -118,7 +143,35 @@ func (s *ethSigner) getUnsignedBatch(ctx context.Context, injective InjectiveNet
 		return nil, err
 	}
 
-	return oldestUnsignedTransactionBatch, nil
+	return unsignedBatches, nil
+}
+
+func (s *ethSigner) checkFeeThreshold(batch *types.OutgoingTxBatch, feed PriceFeed) bool {
+	if s.minBatchFee == 0 {
+		return true
+	}
+
+	tokenAddr := common.HexToAddress(batch.TokenContract)
+
+	var totalFees cosmtypes.Int
+	for _, tx := range batch.Transactions {
+		totalFees.Add(tx.Erc20Fee.Amount)
+	}
+
+	tokenPriceInUSD, err := feed.QueryUSDPrice(tokenAddr)
+	if err != nil {
+		return false
+	}
+
+	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
+	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+	minFeeInUSDDec := decimal.NewFromFloat(s.minBatchFee)
+
+	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
+		return true
+	}
+
+	return false
 }
 
 func (s *ethSigner) signBatch(

@@ -51,7 +51,11 @@ func TestEthSignerLoop(t *testing.T) {
 
 		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
 
-		assert.NoError(t, sig.run(context.TODO(), injective))
+		feed := mockPriceFeed{func(_ common.Address) (float64, error) {
+			return 0, nil
+		}}
+
+		assert.NoError(t, sig.run(context.TODO(), injective, feed))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
@@ -81,7 +85,11 @@ func TestEthSignerLoop(t *testing.T) {
 
 		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
 
-		assert.Error(t, sig.run(context.TODO(), injective))
+		feed := mockPriceFeed{func(_ common.Address) (float64, error) {
+			return 0, nil
+		}}
+
+		assert.Error(t, sig.run(context.TODO(), injective, feed))
 	})
 
 	t.Run("no transaction batch sign", func(t *testing.T) {
@@ -96,7 +104,11 @@ func TestEthSignerLoop(t *testing.T) {
 
 		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
 
-		assert.NoError(t, sig.run(context.TODO(), injective))
+		feed := mockPriceFeed{func(_ common.Address) (float64, error) {
+			return 0, nil
+		}}
+
+		assert.NoError(t, sig.run(context.TODO(), injective, feed))
 	})
 
 	t.Run("failed to send batch confirm", func(t *testing.T) {
@@ -115,7 +127,11 @@ func TestEthSignerLoop(t *testing.T) {
 
 		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
 
-		assert.Error(t, sig.run(context.TODO(), injective))
+		feed := mockPriceFeed{func(_ common.Address) (float64, error) {
+			return 0, nil
+		}}
+
+		assert.Error(t, sig.run(context.TODO(), injective, feed))
 	})
 
 	t.Run("valset update and transaction batch are confirmed", func(t *testing.T) {
@@ -134,6 +150,10 @@ func TestEthSignerLoop(t *testing.T) {
 
 		sig := &ethSigner{log: log.DefaultLogger, retries: 1}
 
-		assert.NoError(t, sig.run(context.TODO(), injective))
+		feed := mockPriceFeed{func(_ common.Address) (float64, error) {
+			return 0, nil
+		}}
+
+		assert.NoError(t, sig.run(context.TODO(), injective, feed))
 	})
 }

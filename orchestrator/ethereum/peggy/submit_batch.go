@@ -209,6 +209,7 @@ func checkBatchSigsAndRepack(
 			s = append(s, [32]byte{})
 		}
 	}
+
 	if peggyPowerToPercent(powerOfGoodSigs) < 66 {
 		err = ErrInsufficientVotingPowerToPass
 		return

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"github.com/avast/retry-go"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -83,22 +84,32 @@ func (r *batchRequester) requestBatchCreation(
 	batchFee *types.BatchFees,
 ) {
 	var (
-		tokenAddr = eth.HexToAddress(batchFee.Token)
-		denom     = r.tokenDenom(tokenAddr)
-		fees      = batchFee.TotalFees
+		tokenAddr  = eth.HexToAddress(batchFee.Token)
+		tokenDenom = r.tokenDenom(tokenAddr)
+		fees       = batchFee.TotalFees
 	)
 
-	if thresholdMet := r.checkFeeThreshold(feed, tokenAddr, fees); !thresholdMet {
+	if !checkPriceThreshold(
+		feed,
+		tokenAddr,
+		fees,
+		r.minBatchFee,
+	) {
+		r.log.WithFields(log.Fields{
+			"token_denom":    tokenDenom,
+			"token_contract": tokenAddr.String(),
+			"total_fees":     batchFee.TotalFees.String(),
+		}).Debugln("skipping underpriced batch")
 		return
 	}
 
 	r.log.WithFields(log.Fields{
-		"denom":          denom,
+		"token_denom":    tokenDenom,
 		"token_contract": tokenAddr.String(),
 		"fees":           fees.String(),
 	}).Infoln("creating new token batch on Injective")
 
-	if err := injective.SendRequestBatch(ctx, denom); err != nil {
+	if err := injective.SendRequestBatch(ctx, tokenDenom); err != nil {
 		r.log.WithError(err).Warningln("failed to create batch")
 	}
 }
@@ -130,16 +141,36 @@ func (r *batchRequester) checkFeeThreshold(
 	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
 	minFeeInUSDDec := decimal.NewFromFloat(r.minBatchFee)
 
-	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
+	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		return false
+	}
+
+	return true
+}
+
+func checkPriceThreshold(
+	feed PriceFeed,
+	tokenAddr eth.Address,
+	totalFees cosmtypes.Int,
+	minFee float64,
+) bool {
+	if minFee == 0 {
 		return true
 	}
 
-	r.log.WithFields(log.Fields{
-		"token_contract": tokenAddr.String(),
-		"token_denom":    r.tokenDenom(tokenAddr),
-		"batch_fee":      totalFeeInUSDDec.String(),
-		"min_fee":        r.minBatchFee,
-	}).Debugln("skipping underpriced batch")
+	tokenPriceInUSD, err := feed.QueryUSDPrice(tokenAddr)
+	if err != nil {
+		return false
+	}
 
-	return false
+	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
+	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+	minFeeInUSDDec := decimal.NewFromFloat(minFee)
+
+	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		fmt.Printf("Skipping signing underpriced batch: token_addr=%v fee=%v min_fee=%v\n", tokenAddr.String(), totalFeeInUSDDec.String(), minFee)
+		return false
+	}
+
+	return true
 }
