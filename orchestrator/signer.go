@@ -5,15 +5,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/avast/retry-go"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/shopspring/decimal"
-	log "github.com/xlab/suplog"
-
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
+	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
@@ -92,31 +90,30 @@ func (s *ethSigner) signNewBatches(
 	injective InjectiveNetwork,
 	feed PriceFeed,
 ) error {
-	unsignedBatches, err := s.getUnsignedBatches(ctx, injective)
+	batches, err := s.getUnsignedBatches(ctx, injective)
 	if err != nil {
 		return err
 	}
 
-	for _, b := range unsignedBatches {
-		var (
-			totalFee  = cosmtypes.ZeroInt()
-			tokenAddr = common.HexToAddress(b.TokenContract)
-		)
+	for _, batch := range batches {
+		tokenAddr := common.HexToAddress(batch.TokenContract)
+		tokenPrice, err := feed.QueryUSDPrice(tokenAddr)
+		if err != nil {
+			s.log.WithError(err).WithField("token_contract", tokenAddr.String()).Warningln("failed to query token price")
+			continue
+		}
 
-		for _, tx := range b.Transactions {
+		totalFee := cosmtypes.ZeroInt()
+		for _, tx := range batch.Transactions {
 			totalFee.Add(tx.Erc20Fee.Amount)
 		}
 
-		if !checkPriceThreshold(feed, tokenAddr, totalFee, s.minBatchFee) {
-			s.log.WithFields(log.Fields{
-				"token_contract": tokenAddr.String(),
-				"batch_fee":      totalFee.String(),
-				"min_fee":        s.minBatchFee,
-			}).Debugln("skipping token batch confirmation")
+		if !minimumBatchFeeExceeded(s.minBatchFee, tokenPrice, totalFee) {
+			s.log.WithField("token_contract", tokenAddr.String()).Debugln("skipping token batch confirmation")
 			continue //	skip underpriced batch
 		}
 
-		if err := s.signBatch(ctx, injective, b); err != nil {
+		if err := s.signBatch(ctx, injective, batch); err != nil {
 			return err
 		}
 	}
@@ -149,34 +146,6 @@ func (s *ethSigner) getUnsignedBatches(ctx context.Context, injective InjectiveN
 	}
 
 	return unsignedBatches, nil
-}
-
-func (s *ethSigner) checkFeeThreshold(batch *types.OutgoingTxBatch, feed PriceFeed) bool {
-	if s.minBatchFee == 0 {
-		return true
-	}
-
-	tokenAddr := common.HexToAddress(batch.TokenContract)
-
-	var totalFees cosmtypes.Int
-	for _, tx := range batch.Transactions {
-		totalFees.Add(tx.Erc20Fee.Amount)
-	}
-
-	tokenPriceInUSD, err := feed.QueryUSDPrice(tokenAddr)
-	if err != nil {
-		return false
-	}
-
-	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
-	totalFeeInUSDDec := decimal.NewFromBigInt(totalFees.BigInt(), -18).Mul(tokenPriceInUSDDec)
-	minFeeInUSDDec := decimal.NewFromFloat(s.minBatchFee)
-
-	if totalFeeInUSDDec.GreaterThan(minFeeInUSDDec) {
-		return true
-	}
-
-	return false
 }
 
 func (s *ethSigner) signBatch(
