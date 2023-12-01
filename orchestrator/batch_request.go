@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-
 	"github.com/avast/retry-go"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	eth "github.com/ethereum/go-ethereum/common"
@@ -41,6 +40,11 @@ func (r *batchRequester) run(
 	tokenFees, err := r.getUnbatchedFeesByToken(ctx, injective)
 	if err != nil {
 		r.log.WithError(err).Warningln("failed to get token fees from Injective")
+		return nil
+	}
+
+	if len(tokenFees) == 0 {
+		r.log.Debugln("no token batch to create")
 		return nil
 	}
 

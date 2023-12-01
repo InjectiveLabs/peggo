@@ -214,7 +214,10 @@ func (r *relayer) relayBatches(
 		}
 
 		if !majorityConfirms(latestValsetEth, sigs) {
-			// log
+			r.log.WithFields(log.Fields{
+				"token_contract": common.HexToAddress(batch.TokenContract).String(),
+				"nonce":          batch.BatchNonce,
+			}).Debugln("skipping token batch relay")
 			continue
 		}
 
@@ -224,7 +227,7 @@ func (r *relayer) relayBatches(
 	}
 
 	if earliestConfirmedBatch == nil {
-		// log
+		r.log.Debugln("no token batch to relay")
 		return nil
 	}
 
