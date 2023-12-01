@@ -31,11 +31,9 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 		minBatchFee: s.minBatchFeeUSD,
 	}
 
-	return loops.RunLoop(
-		ctx,
-		defaultLoopDur,
-		func() error { return signer.run(ctx, s.injective, s.pricefeed) },
-	)
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		return signer.run(ctx, s.injective, s.pricefeed)
+	})
 }
 
 func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error) {
@@ -95,6 +93,11 @@ func (s *ethSigner) signNewBatches(
 		return err
 	}
 
+	if len(batches) == 0 {
+		s.log.Debugln("no token batches to confirm")
+		return nil
+	}
+
 	for _, batch := range batches {
 		tokenAddr := common.HexToAddress(batch.TokenContract)
 		tokenPrice, err := feed.QueryUSDPrice(tokenAddr)
@@ -103,14 +106,15 @@ func (s *ethSigner) signNewBatches(
 			continue
 		}
 
+		// sum fees
 		totalFee := cosmtypes.ZeroInt()
 		for _, tx := range batch.Transactions {
-			totalFee.Add(tx.Erc20Fee.Amount)
+			totalFee = totalFee.Add(tx.Erc20Fee.Amount)
 		}
 
-		if !minimumBatchFeeExceeded(s.minBatchFee, tokenPrice, totalFee) {
+		if !checkMinFee(s.minBatchFee, tokenPrice, totalFee) {
 			s.log.WithField("token_contract", tokenAddr.String()).Debugln("skipping token batch confirmation")
-			continue //	skip underpriced batch
+			continue
 		}
 
 		if err := s.signBatch(ctx, injective, batch); err != nil {
@@ -153,8 +157,7 @@ func (s *ethSigner) signBatch(
 	injective InjectiveNetwork,
 	batch *types.OutgoingTxBatch,
 ) error {
-	if err := retry.Do(
-		func() error { return injective.SendBatchConfirm(ctx, s.peggyID, batch, s.ethFrom) },
+	if err := retry.Do(func() error { return injective.SendBatchConfirm(ctx, s.peggyID, batch, s.ethFrom) },
 		retry.Context(ctx),
 		retry.Attempts(s.retries),
 		retry.OnRetry(func(n uint, err error) {
@@ -166,8 +169,9 @@ func (s *ethSigner) signBatch(
 	}
 
 	s.log.WithFields(log.Fields{
-		"batch_nonce": batch.BatchNonce,
-		"batch_txs":   len(batch.Transactions),
+		"nonce":          batch.BatchNonce,
+		"txs":            len(batch.Transactions),
+		"token_contract": common.HexToAddress(batch.TokenContract).String(),
 	}).Infoln("confirmed token batch on Injective")
 
 	return nil
@@ -239,8 +243,8 @@ func (s *ethSigner) signValset(
 	}
 
 	s.log.WithFields(log.Fields{
-		"valset_nonce":   vs.Nonce,
-		"valset_members": len(vs.Members),
+		"nonce":   vs.Nonce,
+		"members": len(vs.Members),
 	}).Infoln("confirmed valset update on Injective")
 
 	return nil

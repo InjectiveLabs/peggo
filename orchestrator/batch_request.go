@@ -52,9 +52,8 @@ func (r *batchRequester) run(
 			continue
 		}
 
-		// check if batch is sufficient
-		if !minimumBatchFeeExceeded(r.minBatchFee, tokenPrice, fee.TotalFees) {
-			r.log.WithField("token_contract", tokenAddr.String()).Debugln("skipping batch creation")
+		if !checkMinFee(r.minBatchFee, tokenPrice, fee.TotalFees) {
+			r.log.WithField("token_contract", tokenAddr.String()).Debugln("skipping token batch creation")
 			continue
 		}
 
@@ -126,7 +125,7 @@ func (r *batchRequester) checkFeeThreshold(
 	return true
 }
 
-func minimumBatchFeeExceeded(minFee, tokenPriceInUSD float64, totalFees cosmtypes.Int) bool {
+func checkMinFee(minFee, tokenPriceInUSD float64, totalFees cosmtypes.Int) bool {
 	if minFee == 0 {
 		return true
 	}
@@ -135,12 +134,12 @@ func minimumBatchFeeExceeded(minFee, tokenPriceInUSD float64, totalFees cosmtype
 	totalFeeInUSDDec := totalTokensScaled.Mul(decimal.NewFromFloat(tokenPriceInUSD))
 	minFeeInUSDDec := decimal.NewFromFloat(minFee)
 
-	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
-		log.WithFields(log.Fields{
-			"min_fee":   minFeeInUSDDec.String(),
-			"total_fee": totalFeeInUSDDec.String(),
-		}).Debugln("insufficient fees")
+	log.WithFields(log.Fields{
+		"min_fee":   minFeeInUSDDec.String(),
+		"total_fee": totalFeeInUSDDec.String(),
+	}).Debugln("token batch fee check")
 
+	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		return false
 	}
 
