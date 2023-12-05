@@ -7,6 +7,7 @@ import (
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
+	"time"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -67,6 +68,8 @@ func (r *batchRequester) run(
 		}
 
 		r.log.WithField("token_contract", tokenAddr.String()).Infoln("created new token batch on Injective")
+
+		time.Sleep(time.Millisecond * 2500) // sleep for 2.5 seconds to avoid incorrect nonce error (injective tx)
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"github.com/pkg/errors"
+	"time"
 
 	"github.com/avast/retry-go"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
@@ -120,6 +121,8 @@ func (s *ethSigner) signNewBatches(
 		if err := s.signBatch(ctx, injective, batch); err != nil {
 			return err
 		}
+
+		time.Sleep(time.Millisecond * 2500) // sleep for 2.5 seconds to avoid incorrect nonce error (injective tx)
 	}
 
 	return nil
