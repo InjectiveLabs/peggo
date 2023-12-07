@@ -6,6 +6,7 @@ import (
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
+	"time"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -101,6 +102,8 @@ func (r *batchRequester) requestBatchCreation(
 	if err := injective.SendRequestBatch(ctx, denom); err != nil {
 		r.log.WithError(err).Warningln("failed to create batch")
 	}
+
+	time.Sleep(time.Millisecond * 2500) // sleep for 2.5 seconds to avoid nonce mismatch error
 }
 
 func (r *batchRequester) tokenDenom(tokenAddr eth.Address) string {
