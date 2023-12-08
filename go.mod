@@ -185,9 +185,9 @@ require (
 
 replace (
 	github.com/CosmWasm/wasmd => github.com/InjectiveLabs/wasmd v0.40.0-inj
-	github.com/InjectiveLabs/sdk-go => github.com/InjectiveLabs/sdk-go v1.49.0-rc2
+	github.com/InjectiveLabs/sdk-go => github.com/InjectiveLabs/sdk-go v1.49.0-rc2.1
 	github.com/bandprotocol/bandchain-packet => github.com/InjectiveLabs/bandchain-packet v0.0.4-0.20230327115226-35199d4659d5
 	github.com/cometbft/cometbft => github.com/InjectiveLabs/cometbft v0.37.1-inj
-	github.com/cosmos/cosmos-sdk => github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-6
+	github.com/cosmos/cosmos-sdk => github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-7
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.12.0
 )
