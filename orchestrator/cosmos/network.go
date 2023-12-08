@@ -188,6 +188,10 @@ func (n *Network) TransactionBatchSignatures(ctx context.Context, nonce uint64, 
 	return n.PeggyQueryClient.TransactionBatchSignatures(ctx, nonce, tokenContract)
 }
 
+func (n *Network) FirstConfirmedOutgoingTxBatch(ctx context.Context) (*types.OutgoingTxBatch, error) {
+	return n.PeggyQueryClient.FirstConfirmedOutgoingTxBatch(ctx)
+}
+
 func (n *Network) SendBatchConfirm(
 	ctx context.Context,
 	peggyID ethcmn.Hash,

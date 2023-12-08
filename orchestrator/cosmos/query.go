@@ -20,9 +20,9 @@ type PeggyQueryClient interface {
 	UnconfirmedTransactionBatches(ctx context.Context, valAccountAddress sdk.AccAddress) ([]*types.OutgoingTxBatch, error)
 	LatestTransactionBatches(ctx context.Context) ([]*types.OutgoingTxBatch, error)
 	UnbatchedTokensWithFees(ctx context.Context) ([]*types.BatchFees, error)
-
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract ethcmn.Address) ([]*types.MsgConfirmBatch, error)
 	LastClaimEventByAddr(ctx context.Context, validatorAccountAddress sdk.AccAddress) (*types.LastClaimEvent, error)
+	FirstConfirmedOutgoingTxBatch(ctx context.Context) (*types.OutgoingTxBatch, error)
 
 	PeggyParams(ctx context.Context) (*types.Params, error)
 }
@@ -144,7 +144,7 @@ func (s *peggyQueryClient) UnconfirmedTransactionBatches(ctx context.Context, va
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	daemonResp, err := s.daemonQueryClient.LastPendingBatchRequestsByAddr(ctx, &types.QueryLastPendingBatchRequestsByAddrRequest{
+	daemonResp, err := s.daemonQueryClient.UnconfirmedOutgoingTxBatchesByAddr(ctx, &types.QueryUnconfirmedOutgoingTxBatchesByAddrRequest{
 		Address: valAccountAddress.String(),
 	})
 	if err != nil {
@@ -252,4 +252,18 @@ func (s *peggyQueryClient) PeggyParams(ctx context.Context) (*types.Params, erro
 	}
 
 	return &daemonResp.Params, nil
+}
+
+func (s *peggyQueryClient) FirstConfirmedOutgoingTxBatch(ctx context.Context) (*types.OutgoingTxBatch, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	resp, err := s.daemonQueryClient.FirstConfirmedOutgoingTxBatch(ctx, &types.QueryFirstConfirmedOutgoingTxBatchRequest{})
+	if err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		return nil, errors.Wrapf(err, "failed to query FirstConfirmedOutgoingTxBatch from daemon")
+	}
+
+	return resp.Batch, nil
 }
