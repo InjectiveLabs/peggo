@@ -44,6 +44,7 @@ type InjectiveNetwork interface {
 	SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error
 	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
+	FirstConfirmedOutgoingTxBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
 
 	// valsets
 	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)

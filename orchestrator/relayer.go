@@ -196,40 +196,58 @@ func (r *relayer) relayBatches(
 		return errors.Wrap(err, "latest valset not found")
 	}
 
-	outgoingBatches, err := injective.LatestTransactionBatches(ctx)
+	majorityConfirmedBatch, err := injective.FirstConfirmedOutgoingTxBatch(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get ready token batch")
 	}
 
-	var (
-		earliestConfirmedBatch     *types.OutgoingTxBatch
-		earliestConfirmedBatchSigs []*types.MsgConfirmBatch
-	)
-
-	// find the earliest batch that has sufficient number of confirmations
-	for _, batch := range outgoingBatches {
-		sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
-		if err != nil {
-			return err
-		}
-
-		if !majorityConfirms(latestValsetEth, sigs) {
-			r.log.WithFields(log.Fields{
-				"token_contract": common.HexToAddress(batch.TokenContract).String(),
-				"nonce":          batch.BatchNonce,
-			}).Debugln("skipping token batch relay")
-			continue
-		}
-
-		earliestConfirmedBatch = batch
-		earliestConfirmedBatchSigs = sigs
-		break
-	}
-
-	if earliestConfirmedBatch == nil {
-		r.log.Debugln("no token batch to relay")
+	if majorityConfirmedBatch == nil {
+		r.log.Debugln("no ready outgoing tx batch to relay")
 		return nil
 	}
+
+	majorityConfirmedBatchSigs, err := injective.TransactionBatchSignatures(ctx, majorityConfirmedBatch.BatchNonce, common.HexToAddress(majorityConfirmedBatch.TokenContract))
+	if err != nil {
+		return errors.Wrap(err, "unable to get token batch confirmations")
+	}
+
+	//outgoingBatches, err := injective.LatestTransactionBatches(ctx)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//var (
+	//	earliestConfirmedBatch     *types.OutgoingTxBatch
+	//	earliestConfirmedBatchSigs []*types.MsgConfirmBatch
+	//)
+	//
+	//// find the earliest batch that has sufficient number of confirmations
+	//for _, batch := range outgoingBatches {
+	//	sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	if !majorityConfirms(latestValsetEth, sigs) {
+	//		r.log.WithFields(log.Fields{
+	//			"token_contract": common.HexToAddress(batch.TokenContract).String(),
+	//			"nonce":          batch.BatchNonce,
+	//		}).Debugln("skipping token batch relay")
+	//		continue
+	//	}
+	//
+	//	earliestConfirmedBatch = batch
+	//	earliestConfirmedBatchSigs = sigs
+	//	break
+	//}
+	//
+	//if earliestConfirmedBatch == nil {
+	//	r.log.Debugln("no token batch to relay")
+	//	return nil
+	//}
+
+	earliestConfirmedBatch := majorityConfirmedBatch
+	earliestConfirmedBatchSigs := majorityConfirmedBatchSigs
 
 	latestBatchNonceEth, err := ethereum.GetTxBatchNonce(ctx, common.HexToAddress(earliestConfirmedBatch.TokenContract))
 	if err != nil {
