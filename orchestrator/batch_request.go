@@ -141,7 +141,7 @@ func checkMinFee(minFee, tokenPriceInUSD float64, totalFees cosmtypes.Int) bool 
 	log.WithFields(log.Fields{
 		"min_fee":   minFeeInUSDDec.String(),
 		"total_fee": totalFeeInUSDDec.String(),
-	}).Debugln("token batch fee check")
+	}).Debugln("checking token batch fee threshold")
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		return false
