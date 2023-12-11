@@ -2,9 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/shopspring/decimal"
-	"math"
-	"math/big"
 	"sort"
 	"time"
 
@@ -30,11 +27,9 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		batchRelaying:        s.batchRelayEnabled,
 	}
 
-	return loops.RunLoop(
-		ctx,
-		defaultLoopDur,
-		func() error { return rel.run(ctx, s.injective, s.ethereum) },
-	)
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		return rel.run(ctx, s.injective, s.ethereum)
+	})
 }
 
 type relayer struct {
@@ -202,72 +197,35 @@ func (r *relayer) relayBatches(
 	}
 
 	if majorityConfirmedBatch == nil {
-		r.log.Debugln("no ready outgoing tx batch to relay")
+		r.log.Debugln("no ready token batch to relay")
 		return nil
 	}
 
-	majorityConfirmedBatchSigs, err := injective.TransactionBatchSignatures(ctx, majorityConfirmedBatch.BatchNonce, common.HexToAddress(majorityConfirmedBatch.TokenContract))
+	batchTokenContract := common.HexToAddress(majorityConfirmedBatch.TokenContract)
+	majorityConfirmedBatchSigs, err := injective.TransactionBatchSignatures(ctx, majorityConfirmedBatch.BatchNonce, batchTokenContract)
 	if err != nil {
 		return errors.Wrap(err, "unable to get token batch confirmations")
 	}
 
-	//outgoingBatches, err := injective.LatestTransactionBatches(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//var (
-	//	earliestConfirmedBatch     *types.OutgoingTxBatch
-	//	earliestConfirmedBatchSigs []*types.MsgConfirmBatch
-	//)
-	//
-	//// find the earliest batch that has sufficient number of confirmations
-	//for _, batch := range outgoingBatches {
-	//	sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	if !majorityConfirms(latestValsetEth, sigs) {
-	//		r.log.WithFields(log.Fields{
-	//			"token_contract": common.HexToAddress(batch.TokenContract).String(),
-	//			"nonce":          batch.BatchNonce,
-	//		}).Debugln("skipping token batch relay")
-	//		continue
-	//	}
-	//
-	//	earliestConfirmedBatch = batch
-	//	earliestConfirmedBatchSigs = sigs
-	//	break
-	//}
-	//
-	//if earliestConfirmedBatch == nil {
-	//	r.log.Debugln("no token batch to relay")
-	//	return nil
-	//}
-
-	earliestConfirmedBatch := majorityConfirmedBatch
-	earliestConfirmedBatchSigs := majorityConfirmedBatchSigs
-
-	latestBatchNonceEth, err := ethereum.GetTxBatchNonce(ctx, common.HexToAddress(earliestConfirmedBatch.TokenContract))
+	latestBatchNonceEth, err := ethereum.GetTxBatchNonce(ctx, batchTokenContract)
 	if err != nil {
 		return err
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch_nonce": earliestConfirmedBatch.BatchNonce,
+		"inj_batch_nonce": majorityConfirmedBatch.BatchNonce,
 		"eth_batch_nonce": latestBatchNonceEth.Uint64(),
 	}).Debugln("latest token batches")
 
 	// Check if ethereum batch was updated by other relayers
-	if earliestConfirmedBatch.BatchNonce <= latestBatchNonceEth.Uint64() {
+	if majorityConfirmedBatch.BatchNonce <= latestBatchNonceEth.Uint64() {
 		return nil
 	}
 
 	// Check if batch relay offset has expired
-	blockResult, err := injective.GetBlock(ctx, int64(earliestConfirmedBatch.Block))
+	blockResult, err := injective.GetBlock(ctx, int64(majorityConfirmedBatch.Block))
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", earliestConfirmedBatch.Block)
+		return errors.Wrapf(err, "failed to get block %d from Injective", majorityConfirmedBatch.Block)
 	}
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
@@ -277,102 +235,24 @@ func (r *relayer) relayBatches(
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch_nonce": earliestConfirmedBatch.BatchNonce,
+		"inj_batch_nonce": majorityConfirmedBatch.BatchNonce,
 		"eth_batch_nonce": latestBatchNonceEth.Uint64(),
 	}).Infoln("detected new token batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := ethereum.SendTransactionBatch(ctx, latestValsetEth, earliestConfirmedBatch, earliestConfirmedBatchSigs)
+	txHash, err := ethereum.SendTransactionBatch(ctx, latestValsetEth, majorityConfirmedBatch, majorityConfirmedBatchSigs)
 	if err != nil {
 		return err
 	}
 
 	r.log.WithFields(log.Fields{
-		"nonce":         earliestConfirmedBatch.BatchNonce,
-		"batch_txs":     len(earliestConfirmedBatch.Transactions),
-		"confirmations": len(earliestConfirmedBatchSigs),
+		"nonce":         majorityConfirmedBatch.BatchNonce,
+		"txs":           len(majorityConfirmedBatch.Transactions),
+		"confirmations": len(majorityConfirmedBatchSigs),
 		"tx_hash":       txHash.String(),
 	}).Infoln("sent new token batch to Ethereum")
 
 	return nil
-}
-
-func (r *relayer) shouldRelayBatch(t time.Time) bool {
-	if timeElapsed := time.Since(t); timeElapsed <= r.relayBatchOffsetDur {
-		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
-		return false
-	}
-
-	return true
-}
-
-func (r *relayer) getOldestBatchConfirmedByMajority(
-	ctx context.Context,
-	injective InjectiveNetwork,
-	valset *types.Valset,
-) (
-	*types.OutgoingTxBatch,
-	[]*types.MsgConfirmBatch,
-	error,
-) {
-	latestBatches, err := injective.LatestTransactionBatches(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var (
-		oldestConfirmedBatch     *types.OutgoingTxBatch
-		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
-	)
-
-	for _, batch := range latestBatches {
-		sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
-		// make sure the batch is signed by majority
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if !majorityConfirms(valset, sigs) {
-			continue
-		}
-
-		oldestConfirmedBatch = batch
-		oldestConfirmedBatchSigs = sigs
-
-		break
-	}
-
-	return oldestConfirmedBatch, oldestConfirmedBatchSigs, nil
-}
-
-func majorityConfirms(vs *types.Valset, confirms []*types.MsgConfirmBatch) bool {
-	if len(confirms) == 0 {
-		return false
-	}
-
-	validatorConfirms := make(map[string]*types.MsgConfirmBatch, len(confirms))
-	for _, c := range confirms {
-		validatorConfirms[c.EthSigner] = c
-	}
-
-	votingPower := big.NewInt(0)
-	for _, validator := range vs.Members {
-		confirm, ok := validatorConfirms[validator.EthereumAddress]
-		if !ok || confirm.EthSigner != validator.EthereumAddress {
-			continue
-		}
-
-		votingPower.Add(votingPower, big.NewInt(0).SetUint64(validator.Power))
-	}
-
-	powerPercentage, _ := decimal.NewFromBigInt(votingPower, 0).Div(decimal.NewFromInt(math.MaxUint32)).Shift(2).Float64()
-	if float32(powerPercentage) < 66 {
-		return false
-	}
-
-	return true
 }
 
 const valsetBlocksToSearch = 2000
