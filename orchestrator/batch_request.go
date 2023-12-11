@@ -62,10 +62,7 @@ func (r *batchRequester) run(
 			continue
 		}
 
-		if err := injective.SendRequestBatch(ctx, r.tokenDenom(tokenAddr)); err != nil {
-			r.log.WithError(err).Warningln("failed to create batch")
-			continue
-		}
+		_ = injective.SendRequestBatch(ctx, r.tokenDenom(tokenAddr))
 
 		r.log.WithField("token_contract", tokenAddr.String()).Infoln("created new token batch on Injective")
 
