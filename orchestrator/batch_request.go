@@ -62,14 +62,11 @@ func (r *batchRequester) run(
 			continue
 		}
 
-		if err := injective.SendRequestBatch(ctx, r.tokenDenom(tokenAddr)); err != nil {
-			r.log.WithError(err).Warningln("failed to create batch")
-			continue
-		}
+		_ = injective.SendRequestBatch(ctx, r.tokenDenom(tokenAddr))
 
 		r.log.WithField("token_contract", tokenAddr.String()).Infoln("created new token batch on Injective")
 
-		time.Sleep(time.Millisecond * 2500) // sleep for 2.5 seconds to avoid incorrect nonce error (injective tx)
+		time.Sleep(time.Millisecond * 1500) // sleep for 2.5 seconds to avoid incorrect nonce error (injective tx)
 	}
 
 	return nil
@@ -144,7 +141,7 @@ func checkMinFee(minFee, tokenPriceInUSD float64, totalFees cosmtypes.Int) bool 
 	log.WithFields(log.Fields{
 		"min_fee":   minFeeInUSDDec.String(),
 		"total_fee": totalFeeInUSDDec.String(),
-	}).Debugln("token batch fee check")
+	}).Debugln("checking token batch fee threshold")
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		return false
