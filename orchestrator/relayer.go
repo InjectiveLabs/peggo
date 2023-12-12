@@ -27,11 +27,9 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		batchRelaying:        s.batchRelayEnabled,
 	}
 
-	return loops.RunLoop(
-		ctx,
-		defaultLoopDur,
-		func() error { return rel.run(ctx, s.injective, s.ethereum) },
-	)
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		return rel.run(ctx, s.injective, s.ethereum)
+	})
 }
 
 type relayer struct {
@@ -65,8 +63,7 @@ func (r *relayer) run(
 
 	if r.batchRelaying {
 		pg.Go(func() error {
-			return retry.Do(
-				func() error { return r.relayBatches(ctx, injective, ethereum) },
+			return retry.Do(func() error { return r.relayBatches(ctx, injective, ethereum) },
 				retry.Context(ctx),
 				retry.Attempts(r.retries),
 				retry.OnRetry(func(n uint, err error) {
@@ -187,96 +184,71 @@ func (r *relayer) relayBatches(
 	injective InjectiveNetwork,
 	ethereum EthereumNetwork,
 ) error {
-	latestBatches, err := injective.LatestTransactionBatches(ctx)
-	if err != nil {
-		return err
-	}
-
-	var (
-		oldestConfirmedBatch     *types.OutgoingTxBatch
-		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
-	)
-
-	for _, batch := range latestBatches {
-		sigs, err := injective.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
-		if err != nil {
-			return err
-		} else if len(sigs) == 0 {
-			continue
-		}
-
-		oldestConfirmedBatch = batch
-		oldestConfirmedBatchSigs = sigs
-	}
-
-	if oldestConfirmedBatch == nil {
-		r.log.Debugln("no token batches to relay")
-		return nil
-	}
-
-	latestEthereumBatch, err := ethereum.GetTxBatchNonce(
-		ctx,
-		common.HexToAddress(oldestConfirmedBatch.TokenContract),
-	)
-	if err != nil {
-		return err
-	}
-
-	currentValset, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
+	latestValsetEth, err := r.findLatestValsetOnEth(ctx, injective, ethereum)
 	if err != nil {
 		return errors.Wrap(err, "failed to find latest valset")
-	} else if currentValset == nil {
+	} else if latestValsetEth == nil {
 		return errors.Wrap(err, "latest valset not found")
 	}
 
-	r.log.WithFields(log.Fields{
-		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
-		"eth_batch_nonce": latestEthereumBatch.Uint64(),
-	}).Debugln("latest token batches")
+	majorityConfirmedBatch, err := injective.FirstConfirmedOutgoingTxBatch(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get ready token batch")
+	}
 
-	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+	if majorityConfirmedBatch == nil {
+		r.log.Debugln("no ready token batch to relay")
 		return nil
 	}
 
-	latestEthereumBatch, err = ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestConfirmedBatch.TokenContract))
+	batchTokenContract := common.HexToAddress(majorityConfirmedBatch.TokenContract)
+	majorityConfirmedBatchSigs, err := injective.TransactionBatchSignatures(ctx, majorityConfirmedBatch.BatchNonce, batchTokenContract)
+	if err != nil {
+		return errors.Wrap(err, "unable to get token batch confirmations")
+	}
+
+	latestBatchNonceEth, err := ethereum.GetTxBatchNonce(ctx, batchTokenContract)
 	if err != nil {
 		return err
 	}
 
-	// Check if ethereum batch was updated by other validators
-	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+	r.log.WithFields(log.Fields{
+		"inj_batch_nonce": majorityConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestBatchNonceEth.Uint64(),
+	}).Debugln("latest token batches")
+
+	// Check if ethereum batch was updated by other relayers
+	if majorityConfirmedBatch.BatchNonce <= latestBatchNonceEth.Uint64() {
 		return nil
 	}
 
-	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedBatch.Block))
+	// Check if batch relay offset has expired
+	blockResult, err := injective.GetBlock(ctx, int64(majorityConfirmedBatch.Block))
 	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
+		return errors.Wrapf(err, "failed to get block %d from Injective", majorityConfirmedBatch.Block)
 	}
 
 	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
-		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset not expired")
 		return nil
 	}
 
 	r.log.WithFields(log.Fields{
-		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
-		"eth_batch_nonce": latestEthereumBatch.Uint64(),
+		"inj_batch_nonce": majorityConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestBatchNonceEth.Uint64(),
 	}).Infoln("detected new token batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := ethereum.SendTransactionBatch(ctx, currentValset, oldestConfirmedBatch, oldestConfirmedBatchSigs)
+	txHash, err := ethereum.SendTransactionBatch(ctx, latestValsetEth, majorityConfirmedBatch, majorityConfirmedBatchSigs)
 	if err != nil {
 		return err
 	}
 
-	r.log.WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
-
 	r.log.WithFields(log.Fields{
-		"nonce":         oldestConfirmedBatch.BatchNonce,
-		"batch_txs":     len(oldestConfirmedBatch.Transactions),
-		"confirmations": len(oldestConfirmedBatchSigs),
+		"nonce":         majorityConfirmedBatch.BatchNonce,
+		"txs":           len(majorityConfirmedBatch.Transactions),
+		"confirmations": len(majorityConfirmedBatchSigs),
 		"tx_hash":       txHash.String(),
 	}).Infoln("sent new token batch to Ethereum")
 

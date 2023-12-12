@@ -16,7 +16,6 @@ import (
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
 
-
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )
 
@@ -139,15 +138,25 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 		if err != nil {
 			log.WithError(err).Fatalln("failed to initialize cosmos client context")
 		}
-		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
 
 		tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
 		if err != nil {
 			log.WithError(err)
 		}
 
+		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
 		clientCtx = clientCtx.WithClient(tmRPC)
-		daemonClient, err := chainclient.NewChainClient(clientCtx, *cosmosGRPC, common.OptionGasPrices(*cosmosGasPrices))
+
+		cfg := cosmos.NetworkConfig{
+			Name:          *envName,
+			ChainID:       *cosmosChainID,
+			FeeDenom:      "inj", // todo
+			GasPrices:     *cosmosGasPrices,
+			TendermintRPC: *tendermintRPC,
+			CosmosGRPC:    *cosmosGRPC,
+		}
+
+		daemonClient, err := chainclient.NewChainClient(clientCtx, cosmos.LoadNetwork(cfg), common.OptionGasPrices(*cosmosGasPrices))
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"endpoint": *cosmosGRPC,
