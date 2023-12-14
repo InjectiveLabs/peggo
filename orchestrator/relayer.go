@@ -153,7 +153,12 @@ func (r *relayer) relayValsets(
 		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedValset.Height)
 	}
 
-	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", blockResult.Data.Timestamp)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse timestamp from block")
+	}
+
+	if timeElapsed := time.Since(blockTime); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
@@ -252,7 +257,12 @@ func (r *relayer) relayBatches(
 		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
 	}
 
-	if timeElapsed := time.Since(blockResult.Block.Time); timeElapsed <= r.relayValsetOffsetDur {
+	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", blockResult.Data.Timestamp)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse timestamp from block")
+	}
+
+	if timeElapsed := time.Since(blockTime); timeElapsed <= r.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(r.relayBatchOffsetDur) - int64(timeElapsed))
 		r.log.WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil

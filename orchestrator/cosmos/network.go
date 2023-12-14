@@ -2,10 +2,9 @@ package cosmos
 
 import (
 	"context"
+	"strconv"
 	"time"
 
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -14,19 +13,21 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
+	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
+	explorerPB "github.com/InjectiveLabs/sdk-go/exchange/explorer_rpc/pb"
 )
 
 type Network struct {
-	tmclient.TendermintClient
+	//tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
+	explorerclient.ExplorerClient
 }
 
 func NewNetwork(
@@ -44,16 +45,36 @@ func NewNetwork(
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	clientCtx = clientCtx.WithNodeURI(tendermintRPC)
+	//clientCtx = clientCtx.WithNodeURI(tendermintRPC)
 
-	tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
+	//tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
+	//}
+
+	//clientCtx = clientCtx.WithClient(tmRPC)
+
+	var networkName, nodeName string
+
+	switch chainID {
+	case "injective-1":
+		networkName = "mainnet"
+	case "injective-777":
+		networkName = "devnet"
+	case "injective-888":
+		networkName = "testnet"
 	}
 
-	clientCtx = clientCtx.WithClient(tmRPC)
+	nodeName = "lb"
 
-	daemonClient, err := chainclient.NewChainClient(clientCtx, injectiveGRPC, common.OptionGasPrices(injectiveGasPrices))
+	netCfg := common.LoadNetwork(networkName, nodeName)
+
+	explorer, err := explorerclient.NewExplorerClient(netCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
 	}
@@ -68,9 +89,10 @@ func NewNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &Network{
-		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
+		//TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
+		ExplorerClient:       explorer,
 	}
 
 	log.WithFields(log.Fields{
@@ -82,8 +104,9 @@ func NewNetwork(
 	return n, nil
 }
 
-func (n *Network) GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error) {
-	return n.TendermintClient.GetBlock(ctx, height)
+func (n *Network) GetBlock(ctx context.Context, height int64) (explorerPB.GetBlockResponse, error) {
+	return n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+	//return n.TendermintClient.GetBlock(ctx, height)
 }
 
 func (n *Network) PeggyParams(ctx context.Context) (*peggy.Params, error) {
