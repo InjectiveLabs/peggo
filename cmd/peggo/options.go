@@ -290,7 +290,7 @@ func initConfig(cmd *cli.Cmd) Config {
 		Name:   "cosmos-grpc",
 		Desc:   "Cosmos GRPC querying endpoint",
 		EnvVar: "PEGGO_COSMOS_GRPC",
-		Value:  "tcp://localhost:9900",
+		Value:  "tcp://localhost:9090",
 	})
 
 	cfg.tendermintRPC = cmd.String(cli.StringOpt{

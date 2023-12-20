@@ -148,12 +148,7 @@ func (r *relayer) relayValsets(
 	}
 
 	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedValset.Height))
-	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedValset.Height)
-	}
-
-	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", blockResult.Data.Timestamp)
+	blockTime, err := injective.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
@@ -252,12 +247,7 @@ func (r *relayer) relayBatches(
 	}
 
 	// Check custom time delay offset
-	blockResult, err := injective.GetBlock(ctx, int64(oldestConfirmedBatch.Block))
-	if err != nil {
-		return errors.Wrapf(err, "failed to get block %d from Injective", oldestConfirmedBatch.Block)
-	}
-
-	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", blockResult.Data.Timestamp)
+	blockTime, err := injective.GetBlockCreationTime(ctx, int64(oldestConfirmedBatch.Block))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
