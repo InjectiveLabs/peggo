@@ -20,7 +20,6 @@ import (
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
 	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
-	explorerPB "github.com/InjectiveLabs/sdk-go/exchange/explorer_rpc/pb"
 )
 
 type Network struct {
@@ -54,7 +53,7 @@ func NewNetwork(
 
 	//clientCtx = clientCtx.WithClient(tmRPC)
 
-	var networkName, nodeName string
+	var networkName string
 
 	switch chainID {
 	case "injective-1":
@@ -63,11 +62,11 @@ func NewNetwork(
 		networkName = "devnet"
 	case "injective-888":
 		networkName = "testnet"
+	default:
+		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
 	}
 
-	nodeName = "lb"
-
-	netCfg := common.LoadNetwork(networkName, nodeName)
+	netCfg := common.LoadNetwork(networkName, "lb")
 
 	explorer, err := explorerclient.NewExplorerClient(netCfg)
 	if err != nil {
@@ -104,8 +103,18 @@ func NewNetwork(
 	return n, nil
 }
 
-func (n *Network) GetBlock(ctx context.Context, height int64) (explorerPB.GetBlockResponse, error) {
-	return n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+func (n *Network) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
+	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", block.Data.Timestamp)
+	if err != nil {
+		return time.Time{}, errors.Wrap(err, "failed to parse timestamp from block")
+	}
+
+	return blockTime, nil
 	//return n.TendermintClient.GetBlock(ctx, height)
 }
 

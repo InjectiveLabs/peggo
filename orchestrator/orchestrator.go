@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	explorerPB "github.com/InjectiveLabs/sdk-go/exchange/explorer_rpc/pb"
 	"math/big"
 	"time"
 
@@ -23,7 +22,7 @@ type PriceFeed interface {
 
 type InjectiveNetwork interface {
 	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
-	GetBlock(ctx context.Context, height int64) (explorerPB.GetBlockResponse, error)
+	GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error)
 
 	// claims
 	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)

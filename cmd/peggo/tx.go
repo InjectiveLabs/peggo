@@ -147,7 +147,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 
 		clientCtx = clientCtx.WithClient(tmRPC)
 
-		var networkName, nodeName string
+		var networkName string
 
 		switch *cosmosChainID {
 		case "injective-1":
@@ -158,9 +158,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			networkName = "testnet"
 		}
 
-		nodeName = "lb"
-
-		netCfg := common.LoadNetwork(networkName, nodeName)
+		netCfg := common.LoadNetwork(networkName, "lb")
 
 		daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(*cosmosGasPrices))
 		if err != nil {
