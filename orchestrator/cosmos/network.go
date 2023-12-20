@@ -2,7 +2,8 @@ package cosmos
 
 import (
 	"context"
-	"strconv"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -23,7 +24,7 @@ import (
 )
 
 type Network struct {
-	//tmclient.TendermintClient
+	tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
 	explorerclient.ExplorerClient
@@ -44,15 +45,6 @@ func NewNetwork(
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	//clientCtx = clientCtx.WithNodeURI(tendermintRPC)
-
-	//tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
-	//if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
-	//}
-
-	//clientCtx = clientCtx.WithClient(tmRPC)
-
 	var networkName string
 
 	switch chainID {
@@ -63,15 +55,33 @@ func NewNetwork(
 	case "injective-888":
 		networkName = "testnet"
 	default:
-		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
+		// local env testing
+		clientCtx = clientCtx.WithNodeURI(tendermintRPC)
+
+		tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
+		}
+
+		clientCtx = clientCtx.WithClient(tmRPC)
 	}
 
-	netCfg := common.LoadNetwork(networkName, "lb")
+	_ = networkName
 
-	explorer, err := explorerclient.NewExplorerClient(netCfg)
-	if err != nil {
-		return nil, err
-	}
+	netCfg := common.LoadNetwork("devnet", "")
+	netCfg.Name = "local"
+	netCfg.ChainId = chainID
+	netCfg.Fee_denom = "inj" // todo: this is actually an env var but it's not parsed
+	netCfg.TmEndpoint = tendermintRPC
+	netCfg.ChainGrpcEndpoint = injectiveGRPC
+	netCfg.ExplorerGrpcEndpoint = ""
+	netCfg.LcdEndpoint = ""
+	netCfg.ExplorerGrpcEndpoint = ""
+
+	//explorer, err := explorerclient.NewExplorerClient(netCfg)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
@@ -88,10 +98,9 @@ func NewNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &Network{
-		//TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
+		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
-		ExplorerClient:       explorer,
 	}
 
 	log.WithFields(log.Fields{
@@ -104,18 +113,26 @@ func NewNetwork(
 }
 
 func (n *Network) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
-	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+	//block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+	//if err != nil {
+	//	return time.Time{}, err
+	//}
+	//
+	//blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", block.Data.Timestamp)
+	//if err != nil {
+	//	return time.Time{}, errors.Wrap(err, "failed to parse timestamp from block")
+	//}
+	//
+	//return blockTime, nil
+
+	// LOCAL TESTING //
+
+	block, err := n.TendermintClient.GetBlock(ctx, height)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", block.Data.Timestamp)
-	if err != nil {
-		return time.Time{}, errors.Wrap(err, "failed to parse timestamp from block")
-	}
-
-	return blockTime, nil
-	//return n.TendermintClient.GetBlock(ctx, height)
+	return block.Block.Time, nil
 }
 
 func (n *Network) PeggyParams(ctx context.Context) (*peggy.Params, error) {
