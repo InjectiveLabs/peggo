@@ -26,15 +26,15 @@ type batchRequestLoop struct {
 	loopDuration time.Duration
 }
 
-func (l batchRequestLoop) Logger() log.Logger {
+func (l *batchRequestLoop) Logger() log.Logger {
 	return l.logger.WithField("loop", "BatchRequest")
 }
 
-func (l batchRequestLoop) Run(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) error {
+func (l *batchRequestLoop) Run(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) error {
 	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx, injective, priceFeed))
 }
 
-func (l batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) func() error {
+func (l *batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) func() error {
 	return func() error {
 		fees, err := l.getUnbatchedTokenFees(ctx, injective)
 		if err != nil {
@@ -58,7 +58,7 @@ func (l batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwork
 	}
 }
 
-func (l batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
+func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
 	var unbatchedFees []*types.BatchFees
 	getUnbatchedTokenFeesFn := func() (err error) {
 		unbatchedFees, err = injective.UnbatchedTokenFees(ctx)
@@ -78,7 +78,7 @@ func (l batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective I
 	return unbatchedFees, nil
 }
 
-func (l batchRequestLoop) requestBatch(
+func (l *batchRequestLoop) requestBatch(
 	ctx context.Context,
 	injective InjectiveNetwork,
 	feed PriceFeed,
@@ -106,7 +106,7 @@ func (l batchRequestLoop) requestBatch(
 	_ = injective.SendRequestBatch(ctx, denom)
 }
 
-func (l batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
+func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
 	if cosmosDenom, ok := l.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
@@ -115,7 +115,7 @@ func (l batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
 	return types.PeggyDenomString(tokenAddr)
 }
 
-func (l batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Address, fees cosmtypes.Int) bool {
+func (l *batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Address, fees cosmtypes.Int) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}
