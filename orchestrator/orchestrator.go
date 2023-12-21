@@ -215,9 +215,10 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 	s.logger.Infoln("scanning Ethereum events from block", lastConfirmedEthHeight)
 
 	oracle := ethOracleLoop{
-		PeggyOrchestrator:    s,
-		loopDuration:         defaultLoopDur,
-		lastCheckedEthHeight: lastConfirmedEthHeight,
+		PeggyOrchestrator:       s,
+		loopDuration:            defaultLoopDur,
+		lastCheckedEthHeight:    lastConfirmedEthHeight,
+		lastResyncWithInjective: time.Now(),
 	}
 
 	return loops.RunLoop(ctx, defaultLoopDur, oracle.LoopFn(ctx, s.injective, s.ethereum))
