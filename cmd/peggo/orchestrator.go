@@ -123,7 +123,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
+		//coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
+		// LOCAL ENV TESTING //
+		coingeckoFeed := coingecko.NewDummyCoingeckoFeed()
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
