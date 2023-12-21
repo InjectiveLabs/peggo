@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/avast/retry-go"
 	"math/big"
 	"time"
 
@@ -201,4 +202,59 @@ func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
 	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
 
 	return pg.Wait()
+}
+
+// EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
+// and ferried over to Cosmos where they will be used to issue tokens or process batches.
+func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
+	lastConfirmedEthHeight, err := s.getLastConfirmedEthHeightOnInjective(ctx)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Infoln("scanning Ethereum events from block", lastConfirmedEthHeight)
+
+	oracle := ethOracleLoop{
+		PeggyOrchestrator:    s,
+		loopDuration:         defaultLoopDur,
+		lastCheckedEthHeight: lastConfirmedEthHeight,
+	}
+
+	return loops.RunLoop(ctx, defaultLoopDur, oracle.LoopFn(ctx, s.injective, s.ethereum))
+}
+
+func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
+	var lastConfirmedEthHeight uint64
+	getLastConfirmedEthHeightFn := func() error {
+		lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
+		if err == nil && lastClaimEvent != nil && lastClaimEvent.EthereumEventHeight != 0 {
+			lastConfirmedEthHeight = lastClaimEvent.EthereumEventHeight
+			return nil
+
+		}
+
+		s.logger.WithError(err).Warningln("failed to get last claim from Injective. Querying peggy module params...")
+
+		peggyParams, err := s.injective.PeggyParams(ctx)
+		if err != nil {
+			s.logger.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
+			return err
+		}
+
+		lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
+		return nil
+	}
+
+	if err := retry.Do(getLastConfirmedEthHeightFn,
+		retry.Context(ctx),
+		retry.Attempts(s.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			s.logger.WithError(err).Warningf("failed to get last confirmed Ethereum height on Injective, will retry (%d)", n)
+		}),
+	); err != nil {
+		s.logger.WithError(err).Errorln("got error, loop exits")
+		return 0, err
+	}
+
+	return lastConfirmedEthHeight, nil
 }
