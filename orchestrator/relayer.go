@@ -104,7 +104,7 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 	}
 
 	if oldestConfirmedBatch == nil {
-		l.Logger().Debugln("no confirmed transaction batches on Injective, nothing to relay...")
+		l.Logger().Debugln("no outgoing batch to relay")
 		return nil
 	}
 
