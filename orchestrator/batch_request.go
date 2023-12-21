@@ -13,20 +13,12 @@ import (
 )
 
 func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
-	//requester := &batchRequester{
-	//	log:                  log.WithField("loop", "BatchRequester"),
-	//	retries:              s.maxAttempts,
-	//	minBatchFee:          s.minBatchFeeUSD,
-	//	erc20ContractMapping: s.erc20ContractMapping,
-	//}
-	//
-	//return loops.RunLoop(
-	//	ctx,
-	//	defaultLoopDur,
-	//	func() error { return requester.run(ctx, s.injective, s.pricefeed) },
-	//)
+	loop := batchRequestLoop{
+		PeggyOrchestrator: s,
+		loopDuration:      defaultLoopDur,
+	}
 
-	return newBatchRequestLoop(s, defaultLoopDur).Run(ctx, s.injective, s.pricefeed)
+	return loop.Run(ctx, s.injective, s.pricefeed)
 }
 
 type batchRequestLoop struct {
@@ -34,15 +26,8 @@ type batchRequestLoop struct {
 	loopDuration time.Duration
 }
 
-func newBatchRequestLoop(o *PeggyOrchestrator, loopDuration time.Duration) batchRequestLoop {
-	return batchRequestLoop{
-		PeggyOrchestrator: o,
-		loopDuration:      loopDuration,
-	}
-}
-
 func (l batchRequestLoop) Logger() log.Logger {
-	return l.logger.WithField("loop", "batch_request")
+	return l.logger.WithField("loop", "BatchRequest")
 }
 
 func (l batchRequestLoop) Run(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) error {
