@@ -89,6 +89,7 @@ type EthereumNetwork interface {
 const defaultLoopDur = 60 * time.Second
 
 type PeggyOrchestrator struct {
+	logger  log.Logger
 	svcTags metrics.Tags
 
 	injective InjectiveNetwork
@@ -118,6 +119,7 @@ func NewPeggyOrchestrator(
 	batchRelayingOffset string,
 ) (*PeggyOrchestrator, error) {
 	orch := &PeggyOrchestrator{
+		logger:               log.DefaultLogger,
 		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
 		injective:            injective,
 		ethereum:             ethereum,
