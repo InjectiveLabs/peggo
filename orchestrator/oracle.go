@@ -83,15 +83,15 @@ type ethOracleLoop struct {
 	lastCheckedEthHeight    uint64
 }
 
-func (l ethOracleLoop) Logger() log.Logger {
+func (l *ethOracleLoop) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthOracle")
 }
 
-func (l ethOracleLoop) Run(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
+func (l *ethOracleLoop) Run(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
 	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx, injective, ethereum))
 }
 
-func (l ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) func() error {
+func (l *ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) func() error {
 	return func() error {
 		newHeight, err := l.relayEvents(ctx, injective, ethereum)
 		if err != nil {
@@ -118,7 +118,7 @@ func (l ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, e
 	}
 }
 
-func (l ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) (uint64, error) {
+func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) (uint64, error) {
 	var (
 		latestHeight  uint64
 		currentHeight = l.lastCheckedEthHeight
@@ -228,7 +228,7 @@ func (l ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetwo
 	return latestHeight, nil
 }
 
-func (l ethOracleLoop) autoResync(ctx context.Context, injective InjectiveNetwork) error {
+func (l *ethOracleLoop) autoResync(ctx context.Context, injective InjectiveNetwork) error {
 	var latestHeight uint64
 	getLastClaimEventFn := func() error {
 		lastClaimEvent, err := injective.LastClaimEvent(ctx)
