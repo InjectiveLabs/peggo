@@ -145,7 +145,7 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
 
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
+	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayBatchOffsetDur {
 		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
 		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
 		return nil
