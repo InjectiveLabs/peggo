@@ -50,7 +50,7 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 
 		if l.valsetRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayValsets(ctx, injective, ethereum) },
+				return retry.Do(func() error { return l.relayValset(ctx, injective, ethereum) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -62,7 +62,7 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 
 		if l.batchRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayBatches(ctx, injective, ethereum) },
+				return retry.Do(func() error { return l.relayBatch(ctx, injective, ethereum) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -83,7 +83,7 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 	}
 }
 
-func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
+func (l *relayerLoop) relayBatch(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
 	latestBatches, err := injective.LatestTransactionBatches(ctx)
 	if err != nil {
 		return err
@@ -111,10 +111,7 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 		return nil
 	}
 
-	latestEthereumBatch, err := ethereum.GetTxBatchNonce(
-		ctx,
-		common.HexToAddress(oldestConfirmedBatch.TokenContract),
-	)
+	latestEthereumBatch, err := ethereum.GetTxBatchNonce(ctx, common.HexToAddress(oldestConfirmedBatch.TokenContract))
 	if err != nil {
 		return err
 	}
@@ -125,8 +122,6 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 	} else if currentValset == nil {
 		return errors.Wrap(err, "latest valset not found")
 	}
-
-	l.Logger().WithFields(log.Fields{"inj_batch": oldestConfirmedBatch.BatchNonce, "eth_batch": latestEthereumBatch.Uint64()}).Debugln("latest batches")
 
 	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
 		return nil
@@ -155,9 +150,8 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 	}
 
 	l.Logger().WithFields(log.Fields{
-		"inj_batch":      oldestConfirmedBatch.BatchNonce,
-		"eth_batch":      latestEthereumBatch.Uint64(),
-		"token_contract": common.HexToAddress(oldestConfirmedBatch.TokenContract),
+		"inj_batch_nonce": oldestConfirmedBatch.BatchNonce,
+		"eth_batch_nonce": latestEthereumBatch.Uint64(),
 	}).Infoln("detected new batch on Injective")
 
 	// Send SendTransactionBatch to Ethereum
@@ -171,7 +165,7 @@ func (l *relayerLoop) relayBatches(ctx context.Context, injective InjectiveNetwo
 	return nil
 }
 
-func (l *relayerLoop) relayValsets(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
+func (l *relayerLoop) relayValset(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := injective.LatestValsets(ctx)
@@ -207,8 +201,6 @@ func (l *relayerLoop) relayValsets(ctx context.Context, injective InjectiveNetwo
 		return errors.Wrap(err, "failed to find latest confirmed valset update on Ethereum")
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_valset": oldestConfirmedValset, "eth_valset": currentEthValset}).Debugln("latest valset updates")
-
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		return nil
 	}
@@ -230,12 +222,15 @@ func (l *relayerLoop) relayValsets(ctx context.Context, injective InjectiveNetwo
 	}
 
 	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
+		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
 		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_valset": oldestConfirmedValset.Nonce, "eth_valset": latestEthereumValsetNonce.Uint64()}).Infoln("detected new valset on Injective")
+	l.Logger().WithFields(log.Fields{
+		"inj_valset_nonce": oldestConfirmedValset.Nonce,
+		"eth_valset_nonce": latestEthereumValsetNonce.Uint64()},
+	).Infoln("detected new valset on Injective")
 
 	txHash, err := ethereum.SendEthValsetUpdate(
 		ctx,
