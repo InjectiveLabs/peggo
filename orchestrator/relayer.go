@@ -23,7 +23,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		loopDuration:      defaultLoopDur,
 	}
 
-	return loop.Run(ctx, s.injective, s.ethereum)
+	return loop.Run(ctx, s.inj, s.eth)
 }
 
 type relayerLoop struct {

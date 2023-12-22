@@ -22,7 +22,7 @@ func TestEthOracle(t *testing.T) {
 		t.Parallel()
 
 		orch := &PeggyOrchestrator{
-			ethereum: mockEthereum{
+			eth: mockEthereum{
 				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
 					return nil, errors.New("fail")
 				},
