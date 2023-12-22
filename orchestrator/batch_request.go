@@ -41,19 +41,19 @@ func (l *batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwor
 		fees, err := l.getUnbatchedTokenFees(ctx, injective)
 		if err != nil {
 			// non-fatal, just alert
-			l.Logger().WithError(err).Warningln("unable to get unbatched fees from Injective")
+			l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
 			return nil
 		}
 
 		if len(fees) == 0 {
-			l.Logger().Debugln("no token fees to batch")
+			l.Logger().Debugln("no outgoing withdrawals to batch")
 			return nil
 		}
 
 		for _, fee := range fees {
 			l.requestBatch(ctx, injective, priceFeed, fee)
 
-			// todo: in case of multiple tokens, we should sleep in between batch requests (non-continuous nonce)
+			// todo: in case of multiple requests, we should sleep in between (non-continuous nonce)
 		}
 
 		return nil
@@ -71,7 +71,7 @@ func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective 
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Errorf("failed to get unbatched token fees, will retry (%d)", n)
+			l.Logger().WithError(err).Errorf("failed to get outgoing withdrawal fees, will retry (%d)", n)
 		}),
 	); err != nil {
 		return nil, err
@@ -87,22 +87,17 @@ func (l *batchRequestLoop) requestBatch(
 	fee *types.BatchFees,
 ) {
 	var (
-		tokenAddr = eth.HexToAddress(fee.Token)
-		denom     = l.tokenDenom(tokenAddr)
+		tokenAddr  = eth.HexToAddress(fee.Token)
+		tokenDenom = l.tokenDenom(tokenAddr)
 	)
 
 	if thresholdMet := l.checkFeeThreshold(feed, tokenAddr, fee.TotalFees); !thresholdMet {
-		l.Logger().WithFields(log.Fields{
-			"denom":          denom,
-			"token_contract": tokenAddr.String(),
-			"total_fees":     fee.TotalFees.String(),
-		}).Debugln("skipping underpriced batch")
 		return
 	}
 
-	l.Logger().WithFields(log.Fields{"denom": denom, "token_contract": tokenAddr.String()}).Infoln("requesting batch on Injective")
+	l.Logger().WithFields(log.Fields{"denom": tokenDenom, "token_contract": tokenAddr.String()}).Infoln("requesting batch on Injective")
 
-	_ = injective.SendRequestBatch(ctx, denom)
+	_ = injective.SendRequestBatch(ctx, tokenDenom)
 }
 
 func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
@@ -111,6 +106,8 @@ func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
 	}
 
 	// peggy denom
+	// todo: in reality, peggy denominators don't have an actual price listing
+	// So it seems that bridge fee must always be inj
 	return types.PeggyDenomString(tokenAddr)
 }
 
@@ -129,6 +126,11 @@ func (l *batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Addre
 	totalFeeInUSDDec := decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
+		l.Logger().WithFields(log.Fields{
+			"token_contract": tokenAddr.String(),
+			"batch_fees":     totalFeeInUSDDec.String(),
+			"min_fees":       minFeeInUSDDec.String(),
+		}).Debugln("skipping insufficient token fees")
 		return false
 	}
 
