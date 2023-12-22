@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,12 +14,18 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+)
+
+const (
+	defaultRelayerLoopDur    = 5 * time.Minute
+	findValsetBlocksToSearch = 2000
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 	loop := relayerLoop{
 		PeggyOrchestrator: s,
-		loopDuration:      defaultLoopDur,
+		loopDuration:      defaultRelayerLoopDur,
 	}
 
 	return loop.Run(ctx, s.inj, s.eth)
@@ -45,8 +50,7 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 
 		if l.valsetRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(
-					func() error { return l.relayValsets(ctx, injective, ethereum) },
+				return retry.Do(func() error { return l.relayValsets(ctx, injective, ethereum) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -58,8 +62,7 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 
 		if l.batchRelayEnabled {
 			pg.Go(func() error {
-				return retry.Do(
-					func() error { return l.relayBatches(ctx, injective, ethereum) },
+				return retry.Do(func() error { return l.relayBatches(ctx, injective, ethereum) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -249,8 +252,6 @@ func (l *relayerLoop) relayValsets(ctx context.Context, injective InjectiveNetwo
 	return nil
 }
 
-const valsetBlocksToSearch = 2000
-
 // FindLatestValset finds the latest valset on the Peggy contract by looking back through the event
 // history and finding the most recent ValsetUpdatedEvent. Most of the time this will be very fast
 // as the latest update will be in recent blockchain history and the search moves from the present
@@ -276,13 +277,11 @@ func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context, injective Injec
 
 	for currentBlock > 0 {
 		var startSearchBlock uint64
-		if currentBlock <= valsetBlocksToSearch {
+		if currentBlock <= findValsetBlocksToSearch {
 			startSearchBlock = 0
 		} else {
-			startSearchBlock = currentBlock - valsetBlocksToSearch
+			startSearchBlock = currentBlock - findValsetBlocksToSearch
 		}
-
-		l.Logger().WithFields(log.Fields{"block_start": startSearchBlock, "block_end": currentBlock}).Debugln("looking for the most recent ValsetUpdatedEvent on Ethereum")
 
 		valsetUpdatedEvents, err := ethereum.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
 		if err != nil {
