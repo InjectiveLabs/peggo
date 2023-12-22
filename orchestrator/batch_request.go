@@ -20,7 +20,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 		loopDuration:      defaultLoopDur,
 	}
 
-	return loop.Run(ctx, s.injective, s.pricefeed)
+	return loop.Run(ctx, s.inj, s.pricefeed)
 }
 
 type batchRequestLoop struct {

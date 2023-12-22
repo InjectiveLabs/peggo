@@ -21,7 +21,7 @@ func TestEthSignerLoop(t *testing.T) {
 
 		orch := &PeggyOrchestrator{
 			maxAttempts: 1,
-			ethereum: mockEthereum{
+			eth: mockEthereum{
 				getPeggyIDFn: func(context.Context) (common.Hash, error) {
 					return [32]byte{}, errors.New("fail")
 				},

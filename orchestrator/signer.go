@@ -27,16 +27,16 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 		PeggyOrchestrator: s,
 		loopDuration:      defaultLoopDur,
 		peggyID:           peggyID,
-		ethFrom:           s.ethereum.FromAddress(),
+		ethFrom:           s.eth.FromAddress(),
 	}
 
-	return loop.Run(ctx, s.injective)
+	return loop.Run(ctx, s.inj)
 }
 
 func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error) {
 	var peggyID common.Hash
 	getPeggyIDFn := func() (err error) {
-		peggyID, err = s.ethereum.GetPeggyID(ctx)
+		peggyID, err = s.eth.GetPeggyID(ctx)
 		return err
 	}
 

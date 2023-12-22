@@ -37,13 +37,13 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		lastResyncWithInjective: time.Now(),
 	}
 
-	return loop.Run(ctx, s.injective, s.ethereum)
+	return loop.Run(ctx, s.inj, s.eth)
 }
 
 func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
 	var lastConfirmedEthHeight uint64
 	getLastConfirmedEthHeightFn := func() error {
-		lastClaimEvent, err := s.injective.LastClaimEvent(ctx)
+		lastClaimEvent, err := s.inj.LastClaimEvent(ctx)
 		if err == nil && lastClaimEvent != nil && lastClaimEvent.EthereumEventHeight != 0 {
 			lastConfirmedEthHeight = lastClaimEvent.EthereumEventHeight
 			return nil
@@ -52,7 +52,7 @@ func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Con
 
 		s.logger.WithError(err).Warningln("failed to get last claim from Injective. Querying peggy module params...")
 
-		peggyParams, err := s.injective.PeggyParams(ctx)
+		peggyParams, err := s.inj.PeggyParams(ctx)
 		if err != nil {
 			s.logger.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
 			return err
