@@ -12,6 +12,7 @@ import (
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
+// todo: this is outdated, need to update
 // Considering blocktime of up to 3 seconds approx on the Injective Chain and an oracle loop duration = 1 minute,
 // we broadcast only 20 events in each iteration.
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
@@ -28,7 +29,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Debugln("scanning Ethereum events from block", lastConfirmedEthHeight)
+	s.logger.Debugln("last observed ethereum block", lastConfirmedEthHeight)
 
 	loop := ethOracleLoop{
 		PeggyOrchestrator:       s,
@@ -50,11 +51,11 @@ func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Con
 
 		}
 
-		s.logger.WithError(err).Warningln("failed to get last claim from Injective. Querying peggy module params...")
+		s.logger.WithError(err).Warningln("unable to get last event claim from Injective. Querying Peggy module params...")
 
 		peggyParams, err := s.inj.PeggyParams(ctx)
 		if err != nil {
-			s.logger.WithError(err).Fatalln("failed to query peggy module params, is injectived running?")
+			s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
 			return err
 		}
 
