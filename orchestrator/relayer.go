@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
@@ -84,6 +85,10 @@ func (l *relayerLoop) loopFn(ctx context.Context, injective InjectiveNetwork, et
 }
 
 func (l *relayerLoop) relayBatch(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
+
 	latestBatches, err := injective.LatestTransactionBatches(ctx)
 	if err != nil {
 		return err
@@ -166,6 +171,10 @@ func (l *relayerLoop) relayBatch(ctx context.Context, injective InjectiveNetwork
 }
 
 func (l *relayerLoop) relayValset(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
+
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
 	latestValsets, err := injective.LatestValsets(ctx)

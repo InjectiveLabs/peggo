@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -43,24 +44,18 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 
 func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
 	var lastConfirmedEthHeight uint64
-	getLastConfirmedEthHeightFn := func() error {
-		lastClaimEvent, err := s.inj.LastClaimEvent(ctx)
-		if err == nil && lastClaimEvent != nil && lastClaimEvent.EthereumEventHeight != 0 {
-			lastConfirmedEthHeight = lastClaimEvent.EthereumEventHeight
-			return nil
+	getLastConfirmedEthHeightFn := func() (err error) {
+		lastConfirmedEthHeight, err = s.getLastClaimBlockHeight(ctx)
+		if lastConfirmedEthHeight == 0 {
+			peggyParams, err := s.inj.PeggyParams(ctx)
+			if err != nil {
+				s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
+				return err
+			}
 
+			lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
 		}
-
-		s.logger.WithError(err).Warningln("unable to get last event claim from Injective. Querying Peggy module params...")
-
-		peggyParams, err := s.inj.PeggyParams(ctx)
-		if err != nil {
-			s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
-			return err
-		}
-
-		lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
-		return nil
+		return
 	}
 
 	if err := retry.Do(getLastConfirmedEthHeightFn,
@@ -75,6 +70,19 @@ func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Con
 	}
 
 	return lastConfirmedEthHeight, nil
+}
+
+func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context) (uint64, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	claim, err := s.inj.LastClaimEvent(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return claim.EthereumEventHeight, nil
 }
 
 type ethOracleLoop struct {
@@ -126,6 +134,10 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 	)
 
 	scanEthBlocksAndRelayEventsFn := func() error {
+		metrics.ReportFuncCall(l.svcTags)
+		doneFn := metrics.ReportFuncTiming(l.svcTags)
+		defer doneFn()
+
 		latestHeader, err := ethereum.HeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
@@ -231,14 +243,9 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 
 func (l *ethOracleLoop) autoResync(ctx context.Context, injective InjectiveNetwork) error {
 	var latestHeight uint64
-	getLastClaimEventFn := func() error {
-		lastClaimEvent, err := injective.LastClaimEvent(ctx)
-		if err != nil {
-			return err
-		}
-
-		latestHeight = lastClaimEvent.EthereumEventHeight
-		return nil
+	getLastClaimEventFn := func() (err error) {
+		latestHeight, err = l.getLastClaimBlockHeight(ctx)
+		return
 	}
 
 	if err := retry.Do(getLastClaimEventFn,
@@ -255,7 +262,7 @@ func (l *ethOracleLoop) autoResync(ctx context.Context, injective InjectiveNetwo
 	l.lastCheckedEthHeight = latestHeight
 	l.lastResyncWithInjective = time.Now()
 
-	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_confirmed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync nonce with Injective")
+	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_confirmed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync event nonce with Injective")
 
 	return nil
 }

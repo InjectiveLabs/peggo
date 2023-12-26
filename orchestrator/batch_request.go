@@ -128,9 +128,9 @@ func (l *batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Addre
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		l.Logger().WithFields(log.Fields{
 			"token_contract": tokenAddr.String(),
-			"batch_fees":     totalFeeInUSDDec.String(),
-			"min_fees":       minFeeInUSDDec.String(),
-		}).Debugln("skipping insufficient token fees")
+			"batch_fee":      totalFeeInUSDDec.String(),
+			"min_fee":        minFeeInUSDDec.String(),
+		}).Debugln("insufficient token batch fee")
 		return false
 	}
 
