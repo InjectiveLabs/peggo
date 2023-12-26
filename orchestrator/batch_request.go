@@ -86,7 +86,7 @@ func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *types.BatchFee
 		tokenDenom = l.tokenDenom(tokenAddr)
 	)
 
-	if thresholdMet := l.checkFeeThreshold(l.pricefeed, tokenAddr, fee.TotalFees); !thresholdMet {
+	if thresholdMet := l.checkFeeThreshold(tokenAddr, fee.TotalFees); !thresholdMet {
 		return
 	}
 
@@ -106,12 +106,12 @@ func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
 	return types.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Address, fees cosmtypes.Int) bool {
+func (l *batchRequestLoop) checkFeeThreshold(tokenAddr eth.Address, fees cosmtypes.Int) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}
 
-	tokenPriceInUSD, err := feed.QueryUSDPrice(tokenAddr)
+	tokenPriceInUSD, err := l.pricefeed.QueryUSDPrice(tokenAddr)
 	if err != nil {
 		return false
 	}
@@ -121,11 +121,7 @@ func (l *batchRequestLoop) checkFeeThreshold(feed PriceFeed, tokenAddr eth.Addre
 	totalFeeInUSDDec := decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
-		l.Logger().WithFields(log.Fields{
-			"token_contract": tokenAddr.String(),
-			"batch_fee":      totalFeeInUSDDec.String(),
-			"min_fee":        minFeeInUSDDec.String(),
-		}).Debugln("insufficient token batch fee")
+		l.Logger().WithFields(log.Fields{"token_contract": tokenAddr.String(), "batch_fee": totalFeeInUSDDec.String(), "min_fee": minFeeInUSDDec.String()}).Debugln("insufficient token batch fee")
 		return false
 	}
 
