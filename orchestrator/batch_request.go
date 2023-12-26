@@ -20,7 +20,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) 
 		loopDuration:      defaultLoopDur,
 	}
 
-	return loop.Run(ctx, s.inj, s.pricefeed)
+	return loop.Run(ctx)
 }
 
 type batchRequestLoop struct {
@@ -32,13 +32,13 @@ func (l *batchRequestLoop) Logger() log.Logger {
 	return l.logger.WithField("loop", "BatchRequest")
 }
 
-func (l *batchRequestLoop) Run(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx, injective, priceFeed))
+func (l *batchRequestLoop) Run(ctx context.Context) error {
+	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
 }
 
-func (l *batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwork, priceFeed PriceFeed) func() error {
+func (l *batchRequestLoop) loopFn(ctx context.Context) func() error {
 	return func() error {
-		fees, err := l.getUnbatchedTokenFees(ctx, injective)
+		fees, err := l.getUnbatchedTokenFees(ctx)
 		if err != nil {
 			// non-fatal, just alert
 			l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
@@ -51,7 +51,7 @@ func (l *batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwor
 		}
 
 		for _, fee := range fees {
-			l.requestBatch(ctx, injective, priceFeed, fee)
+			l.requestBatch(ctx, fee)
 
 			// todo: in case of multiple requests, we should sleep in between (non-continuous nonce)
 		}
@@ -60,10 +60,10 @@ func (l *batchRequestLoop) loopFn(ctx context.Context, injective InjectiveNetwor
 	}
 }
 
-func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective InjectiveNetwork) ([]*types.BatchFees, error) {
+func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*types.BatchFees, error) {
 	var unbatchedFees []*types.BatchFees
 	getUnbatchedTokenFeesFn := func() (err error) {
-		unbatchedFees, err = injective.UnbatchedTokenFees(ctx)
+		unbatchedFees, err = l.inj.UnbatchedTokenFees(ctx)
 		return err
 	}
 
@@ -80,24 +80,19 @@ func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context, injective 
 	return unbatchedFees, nil
 }
 
-func (l *batchRequestLoop) requestBatch(
-	ctx context.Context,
-	injective InjectiveNetwork,
-	feed PriceFeed,
-	fee *types.BatchFees,
-) {
+func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *types.BatchFees) {
 	var (
 		tokenAddr  = eth.HexToAddress(fee.Token)
 		tokenDenom = l.tokenDenom(tokenAddr)
 	)
 
-	if thresholdMet := l.checkFeeThreshold(feed, tokenAddr, fee.TotalFees); !thresholdMet {
+	if thresholdMet := l.checkFeeThreshold(l.pricefeed, tokenAddr, fee.TotalFees); !thresholdMet {
 		return
 	}
 
 	l.Logger().WithFields(log.Fields{"denom": tokenDenom, "token_contract": tokenAddr.String()}).Infoln("requesting batch on Injective")
 
-	_ = injective.SendRequestBatch(ctx, tokenDenom)
+	_ = l.inj.SendRequestBatch(ctx, tokenDenom)
 }
 
 func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {

@@ -39,7 +39,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		lastResyncWithInjective: time.Now(),
 	}
 
-	return loop.Run(ctx, s.inj, s.eth)
+	return loop.Run(ctx)
 }
 
 func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
@@ -96,13 +96,13 @@ func (l *ethOracleLoop) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthOracle")
 }
 
-func (l *ethOracleLoop) Run(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx, injective, ethereum))
+func (l *ethOracleLoop) Run(ctx context.Context) error {
+	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
 }
 
-func (l *ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) func() error {
+func (l *ethOracleLoop) loopFn(ctx context.Context) func() error {
 	return func() error {
-		newHeight, err := l.relayEvents(ctx, injective, ethereum)
+		newHeight, err := l.relayEvents(ctx)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (l *ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, 
 					2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
 					3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
 			**/
-			if err := l.autoResync(ctx, injective); err != nil {
+			if err := l.autoResync(ctx); err != nil {
 				return err
 			}
 		}
@@ -127,7 +127,7 @@ func (l *ethOracleLoop) loopFn(ctx context.Context, injective InjectiveNetwork, 
 	}
 }
 
-func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) (uint64, error) {
+func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 	var (
 		latestHeight  uint64
 		currentHeight = l.lastCheckedEthHeight
@@ -138,7 +138,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 		doneFn := metrics.ReportFuncTiming(l.svcTags)
 		defer doneFn()
 
-		latestHeader, err := ethereum.HeaderByNumber(ctx, nil)
+		latestHeader, err := l.eth.HeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
@@ -153,27 +153,27 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 			latestHeight = currentHeight + defaultBlocksToSearch
 		}
 
-		legacyDeposits, err := ethereum.GetSendToCosmosEvents(currentHeight, latestHeight)
+		legacyDeposits, err := l.eth.GetSendToCosmosEvents(currentHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToCosmos events")
 		}
 
-		deposits, err := ethereum.GetSendToInjectiveEvents(currentHeight, latestHeight)
+		deposits, err := l.eth.GetSendToInjectiveEvents(currentHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToInjective events")
 		}
 
-		withdrawals, err := ethereum.GetTransactionBatchExecutedEvents(currentHeight, latestHeight)
+		withdrawals, err := l.eth.GetTransactionBatchExecutedEvents(currentHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get TransactionBatchExecuted events")
 		}
 
-		erc20Deployments, err := ethereum.GetPeggyERC20DeployedEvents(currentHeight, latestHeight)
+		erc20Deployments, err := l.eth.GetPeggyERC20DeployedEvents(currentHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ERC20Deployed events")
 		}
 
-		valsetUpdates, err := ethereum.GetValsetUpdatedEvents(currentHeight, latestHeight)
+		valsetUpdates, err := l.eth.GetValsetUpdatedEvents(currentHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ValsetUpdated events")
 		}
@@ -183,7 +183,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 		// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
 		// multi event block again. In theory we only send all events for every block and that will pass of fail
 		// atomically but lets not take that risk.
-		lastClaimEvent, err := injective.LastClaimEvent(ctx)
+		lastClaimEvent, err := l.inj.LastClaimEvent(ctx)
 		if err != nil {
 			return errors.New("failed to query last claim event from Injective")
 		}
@@ -204,7 +204,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 			return nil
 		}
 
-		if err := injective.SendEthereumClaims(ctx,
+		if err := l.inj.SendEthereumClaims(ctx,
 			lastClaimEvent.EthereumEventNonce,
 			legacyDeposits,
 			deposits,
@@ -241,7 +241,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context, injective InjectiveNetw
 	return latestHeight, nil
 }
 
-func (l *ethOracleLoop) autoResync(ctx context.Context, injective InjectiveNetwork) error {
+func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 	var latestHeight uint64
 	getLastClaimEventFn := func() (err error) {
 		latestHeight, err = l.getLastClaimBlockHeight(ctx)
