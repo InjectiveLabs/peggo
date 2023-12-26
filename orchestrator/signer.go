@@ -30,7 +30,7 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 		ethFrom:           s.eth.FromAddress(),
 	}
 
-	return loop.Run(ctx, s.inj)
+	return loop.Run(ctx)
 }
 
 func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error) {
@@ -67,17 +67,17 @@ func (l *ethSignerLoop) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthSigner")
 }
 
-func (l *ethSignerLoop) Run(ctx context.Context, injective InjectiveNetwork) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx, injective))
+func (l *ethSignerLoop) Run(ctx context.Context) error {
+	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
 }
 
-func (l *ethSignerLoop) loopFn(ctx context.Context, injective InjectiveNetwork) func() error {
+func (l *ethSignerLoop) loopFn(ctx context.Context) func() error {
 	return func() error {
-		if err := l.signNewValsetUpdates(ctx, injective); err != nil {
+		if err := l.signNewValsetUpdates(ctx); err != nil {
 			return err
 		}
 
-		if err := l.signNewBatch(ctx, injective); err != nil {
+		if err := l.signNewBatch(ctx); err != nil {
 			return err
 		}
 
@@ -85,8 +85,8 @@ func (l *ethSignerLoop) loopFn(ctx context.Context, injective InjectiveNetwork) 
 	}
 }
 
-func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context, injective InjectiveNetwork) error {
-	oldestUnsignedValsets, err := l.getUnsignedValsets(ctx, injective)
+func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
+	oldestUnsignedValsets, err := l.getUnsignedValsets(ctx)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context, injective Inje
 	}
 
 	for _, vs := range oldestUnsignedValsets {
-		if err := l.signValset(ctx, injective, vs); err != nil {
+		if err := l.signValset(ctx, vs); err != nil {
 			return err
 		}
 
@@ -107,8 +107,8 @@ func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context, injective Inje
 	return nil
 }
 
-func (l *ethSignerLoop) signNewBatch(ctx context.Context, injective InjectiveNetwork) error {
-	oldestUnsignedTransactionBatch, err := l.getUnsignedBatch(ctx, injective)
+func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
+	oldestUnsignedTransactionBatch, err := l.getUnsignedBatch(ctx)
 	if err != nil {
 		return err
 	}
@@ -118,18 +118,18 @@ func (l *ethSignerLoop) signNewBatch(ctx context.Context, injective InjectiveNet
 		return nil
 	}
 
-	if err := l.signBatch(ctx, injective, oldestUnsignedTransactionBatch); err != nil {
+	if err := l.signBatch(ctx, oldestUnsignedTransactionBatch); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context, injective InjectiveNetwork) (*types.OutgoingTxBatch, error) {
+func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTxBatch, error) {
 	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
 	retryFn := func() (err error) {
 		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedTransactionBatch, err = injective.OldestUnsignedTransactionBatch(ctx)
+		oldestUnsignedTransactionBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
 		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedTransactionBatch == nil {
 			return nil
 		}
@@ -151,9 +151,9 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context, injective Injectiv
 	return oldestUnsignedTransactionBatch, nil
 }
 
-func (l *ethSignerLoop) signBatch(ctx context.Context, injective InjectiveNetwork, batch *types.OutgoingTxBatch) error {
+func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBatch) error {
 	if err := retry.Do(
-		func() error { return injective.SendBatchConfirm(ctx, l.peggyID, batch, l.ethFrom) },
+		func() error { return l.inj.SendBatchConfirm(ctx, l.peggyID, batch, l.ethFrom) },
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -164,19 +164,15 @@ func (l *ethSignerLoop) signBatch(ctx context.Context, injective InjectiveNetwor
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{
-		"token_contract": batch.TokenContract,
-		"nonce":          batch.BatchNonce,
-		"txs":            len(batch.Transactions),
-	}).Infoln("confirmed batch on Injective")
+	l.Logger().WithFields(log.Fields{"token_contract": batch.TokenContract, "nonce": batch.BatchNonce, "txs": len(batch.Transactions)}).Infoln("confirmed batch on Injective")
 
 	return nil
 }
 
-func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context, injective InjectiveNetwork) ([]*types.Valset, error) {
+func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset, error) {
 	var oldestUnsignedValsets []*types.Valset
 	getOldestUnsignedValsetsFn := func() (err error) {
-		oldestUnsignedValsets, err = injective.OldestUnsignedValsets(ctx)
+		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx)
 		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedValsets == nil {
 			return nil
 		}
@@ -198,9 +194,9 @@ func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context, injective Inject
 	return oldestUnsignedValsets, nil
 }
 
-func (l *ethSignerLoop) signValset(ctx context.Context, injective InjectiveNetwork, vs *types.Valset) error {
+func (l *ethSignerLoop) signValset(ctx context.Context, vs *types.Valset) error {
 	if err := retry.Do(func() error {
-		return injective.SendValsetConfirm(ctx, l.peggyID, vs, l.ethFrom)
+		return l.inj.SendValsetConfirm(ctx, l.peggyID, vs, l.ethFrom)
 	},
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
@@ -212,10 +208,7 @@ func (l *ethSignerLoop) signValset(ctx context.Context, injective InjectiveNetwo
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{
-		"nonce":   vs.Nonce,
-		"members": len(vs.Members),
-	}).Infoln("confirmed valset update on Injective")
+	l.Logger().WithFields(log.Fields{"nonce": vs.Nonce, "members": len(vs.Members)}).Infoln("confirmed valset update on Injective")
 
 	return nil
 }
