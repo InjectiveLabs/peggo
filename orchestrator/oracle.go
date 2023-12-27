@@ -129,8 +129,8 @@ func (l *ethOracleLoop) loopFn(ctx context.Context) func() error {
 
 func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 	var (
-		latestHeight  uint64
 		currentHeight = l.lastCheckedEthHeight
+		latestHeight  uint64
 	)
 
 	scanEthBlocksAndRelayEventsFn := func() error {
@@ -143,13 +143,22 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
 
-		// add delay to ensure minimum confirmations are received and block is finalised
-		latestHeight = latestHeader.Number.Uint64() - ethBlockConfirmationDelay
-		if latestHeight < currentHeight {
+		latestHeight = latestHeader.Number.Uint64()
+
+		if latestHeight < ethBlockConfirmationDelay {
+			latestHeight = currentHeight // no blocks scanned
 			return nil
 		}
 
-		if latestHeight > currentHeight+defaultBlocksToSearch {
+		// add delay to ensure minimum confirmations are received and block is finalised
+		latestHeight = latestHeight - ethBlockConfirmationDelay
+		if latestHeight <= currentHeight {
+			latestHeight = currentHeight // no blocks scanned
+			return nil
+		}
+
+		// calculate right bound of block search
+		if currentHeight+defaultBlocksToSearch < latestHeight {
 			latestHeight = currentHeight + defaultBlocksToSearch
 		}
 
@@ -185,7 +194,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 		// atomically but lets not take that risk.
 		lastClaimEvent, err := l.inj.LastClaimEvent(ctx)
 		if err != nil {
-			return errors.New("failed to query last claim event from Injective")
+			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
@@ -199,8 +208,8 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			len(withdrawals) == 0 &&
 			len(erc20Deployments) == 0 &&
 			len(valsetUpdates) == 0 {
-			l.Logger().Debugln("no new events on Ethereum")
 
+			l.Logger().Debugln("no new events on Ethereum")
 			return nil
 		}
 
