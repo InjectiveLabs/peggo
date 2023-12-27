@@ -33,31 +33,31 @@ func (l *batchRequestLoop) Logger() log.Logger {
 }
 
 func (l *batchRequestLoop) Run(ctx context.Context) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
+	return loops.RunLoop(ctx, l.loopDuration, func() error {
+		return l.requestBatches(ctx)
+	})
 }
 
-func (l *batchRequestLoop) loopFn(ctx context.Context) func() error {
-	return func() error {
-		fees, err := l.getUnbatchedTokenFees(ctx)
-		if err != nil {
-			// non-fatal, just alert
-			l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
-			return nil
-		}
-
-		if len(fees) == 0 {
-			l.Logger().Debugln("no outgoing withdrawals to batch")
-			return nil
-		}
-
-		for _, fee := range fees {
-			l.requestBatch(ctx, fee)
-
-			// todo: in case of multiple requests, we should sleep in between (non-continuous nonce)
-		}
-
+func (l *batchRequestLoop) requestBatches(ctx context.Context) error {
+	fees, err := l.getUnbatchedTokenFees(ctx)
+	if err != nil {
+		// non-fatal, just alert
+		l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
 		return nil
 	}
+
+	if len(fees) == 0 {
+		l.Logger().Debugln("no outgoing withdrawals to batch")
+		return nil
+	}
+
+	for _, fee := range fees {
+		l.requestBatch(ctx, fee)
+
+		// todo: in case of multiple requests, we should sleep in between (non-continuous nonce)
+	}
+
+	return nil
 }
 
 func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*types.BatchFees, error) {

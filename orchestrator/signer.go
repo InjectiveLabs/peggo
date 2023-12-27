@@ -68,21 +68,21 @@ func (l *ethSignerLoop) Logger() log.Logger {
 }
 
 func (l *ethSignerLoop) Run(ctx context.Context) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
+	return loops.RunLoop(ctx, l.loopDuration, func() error {
+		return l.signBatchesAndValsets(ctx)
+	})
 }
 
-func (l *ethSignerLoop) loopFn(ctx context.Context) func() error {
-	return func() error {
-		if err := l.signNewValsetUpdates(ctx); err != nil {
-			return err
-		}
-
-		if err := l.signNewBatch(ctx); err != nil {
-			return err
-		}
-
-		return nil
+func (l *ethSignerLoop) signBatchesAndValsets(ctx context.Context) error {
+	if err := l.signNewValsetUpdates(ctx); err != nil {
+		return err
 	}
+
+	if err := l.signNewBatch(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {

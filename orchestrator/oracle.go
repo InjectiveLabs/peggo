@@ -10,7 +10,7 @@ import (
 
 	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
 // todo: this is outdated, need to update
@@ -97,34 +97,34 @@ func (l *ethOracleLoop) Logger() log.Logger {
 }
 
 func (l *ethOracleLoop) Run(ctx context.Context) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
+	return loops.RunLoop(ctx, l.loopDuration, func() error {
+		return l.observeEthEvents(ctx)
+	})
 }
 
-func (l *ethOracleLoop) loopFn(ctx context.Context) func() error {
-	return func() error {
-		newHeight, err := l.relayEvents(ctx)
-		if err != nil {
+func (l *ethOracleLoop) observeEthEvents(ctx context.Context) error {
+	newHeight, err := l.relayEvents(ctx)
+	if err != nil {
+		return err
+	}
+
+	l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": newHeight}).Debugln("scanned Ethereum blocks for events")
+	l.lastCheckedEthHeight = newHeight
+
+	if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
+		/**
+			Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
+				1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
+				   we need to re-scan this block to ensure events are not missed due to indexing delay.
+				2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+				3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
+		**/
+		if err := l.autoResync(ctx); err != nil {
 			return err
 		}
-
-		l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": newHeight}).Debugln("scanned Ethereum blocks for events")
-		l.lastCheckedEthHeight = newHeight
-
-		if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
-			/**
-				Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
-					1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
-					   we need to re-scan this block to ensure events are not missed due to indexing delay.
-					2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-					3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
-			**/
-			if err := l.autoResync(ctx); err != nil {
-				return err
-			}
-		}
-
-		return nil
 	}
+
+	return nil
 }
 
 func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
@@ -203,12 +203,8 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 		erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
 		valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
 
-		if len(legacyDeposits) == 0 &&
-			len(deposits) == 0 &&
-			len(withdrawals) == 0 &&
-			len(erc20Deployments) == 0 &&
-			len(valsetUpdates) == 0 {
-
+		if noEvents := len(legacyDeposits) == 0 && len(deposits) == 0 && len(withdrawals) == 0 &&
+			len(erc20Deployments) == 0 && len(valsetUpdates) == 0; noEvents {
 			l.Logger().Debugln("no new events on Ethereum")
 			return nil
 		}
@@ -277,10 +273,10 @@ func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 }
 
 func filterSendToCosmosEventsByNonce(
-	events []*wrappers.PeggySendToCosmosEvent,
+	events []*peggyevents.PeggySendToCosmosEvent,
 	nonce uint64,
-) []*wrappers.PeggySendToCosmosEvent {
-	res := make([]*wrappers.PeggySendToCosmosEvent, 0, len(events))
+) []*peggyevents.PeggySendToCosmosEvent {
+	res := make([]*peggyevents.PeggySendToCosmosEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -292,10 +288,10 @@ func filterSendToCosmosEventsByNonce(
 }
 
 func filterSendToInjectiveEventsByNonce(
-	events []*wrappers.PeggySendToInjectiveEvent,
+	events []*peggyevents.PeggySendToInjectiveEvent,
 	nonce uint64,
-) []*wrappers.PeggySendToInjectiveEvent {
-	res := make([]*wrappers.PeggySendToInjectiveEvent, 0, len(events))
+) []*peggyevents.PeggySendToInjectiveEvent {
+	res := make([]*peggyevents.PeggySendToInjectiveEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -307,10 +303,10 @@ func filterSendToInjectiveEventsByNonce(
 }
 
 func filterTransactionBatchExecutedEventsByNonce(
-	events []*wrappers.PeggyTransactionBatchExecutedEvent,
+	events []*peggyevents.PeggyTransactionBatchExecutedEvent,
 	nonce uint64,
-) []*wrappers.PeggyTransactionBatchExecutedEvent {
-	res := make([]*wrappers.PeggyTransactionBatchExecutedEvent, 0, len(events))
+) []*peggyevents.PeggyTransactionBatchExecutedEvent {
+	res := make([]*peggyevents.PeggyTransactionBatchExecutedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -322,10 +318,10 @@ func filterTransactionBatchExecutedEventsByNonce(
 }
 
 func filterERC20DeployedEventsByNonce(
-	events []*wrappers.PeggyERC20DeployedEvent,
+	events []*peggyevents.PeggyERC20DeployedEvent,
 	nonce uint64,
-) []*wrappers.PeggyERC20DeployedEvent {
-	res := make([]*wrappers.PeggyERC20DeployedEvent, 0, len(events))
+) []*peggyevents.PeggyERC20DeployedEvent {
+	res := make([]*peggyevents.PeggyERC20DeployedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {
@@ -337,10 +333,10 @@ func filterERC20DeployedEventsByNonce(
 }
 
 func filterValsetUpdateEventsByNonce(
-	events []*wrappers.PeggyValsetUpdatedEvent,
+	events []*peggyevents.PeggyValsetUpdatedEvent,
 	nonce uint64,
-) []*wrappers.PeggyValsetUpdatedEvent {
-	res := make([]*wrappers.PeggyValsetUpdatedEvent, 0, len(events))
+) []*peggyevents.PeggyValsetUpdatedEvent {
+	res := make([]*peggyevents.PeggyValsetUpdatedEvent, 0, len(events))
 
 	for _, ev := range events {
 		if ev.EventNonce.Uint64() > nonce {

@@ -54,9 +54,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
 	})
 
@@ -84,9 +82,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.Error(t, loopFn())
+		assert.Error(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
 	})
 
@@ -135,9 +131,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.Error(t, loopFn())
+		assert.Error(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
 	})
 
@@ -197,9 +191,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(104))
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 0)
 	})
@@ -260,9 +252,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(104))
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 1)
 	})
@@ -282,17 +272,6 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		//o := &ethOracle{
-		//	log:                     suplog.DefaultLogger,
-		//	retries:                 1,
-		//	lastResyncWithInjective: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
-		//	lastCheckedEthHeight:    100,
-		//}
-		//
-		//assert.NoError(t, o.run(context.TODO(), inj, eth))
-		//assert.Equal(t, o.lastCheckedEthHeight, uint64(101))
-		//assert.True(t, time.Since(o.lastResyncWithInjective) < 1*time.Second)
-
 		o := &PeggyOrchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         eth,
@@ -306,9 +285,7 @@ func TestEthOracle(t *testing.T) {
 			lastCheckedEthHeight:    100,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.observeEthEvents(context.TODO()))
 		assert.Equal(t, loop.lastCheckedEthHeight, uint64(101))
 		assert.True(t, time.Since(loop.lastResyncWithInjective) < 1*time.Second)
 	})

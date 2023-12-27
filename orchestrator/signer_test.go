@@ -2,14 +2,15 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
-	log "github.com/xlab/suplog"
 	"testing"
 
+	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	log "github.com/xlab/suplog"
+
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func TestEthSignerLoop(t *testing.T) {
@@ -59,9 +60,7 @@ func TestEthSignerLoop(t *testing.T) {
 			loopDuration:      defaultLoopDur,
 		}
 
-		loopFn := l.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
@@ -100,9 +99,7 @@ func TestEthSignerLoop(t *testing.T) {
 			loopDuration:      defaultLoopDur,
 		}
 
-		loopFn := l.loopFn(context.TODO())
-
-		assert.Error(t, loopFn())
+		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
 	})
 
 	t.Run("no transaction batch sign", func(t *testing.T) {
@@ -126,9 +123,7 @@ func TestEthSignerLoop(t *testing.T) {
 			loopDuration:      defaultLoopDur,
 		}
 
-		loopFn := l.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
 	})
 
 	t.Run("failed to send batch confirm", func(t *testing.T) {
@@ -156,9 +151,7 @@ func TestEthSignerLoop(t *testing.T) {
 			loopDuration:      defaultLoopDur,
 		}
 
-		loopFn := l.loopFn(context.TODO())
-
-		assert.Error(t, loopFn())
+		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
 	})
 
 	t.Run("valset update and transaction batch are confirmed", func(t *testing.T) {
@@ -186,8 +179,6 @@ func TestEthSignerLoop(t *testing.T) {
 			loopDuration:      defaultLoopDur,
 		}
 
-		loopFn := l.loopFn(context.TODO())
-
-		assert.NoError(t, loopFn())
+		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
 	})
 }
