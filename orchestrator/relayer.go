@@ -14,7 +14,7 @@ import (
 	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
@@ -42,7 +42,46 @@ func (l *relayerLoop) Logger() log.Logger {
 }
 
 func (l *relayerLoop) Run(ctx context.Context) error {
-	return loops.RunLoop(ctx, l.loopDuration, l.loopFn(ctx))
+	return loops.RunLoop(ctx, l.loopDuration, func() error {
+		return l.relayValsetsAndBatches(ctx)
+	})
+}
+
+func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
+	var pg loops.ParanoidGroup
+
+	if l.valsetRelayEnabled {
+		pg.Go(func() error {
+			return retry.Do(func() error { return l.relayValset(ctx) },
+				retry.Context(ctx),
+				retry.Attempts(l.maxAttempts),
+				retry.OnRetry(func(n uint, err error) {
+					l.Logger().WithError(err).Warningf("failed to relay valsets, will retry (%d)", n)
+				}),
+			)
+		})
+	}
+
+	if l.batchRelayEnabled {
+		pg.Go(func() error {
+			return retry.Do(func() error { return l.relayBatch(ctx) },
+				retry.Context(ctx),
+				retry.Attempts(l.maxAttempts),
+				retry.OnRetry(func(n uint, err error) {
+					l.Logger().WithError(err).Warningf("failed to relay batches, will retry (%d)", n)
+				}),
+			)
+		})
+	}
+
+	if pg.Initialized() {
+		if err := pg.Wait(); err != nil {
+			l.Logger().WithError(err).Errorln("got error, loop exits")
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (l *relayerLoop) loopFn(ctx context.Context) func() error {
@@ -327,7 +366,7 @@ func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context, injective Injec
 
 var ErrNotFound = errors.New("not found")
 
-type PeggyValsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
+type PeggyValsetUpdatedEvents []*peggyevents.PeggyValsetUpdatedEvent
 
 func (a PeggyValsetUpdatedEvents) Len() int { return len(a) }
 func (a PeggyValsetUpdatedEvents) Less(i, j int) bool {

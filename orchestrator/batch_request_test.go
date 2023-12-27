@@ -35,8 +35,7 @@ func TestRequestBatches(t *testing.T) {
 			PeggyOrchestrator: o,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 	})
 
 	t.Run("no unbatched tokens", func(t *testing.T) {
@@ -58,8 +57,8 @@ func TestRequestBatches(t *testing.T) {
 			PeggyOrchestrator: o,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.requestBatches(context.TODO()))
+
 	})
 
 	t.Run("batch does not meet fee threshold", func(t *testing.T) {
@@ -97,8 +96,7 @@ func TestRequestBatches(t *testing.T) {
 			PeggyOrchestrator: o,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 		assert.Equal(t, inj.sendRequestBatchCallCount, 0)
 	})
 
@@ -137,8 +135,7 @@ func TestRequestBatches(t *testing.T) {
 			PeggyOrchestrator: o,
 		}
 
-		loopFn := loop.loopFn(context.TODO())
-		assert.NoError(t, loopFn())
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 		assert.Equal(t, inj.sendRequestBatchCallCount, 1)
 	})
 
