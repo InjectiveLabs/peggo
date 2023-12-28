@@ -71,64 +71,41 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.WithFields(log.Fields{
-			"inj_addr": valAddress.String(),
-			"eth_addr": ethKeyFromAddress.String(),
-		}).Infoln("starting peggo service")
+		log.WithFields(log.Fields{"inj_addr": valAddress.String(), "eth_addr": ethKeyFromAddress.String()}).Infoln("starting peggo service")
 
-		var injective orchestrator.InjectiveNetwork
-		if customEndpointRPCs := *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""; customEndpointRPCs {
-			injective, err = cosmos.NewCustomRPCNetwork(
+		var (
+			injectiveNet       orchestrator.InjectiveNetwork
+			customEndpointRPCs = *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""
+		)
+
+		if customEndpointRPCs {
+			injectiveNet, err = cosmos.NewCustomRPCNetwork(
 				*cfg.cosmosChainID,
 				valAddress.String(),
 				*cfg.cosmosGRPC,
 				*cfg.cosmosGasPrices,
 				*cfg.tendermintRPC,
 				cosmosKeyring,
-				signerFn,
 				personalSignFn,
 			)
 		} else {
 			// load balanced connection
-			injective, err = cosmos.NewLoadBalancedNetwork(
+			injectiveNet, err = cosmos.NewLoadBalancedNetwork(
 				*cfg.cosmosChainID,
 				valAddress.String(),
-				*cfg.cosmosGRPC,
 				*cfg.cosmosGasPrices,
-				*cfg.tendermintRPC,
 				cosmosKeyring,
-				signerFn,
 				personalSignFn,
 			)
 		}
 
 		orShutdown(err)
 
-		// Connect to Injective network
-		//injNetwork, err := cosmos.NewLoadBalancedNetwork(
-		//	*cfg.cosmosChainID,
-		//	valAddress.String(),
-		//	*cfg.cosmosGRPC,
-		//	*cfg.cosmosGasPrices,
-		//	*cfg.tendermintRPC,
-		//	cosmosKeyring,
-		//	signerFn,
-		//	personalSignFn,
-		//)
-		//orShutdown(err)
-
-		// todo
-		// See if the provided ETH address belongs to a validator and determine in which mode peggo should run
-		//isValidator, err := isValidatorAddress(injNetwork.PeggyQueryClient, ethKeyFromAddress)
-		//if err != nil {
-		//	log.WithError(err).Fatalln("failed to query current validator set on Injective")
-		//}
-
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
 
 		// Construct erc20 token mapping
-		peggyParams, err := injective.PeggyParams(ctx)
+		peggyParams, err := injectiveNet.PeggyParams(ctx)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 		}
@@ -140,7 +117,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		erc20ContractMapping[injTokenAddr] = chaintypes.InjectiveCoin
 
 		// Connect to ethereum network
-		ethNetwork, err := ethereum.NewNetwork(
+		ethereumNet, err := ethereum.NewNetwork(
 			*cfg.ethNodeRPC,
 			peggyContractAddr,
 			ethKeyFromAddress,
@@ -158,8 +135,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
-			injective,
-			ethNetwork,
+			injectiveNet,
+			ethereumNet,
 			coingeckoFeed,
 			erc20ContractMapping,
 			*cfg.minBatchFeeUSD,

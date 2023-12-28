@@ -79,13 +79,11 @@ type PeggyBroadcastClient interface {
 func NewPeggyBroadcastClient(
 	queryClient types.QueryClient,
 	broadcastClient chainclient.ChainClient,
-	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
 	return &peggyBroadcastClient{
 		daemonQueryClient: queryClient,
 		broadcastClient:   broadcastClient,
-		ethSignerFn:       ethSignerFn,
 		ethPersonalSignFn: ethPersonalSignFn,
 
 		svcTags: metrics.Tags{
