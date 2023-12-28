@@ -177,7 +177,6 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 		peggyBroadcaster := cosmos.NewPeggyBroadcastClient(
 			peggyQuerier,
 			daemonClient,
-			nil,
 			personalSignFn,
 		)
 		cancelWait()
