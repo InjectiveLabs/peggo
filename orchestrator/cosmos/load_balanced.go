@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethcmn "github.com/ethereum/go-ethereum/common"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
@@ -16,20 +16,25 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
 	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
 )
 
-type Network struct {
+type LoadBalancedNetwork struct {
 	//tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
 	explorerclient.ExplorerClient
 }
 
-func NewNetwork(
+// NewLoadBalancedNetwork creates a load balanced connection to the Injective network.
+// The chainID argument decides which network Peggo will be connecting to:
+//   - injective-1 (mainnet)
+//   - injective-777 (devnet)
+//   - injective-888 (testnet)
+func NewLoadBalancedNetwork(
 	chainID,
 	validatorAddress,
 	injectiveGRPC,
@@ -38,7 +43,7 @@ func NewNetwork(
 	keyring keyring.Keyring,
 	signerFn bind.SignerFn,
 	personalSignerFn keystore.PersonalSignFn,
-) (*Network, error) {
+) (*LoadBalancedNetwork, error) {
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
@@ -87,7 +92,7 @@ func NewNetwork(
 	waitForService(daemonWaitCtx, grpcConn)
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
-	n := &Network{
+	n := &LoadBalancedNetwork{
 		//TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
@@ -103,7 +108,7 @@ func NewNetwork(
 	return n, nil
 }
 
-func (n *Network) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
+func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
 	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
 	if err != nil {
 		return time.Time{}, err
@@ -118,15 +123,15 @@ func (n *Network) GetBlockCreationTime(ctx context.Context, height int64) (time.
 	//return n.TendermintClient.GetBlock(ctx, height)
 }
 
-func (n *Network) PeggyParams(ctx context.Context) (*peggy.Params, error) {
-	return n.PeggyQueryClient.PeggyParams(ctx)
-}
+//func (n *LoadBalancedNetwork) PeggyParams(ctx context.Context) (*peggytypes.Params, error) {
+//	return n.PeggyQueryClient.PeggyParams(ctx)
+//}
 
-func (n *Network) LastClaimEvent(ctx context.Context) (*peggy.LastClaimEvent, error) {
+func (n *LoadBalancedNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
 	return n.LastClaimEventByAddr(ctx, n.AccFromAddress())
 }
 
-func (n *Network) SendEthereumClaims(
+func (n *LoadBalancedNetwork) SendEthereumClaims(
 	ctx context.Context,
 	lastClaimEvent uint64,
 	oldDeposits []*peggyevents.PeggySendToCosmosEvent,
@@ -145,56 +150,56 @@ func (n *Network) SendEthereumClaims(
 	)
 }
 
-func (n *Network) UnbatchedTokenFees(ctx context.Context) ([]*peggy.BatchFees, error) {
+func (n *LoadBalancedNetwork) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	return n.PeggyQueryClient.UnbatchedTokensWithFees(ctx)
 }
 
-func (n *Network) SendRequestBatch(ctx context.Context, denom string) error {
+func (n *LoadBalancedNetwork) SendRequestBatch(ctx context.Context, denom string) error {
 	return n.PeggyBroadcastClient.SendRequestBatch(ctx, denom)
 }
 
-func (n *Network) OldestUnsignedValsets(ctx context.Context) ([]*peggy.Valset, error) {
+func (n *LoadBalancedNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
 	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.AccFromAddress())
 }
 
-func (n *Network) LatestValsets(ctx context.Context) ([]*peggy.Valset, error) {
+func (n *LoadBalancedNetwork) LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
 	return n.PeggyQueryClient.LatestValsets(ctx)
 }
 
-func (n *Network) AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggy.MsgValsetConfirm, error) {
+func (n *LoadBalancedNetwork) AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error) {
 	return n.PeggyQueryClient.AllValsetConfirms(ctx, nonce)
 }
 
-func (n *Network) ValsetAt(ctx context.Context, nonce uint64) (*peggy.Valset, error) {
+func (n *LoadBalancedNetwork) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
 	return n.PeggyQueryClient.ValsetAt(ctx, nonce)
 }
 
-func (n *Network) SendValsetConfirm(
+func (n *LoadBalancedNetwork) SendValsetConfirm(
 	ctx context.Context,
-	peggyID ethcmn.Hash,
-	valset *peggy.Valset,
-	ethFrom ethcmn.Address,
+	peggyID gethcommon.Hash,
+	valset *peggytypes.Valset,
+	ethFrom gethcommon.Address,
 ) error {
 	return n.PeggyBroadcastClient.SendValsetConfirm(ctx, ethFrom, peggyID, valset)
 }
 
-func (n *Network) OldestUnsignedTransactionBatch(ctx context.Context) (*peggy.OutgoingTxBatch, error) {
+func (n *LoadBalancedNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
 	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.AccFromAddress())
 }
 
-func (n *Network) LatestTransactionBatches(ctx context.Context) ([]*peggy.OutgoingTxBatch, error) {
+func (n *LoadBalancedNetwork) LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error) {
 	return n.PeggyQueryClient.LatestTransactionBatches(ctx)
 }
 
-func (n *Network) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract ethcmn.Address) ([]*peggy.MsgConfirmBatch, error) {
+func (n *LoadBalancedNetwork) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error) {
 	return n.PeggyQueryClient.TransactionBatchSignatures(ctx, nonce, tokenContract)
 }
 
-func (n *Network) SendBatchConfirm(
+func (n *LoadBalancedNetwork) SendBatchConfirm(
 	ctx context.Context,
-	peggyID ethcmn.Hash,
-	batch *peggy.OutgoingTxBatch,
-	ethFrom ethcmn.Address,
+	peggyID gethcommon.Hash,
+	batch *peggytypes.OutgoingTxBatch,
+	ethFrom gethcommon.Address,
 ) error {
 	return n.PeggyBroadcastClient.SendBatchConfirm(ctx, ethFrom, peggyID, batch)
 }
