@@ -23,7 +23,6 @@ import (
 )
 
 type LoadBalancedNetwork struct {
-	//tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
 	explorerclient.ExplorerClient
@@ -49,17 +48,7 @@ func NewLoadBalancedNetwork(
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	//clientCtx = clientCtx.WithNodeURI(tendermintRPC)
-
-	//tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
-	//if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
-	//}
-
-	//clientCtx = clientCtx.WithClient(tmRPC)
-
 	var networkName string
-
 	switch chainID {
 	case "injective-1":
 		networkName = "mainnet"
@@ -72,7 +61,6 @@ func NewLoadBalancedNetwork(
 	}
 
 	netCfg := common.LoadNetwork(networkName, "lb")
-
 	explorer, err := explorerclient.NewExplorerClient(netCfg)
 	if err != nil {
 		return nil, err
@@ -93,17 +81,12 @@ func NewLoadBalancedNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &LoadBalancedNetwork{
-		//TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
 		ExplorerClient:       explorer,
 	}
 
-	log.WithFields(log.Fields{
-		"chain_id":   chainID,
-		"injective":  injectiveGRPC,
-		"tendermint": tendermintRPC,
-	}).Infoln("connected to Injective network")
+	log.WithFields(log.Fields{"chain_id": chainID, "connection": "load_balanced"}).Infoln("connected to Injective network")
 
 	return n, nil
 }
@@ -120,12 +103,11 @@ func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height i
 	}
 
 	return blockTime, nil
-	//return n.TendermintClient.GetBlock(ctx, height)
 }
 
-//func (n *LoadBalancedNetwork) PeggyParams(ctx context.Context) (*peggytypes.Params, error) {
-//	return n.PeggyQueryClient.PeggyParams(ctx)
-//}
+func (n *LoadBalancedNetwork) PeggyParams(ctx context.Context) (*peggytypes.Params, error) {
+	return n.PeggyQueryClient.PeggyParams(ctx)
+}
 
 func (n *LoadBalancedNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
 	return n.LastClaimEventByAddr(ctx, n.AccFromAddress())

@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"os"
-	"time"
-
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
+	"os"
 
 	"github.com/InjectiveLabs/peggo/orchestrator"
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
@@ -171,7 +169,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		orShutdown(err)
 
 		go func() {
-			if err := peggo.Run(ctx, true); err != nil { //todo
+			if err := peggo.Run(ctx); err != nil {
 				log.Errorln(err)
 				os.Exit(1)
 			}
@@ -179,24 +177,4 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		closer.Hold()
 	}
-}
-
-// todo: change check to GetDelegateKeyByEth
-func isValidatorAddress(peggyQuery cosmos.PeggyQueryClient, addr gethcommon.Address) (bool, error) {
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancelFn()
-
-	currentValset, err := peggyQuery.CurrentValset(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	var isValidator bool
-	for _, validator := range currentValset.Members {
-		if gethcommon.HexToAddress(validator.EthereumAddress) == addr {
-			isValidator = true
-		}
-	}
-
-	return isValidator, nil
 }

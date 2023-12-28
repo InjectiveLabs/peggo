@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	eth "github.com/ethereum/go-ethereum/common"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -14,6 +14,7 @@ import (
 type InjectiveNetwork interface {
 	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
 	GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error)
+	HasRegisteredEthAddress(ctx context.Context, addr gethcommon.Address) (bool, error)
 
 	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)
 	SendEthereumClaims(ctx context.Context,
@@ -28,12 +29,12 @@ type InjectiveNetwork interface {
 	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	SendRequestBatch(ctx context.Context, denom string) error
 	OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
-	SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error
+	SendBatchConfirm(ctx context.Context, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom gethcommon.Address) error
 	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
-	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
+	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error)
 
 	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
-	SendValsetConfirm(ctx context.Context, peggyID eth.Hash, valset *peggytypes.Valset, ethFrom eth.Address) error
+	SendValsetConfirm(ctx context.Context, peggyID gethcommon.Hash, valset *peggytypes.Valset, ethFrom gethcommon.Address) error
 	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)
