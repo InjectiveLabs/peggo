@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
@@ -36,11 +35,8 @@ type LoadBalancedNetwork struct {
 func NewLoadBalancedNetwork(
 	chainID,
 	validatorAddress,
-	injectiveGRPC,
-	injectiveGasPrices,
-	tendermintRPC string,
+	injectiveGasPrices string,
 	keyring keyring.Keyring,
-	signerFn bind.SignerFn,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*LoadBalancedNetwork, error) {
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
@@ -68,7 +64,7 @@ func NewLoadBalancedNetwork(
 
 	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
+		return nil, errors.Wrapf(err, "failed to connect to Injective network: %s", networkName)
 	}
 
 	time.Sleep(1 * time.Second)
@@ -82,7 +78,7 @@ func NewLoadBalancedNetwork(
 
 	n := &LoadBalancedNetwork{
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
-		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
+		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
 		ExplorerClient:       explorer,
 	}
 

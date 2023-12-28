@@ -11,7 +11,6 @@ import (
 	"github.com/InjectiveLabs/sdk-go/client/common"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
@@ -46,7 +45,6 @@ func NewCustomRPCNetwork(
 	injectiveGasPrices,
 	tendermintRPC string,
 	keyring keyring.Keyring,
-	signerFn bind.SignerFn,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*CustomRPCNetwork, error) {
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
@@ -80,12 +78,12 @@ func NewCustomRPCNetwork(
 	n := &CustomRPCNetwork{
 		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
 		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
-		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, signerFn, personalSignerFn),
+		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
 	}
 
 	log.WithFields(log.Fields{
 		"chain_id":   chainID,
-		"connection": "custom_rpc",
+		"connection": "custom",
 		"injective":  injectiveGRPC,
 		"tendermint": tendermintRPC,
 	}).Infoln("connected to Injective network")
