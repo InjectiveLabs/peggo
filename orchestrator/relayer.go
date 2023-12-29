@@ -181,7 +181,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_batch_nonce": oldestConfirmedBatch.BatchNonce, "eth_batch_nonce": latestEthereumBatch.Uint64()}).Infoln("latest batch updates")
+	l.Logger().WithFields(log.Fields{"inj_batch_nonce": oldestConfirmedBatch.BatchNonce, "eth_batch_nonce": latestEthereumBatch.Uint64()}).Debugln("latest batch updates")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedBatch.Block))
@@ -201,7 +201,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent tx batch to Ethereum")
 
 	return nil
 }
@@ -260,7 +260,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_valset_nonce": oldestConfirmedValset.Nonce, "eth_valset_nonce": latestEthereumValsetNonce.Uint64()}).Infoln("latest valset updates")
+	l.Logger().WithFields(log.Fields{"inj_valset_nonce": oldestConfirmedValset.Nonce, "eth_valset_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
@@ -284,7 +284,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("updated valset on Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update on Ethereum")
 
 	return nil
 }
