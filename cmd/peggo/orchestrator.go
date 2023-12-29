@@ -41,7 +41,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			"go_arch":    version.GoArch,
 		}).Infoln("peggo - peggy binary for Ethereum bridge")
 
-		// todo: remove
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
 			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
 		}
