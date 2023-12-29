@@ -153,7 +153,7 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTx
 
 func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBatch) error {
 	if err := retry.Do(
-		func() error { return l.inj.SendBatchConfirm(ctx, l.peggyID, batch, l.ethFrom) },
+		func() error { return l.inj.SendBatchConfirm(ctx, l.ethFrom, l.peggyID, batch) },
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -196,7 +196,7 @@ func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset
 
 func (l *ethSignerLoop) signValset(ctx context.Context, vs *types.Valset) error {
 	if err := retry.Do(func() error {
-		return l.inj.SendValsetConfirm(ctx, l.peggyID, vs, l.ethFrom)
+		return l.inj.SendValsetConfirm(ctx, l.ethFrom, l.peggyID, vs)
 	},
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),

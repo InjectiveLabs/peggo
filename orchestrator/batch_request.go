@@ -63,7 +63,7 @@ func (l *batchRequestLoop) requestBatches(ctx context.Context) error {
 func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*types.BatchFees, error) {
 	var unbatchedFees []*types.BatchFees
 	getUnbatchedTokenFeesFn := func() (err error) {
-		unbatchedFees, err = l.inj.UnbatchedTokenFees(ctx)
+		unbatchedFees, err = l.inj.UnbatchedTokensWithFees(ctx)
 		return err
 	}
 
