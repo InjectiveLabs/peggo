@@ -253,7 +253,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		"destination": sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
 		"amount":      oldDeposit.Amount.String(),
 		"event_nonce": oldDeposit.EventNonce.String(),
-	}).Debugln("observed SendToCosmos event. Sending MsgDepositClaim...")
+	}).Debugln("observed SendToCosmosEvent. Sending claim...")
 
 	msg := &types.MsgDepositClaim{
 		EventNonce:     oldDeposit.EventNonce.Uint64(),
@@ -274,7 +274,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		log.WithFields(log.Fields{
 			"event_nonce": oldDeposit.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent old deposit event successfully")
+		}).Infoln("Oracle sent SendToCosmosEvent successfully")
 	}
 
 	return nil
@@ -299,7 +299,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		"amount":      deposit.Amount.String(),
 		"event_nonce": deposit.EventNonce.String(),
 		"data":        deposit.Data,
-	}).Debugln("observed SendToInjective event. Sending MsgDepositClaim...")
+	}).Debugln("observed SendToInjectiveEvent. Sending claim...")
 
 	msg := &types.MsgDepositClaim{
 		EventNonce:     deposit.EventNonce.Uint64(),
@@ -320,7 +320,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		log.WithFields(log.Fields{
 			"event_nonce": deposit.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent deposit event successfully")
+		}).Infoln("Oracle sent SendToInjectiveEvent successfully")
 	}
 
 	return nil
@@ -338,7 +338,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 		"nonce":          withdraw.BatchNonce.String(),
 		"token_contract": withdraw.Token.Hex(),
 		"event_nonce":    withdraw.EventNonce.String(),
-	}).Debugln("observed TransactionBatchExecuted event. Sending MsgWithdrawClaim...")
+	}).Debugln("observed TransactionBatchExecutedEvent. Sending claim...")
 
 	// WithdrawClaim claims that a batch of withdrawal
 	// operations on the bridge contract was executed.
@@ -358,7 +358,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 		log.WithFields(log.Fields{
 			"event_nonce": withdraw.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent withdraw event successfully")
+		}).Infoln("Oracle sent TransactionBatchExecutedEvent successfully")
 	}
 
 	return nil
@@ -379,7 +379,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 		"powers":        valsetUpdate.Powers,
 		"reward_amount": valsetUpdate.RewardAmount,
 		"reward_token":  valsetUpdate.RewardToken.Hex(),
-	}).Debugln("observed ValsetUpdatedEvent event. Sending MsgValsetUpdatedClaim...")
+	}).Debugln("observed ValsetUpdatedEvent. Sending claim...")
 
 	members := make([]*types.BridgeValidator, len(valsetUpdate.Validators))
 	for i, val := range valsetUpdate.Validators {
@@ -407,7 +407,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 		log.WithFields(log.Fields{
 			"event_nonce": valsetUpdate.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent valset update event successfully")
+		}).Infoln("Oracle sent ValsetUpdatedEvent successfully")
 	}
 
 	return nil
@@ -428,7 +428,7 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 		"name":           erc20Deployed.Name,
 		"symbol":         erc20Deployed.Symbol,
 		"decimals":       erc20Deployed.Decimals,
-	}).Debugln("observed ERC20Deployed event. Sending MsgERC20DeployedClaim...")
+	}).Debugln("observed ERC20DeployedEvent. Sending claim...")
 
 	msg := &types.MsgERC20DeployedClaim{
 		EventNonce:    erc20Deployed.EventNonce.Uint64(),
@@ -449,7 +449,7 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 		log.WithFields(log.Fields{
 			"event_nonce": erc20Deployed.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent erc20 deployed event successfully")
+		}).Infoln("Oracle sent ERC20DeployedEvent successfully")
 	}
 
 	return nil

@@ -24,7 +24,7 @@ func (s *peggyContract) SendTransactionBatch(
 
 	log.WithFields(log.Fields{
 		"token_contract": batch.TokenContract,
-		"nonce":          batch.BatchNonce,
+		"batch_nonce":    batch.BatchNonce,
 		"transactions":   len(batch.Transactions),
 		"confirmations":  len(confirms),
 	}).Debugln("checking signatures and submitting batch to Ethereum")
