@@ -53,9 +53,15 @@ type mockInjective struct {
 
 	latestTransactionBatchesFn   func(context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	transactionBatchSignaturesFn func(context.Context, uint64, eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
+
+	hasRegisteredEthAddress func(ctx context.Context, address eth.Address) (bool, error)
 }
 
-func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+func (i *mockInjective) HasRegisteredEthAddress(ctx context.Context, addr eth.Address) (bool, error) {
+	return i.hasRegisteredEthAddress(ctx, addr)
+}
+
+func (i *mockInjective) UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	i.unbatchedTokenFeesCallCount++
 	return i.unbatchedTokenFeesFn(ctx)
 }
@@ -98,7 +104,7 @@ func (i *mockInjective) OldestUnsignedValsets(ctx context.Context) ([]*peggytype
 	return i.oldestUnsignedValsetsFn(ctx)
 }
 
-func (i *mockInjective) SendValsetConfirm(ctx context.Context, peggyID eth.Hash, valset *peggytypes.Valset, ethFrom eth.Address) error {
+func (i *mockInjective) SendValsetConfirm(ctx context.Context, ethFrom eth.Address, peggyID eth.Hash, valset *peggytypes.Valset) error {
 	return i.sendValsetConfirmFn(ctx, peggyID, valset, ethFrom)
 }
 
@@ -114,7 +120,7 @@ func (i *mockInjective) AllValsetConfirms(ctx context.Context, nonce uint64) ([]
 	return i.allValsetConfirmsFn(ctx, nonce)
 }
 
-func (i *mockInjective) SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error {
+func (i *mockInjective) SendBatchConfirm(ctx context.Context, ethFrom eth.Address, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch) error {
 	return i.sendBatchConfirmFn(ctx, peggyID, batch, ethFrom)
 }
 

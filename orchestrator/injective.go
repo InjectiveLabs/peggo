@@ -26,15 +26,15 @@ type InjectiveNetwork interface {
 		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
 	) error
 
-	UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
+	UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	SendRequestBatch(ctx context.Context, denom string) error
 	OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error)
-	SendBatchConfirm(ctx context.Context, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom gethcommon.Address) error
+	SendBatchConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error
 	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error)
 
 	OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error)
-	SendValsetConfirm(ctx context.Context, peggyID gethcommon.Hash, valset *peggytypes.Valset, ethFrom gethcommon.Address) error
+	SendValsetConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, valset *peggytypes.Valset) error
 	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)

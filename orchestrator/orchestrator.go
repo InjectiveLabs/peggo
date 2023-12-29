@@ -100,11 +100,12 @@ func (s *PeggyOrchestrator) hasRegisteredETHAddress(ctx context.Context) bool {
 // when peggo is run alongside a validator injective node.
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	log.WithFields(log.Fields{
-		"BatchRequesterEnabled": true,
-		"EthOracleEnabled":      true,
-		"EthSignerEnabled":      true,
-		"ValsetRelayerEnabled":  s.valsetRelayEnabled,
-		"BatchRelayerEnabled":   s.batchRelayEnabled,
+		"batch_requesting":   true,
+		"eth_event_tracking": true,
+		"batch_signing":      true,
+		"valset_signing":     true,
+		"valset_relaying":    s.valsetRelayEnabled,
+		"batch_relaying":     s.batchRelayEnabled,
 	}).Infoln("running in validator mode")
 
 	var pg loops.ParanoidGroup
@@ -122,11 +123,9 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // alongside a non-validator injective node
 func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
 	log.WithFields(log.Fields{
-		"BatchRequesterEnabled": true,
-		"EthOracleEnabled":      false,
-		"EthSignerEnabled":      false,
-		"ValsetRelayerEnabled":  s.valsetRelayEnabled,
-		"BatchRelayerEnabled":   s.batchRelayEnabled,
+		"batch_requesting": true,
+		"valset_relaying":  s.valsetRelayEnabled,
+		"batch_relaying":   s.batchRelayEnabled,
 	}).Infoln("running in relayer mode")
 
 	var pg loops.ParanoidGroup
