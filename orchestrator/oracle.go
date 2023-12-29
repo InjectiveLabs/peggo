@@ -143,22 +143,13 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
 
-		latestHeight = latestHeader.Number.Uint64()
-
-		if latestHeight < ethBlockConfirmationDelay {
-			latestHeight = currentHeight // no blocks scanned
-			return nil
-		}
-
 		// add delay to ensure minimum confirmations are received and block is finalised
-		latestHeight = latestHeight - ethBlockConfirmationDelay
-		if latestHeight <= currentHeight {
-			latestHeight = currentHeight // no blocks scanned
+		latestHeight = latestHeader.Number.Uint64() - ethBlockConfirmationDelay
+		if latestHeight < currentHeight {
 			return nil
 		}
 
-		// calculate right bound of block search
-		if currentHeight+defaultBlocksToSearch < latestHeight {
+		if latestHeight > currentHeight+defaultBlocksToSearch {
 			latestHeight = currentHeight + defaultBlocksToSearch
 		}
 
