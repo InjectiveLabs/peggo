@@ -197,6 +197,11 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
+		l.logger.WithFields(log.Fields{
+			"event_nonce": lastClaimEvent.EthereumEventNonce,
+			"event_block": lastClaimEvent.EthereumEventHeight,
+		}).Debugln("last Ethereum claim event on Injective")
+
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
 		deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
 		withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
@@ -221,12 +226,11 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 		}
 
 		l.Logger().WithFields(log.Fields{
-			"last_claim_event_nonce": lastClaimEvent.EthereumEventNonce,
-			"legacy_deposits":        len(legacyDeposits),
-			"deposits":               len(deposits),
-			"withdrawals":            len(withdrawals),
-			"erc20_deployments":      len(erc20Deployments),
-			"valset_updates":         len(valsetUpdates),
+			"legacy_deposits":   len(legacyDeposits),
+			"deposits":          len(deposits),
+			"withdrawals":       len(withdrawals),
+			"erc20_deployments": len(erc20Deployments),
+			"valset_updates":    len(valsetUpdates),
 		}).Infoln("sent new claims to Injective")
 
 		return nil
