@@ -41,7 +41,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 		"valset_nonce":  newValset.Nonce,
 		"validators":    len(newValset.Members),
 		"confirmations": len(confirms),
-	}).Debugln("checking signatures and submitting valset to Ethereum")
+	}).Debugln("checking signatures and submitting valset update")
 
 	newValidators, newPowers := validatorsAndPowers(newValset)
 	newValsetNonce := new(big.Int).SetUint64(newValset.Nonce)

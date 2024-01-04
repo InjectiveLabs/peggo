@@ -27,7 +27,7 @@ func (s *peggyContract) SendTransactionBatch(
 		"batch_nonce":    batch.BatchNonce,
 		"transactions":   len(batch.Transactions),
 		"confirmations":  len(confirms),
-	}).Debugln("checking signatures and submitting batch to Ethereum")
+	}).Debugln("checking signatures and submitting batch")
 
 	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {

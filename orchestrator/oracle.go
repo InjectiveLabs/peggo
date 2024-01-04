@@ -30,7 +30,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Debugln("last observed ethereum block", lastConfirmedEthHeight)
+	s.logger.Debugln("last observed Ethereum block", lastConfirmedEthHeight)
 
 	loop := ethOracleLoop{
 		PeggyOrchestrator:       s,
@@ -188,9 +188,9 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
-		l.logger.WithFields(log.Fields{
-			"event_nonce": lastClaimEvent.EthereumEventNonce,
-			"event_block": lastClaimEvent.EthereumEventHeight,
+		l.Logger().WithFields(log.Fields{
+			"event_nonce":  lastClaimEvent.EthereumEventNonce,
+			"event_height": lastClaimEvent.EthereumEventHeight,
 		}).Debugln("last Ethereum claim event on Injective")
 
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
