@@ -4,17 +4,9 @@ import (
 	"context"
 	"time"
 
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
-
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-	"github.com/InjectiveLabs/sdk-go/client/common"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 )
@@ -134,57 +126,47 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		clientCtx, err := chainclient.NewClientContext(*cosmosChainID, valAddress.String(), cosmosKeyring)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to initialize cosmos client context")
-		}
-		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
-
-		tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
-		if err != nil {
-			log.WithError(err)
-		}
-
-		clientCtx = clientCtx.WithClient(tmRPC)
-
-		var networkName string
-
-		switch *cosmosChainID {
-		case "injective-1":
-			networkName = "mainnet"
-		case "injective-777":
-			networkName = "devnet"
-		case "injective-888":
-			networkName = "testnet"
-		}
-
-		netCfg := common.LoadNetwork(networkName, "lb")
-
-		daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(*cosmosGasPrices))
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"endpoint": *cosmosGRPC,
-			}).Fatalln("failed to connect to Cosmos daemon")
-		}
-
-		log.Infoln("Waiting for injectived GRPC")
-		time.Sleep(1 * time.Second)
-
-		daemonWaitCtx, cancelWait := context.WithTimeout(context.Background(), time.Minute)
-		grpcConn := daemonClient.QueryClient()
-		waitForService(daemonWaitCtx, grpcConn)
-		peggyQuerier := types.NewQueryClient(grpcConn)
-		peggyBroadcaster := cosmos.NewPeggyBroadcastClient(
-			peggyQuerier,
-			daemonClient,
-			personalSignFn,
+		var (
+			peggyBroadcastClient cosmos.PeggyBroadcastClient
+			customCosmosRPC      = *cosmosGRPC != "" && *tendermintRPC != ""
 		)
-		cancelWait()
+
+		if customCosmosRPC {
+			net, err := cosmos.NewCustomRPCNetwork(
+				*cosmosChainID,
+				valAddress.String(),
+				*cosmosGRPC,
+				*cosmosGasPrices,
+				*tendermintRPC,
+				cosmosKeyring,
+				personalSignFn,
+			)
+
+			if err != nil {
+				log.Fatalln("failed to connect to Injective network")
+			}
+
+			peggyBroadcastClient = net.PeggyBroadcastClient
+		} else {
+			net, err := cosmos.NewLoadBalancedNetwork(
+				*cosmosChainID,
+				valAddress.String(),
+				*cosmosGasPrices,
+				cosmosKeyring,
+				personalSignFn,
+			)
+
+			if err != nil {
+				log.Fatalln("failed to connect to Injective network")
+			}
+
+			peggyBroadcastClient = net.PeggyBroadcastClient
+		}
 
 		broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFn()
 
-		if err = peggyBroadcaster.UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
+		if err = peggyBroadcastClient.UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
 			log.WithError(err).Errorln("failed to broadcast Tx")
 			time.Sleep(time.Second)
 			return
@@ -192,25 +174,5 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 
 		log.Infof("Registered Ethereum address %s for validator address %s",
 			ethKeyFromAddress, valAddress.String())
-	}
-}
-
-// waitForService awaits an active ClientConn to a GRPC service.
-func waitForService(ctx context.Context, clientconn *grpc.ClientConn) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Fatalln("GRPC service wait timed out")
-		default:
-			state := clientconn.GetState()
-
-			if state != connectivity.Ready {
-				log.WithField("state", state.String()).Warningln("state of GRPC connection not ready")
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			return
-		}
 	}
 }

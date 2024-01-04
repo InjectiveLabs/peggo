@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"os"
+
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
-	"os"
 
 	"github.com/InjectiveLabs/peggo/orchestrator"
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"

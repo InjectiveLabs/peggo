@@ -69,20 +69,16 @@ func (l *ethSignerLoop) Logger() log.Logger {
 
 func (l *ethSignerLoop) Run(ctx context.Context) error {
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		return l.signBatchesAndValsets(ctx)
+		if err := l.signNewValsetUpdates(ctx); err != nil {
+			return err
+		}
+
+		if err := l.signNewBatch(ctx); err != nil {
+			return err
+		}
+
+		return nil
 	})
-}
-
-func (l *ethSignerLoop) signBatchesAndValsets(ctx context.Context) error {
-	if err := l.signNewValsetUpdates(ctx); err != nil {
-		return err
-	}
-
-	if err := l.signNewBatch(ctx); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
@@ -101,7 +97,7 @@ func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
 			return err
 		}
 
-		// todo: in case of multiple updates, we should sleep in between confirms requests (non-continuous nonce)
+		// todo: in case of multiple updates, we should sleep in between tx (non-continuous nonce)
 	}
 
 	return nil
@@ -126,18 +122,18 @@ func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
 }
 
 func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTxBatch, error) {
-	var oldestUnsignedTransactionBatch *types.OutgoingTxBatch
-	retryFn := func() (err error) {
+	var oldestUnsignedBatch *types.OutgoingTxBatch
+	getOldestUnsignedBatchFn := func() (err error) {
 		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedTransactionBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
-		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedTransactionBatch == nil {
+		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
+		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedBatch == nil {
 			return nil
 		}
 
 		return err
 	}
 
-	if err := retry.Do(retryFn,
+	if err := retry.Do(getOldestUnsignedBatchFn,
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -148,12 +144,15 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTx
 		return nil, err
 	}
 
-	return oldestUnsignedTransactionBatch, nil
+	return oldestUnsignedBatch, nil
 }
 
 func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBatch) error {
-	if err := retry.Do(
-		func() error { return l.inj.SendBatchConfirm(ctx, l.ethFrom, l.peggyID, batch) },
+	signFn := func() error {
+		return l.inj.SendBatchConfirm(ctx, l.ethFrom, l.peggyID, batch)
+	}
+
+	if err := retry.Do(signFn,
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -164,7 +163,7 @@ func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBa
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"token_contract": batch.TokenContract, "nonce": batch.BatchNonce, "txs": len(batch.Transactions)}).Infoln("confirmed batch on Injective")
+	l.Logger().WithFields(log.Fields{"token_contract": batch.TokenContract, "batch_nonce": batch.BatchNonce, "txs": len(batch.Transactions)}).Infoln("confirmed batch on Injective")
 
 	return nil
 }
@@ -195,9 +194,11 @@ func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset
 }
 
 func (l *ethSignerLoop) signValset(ctx context.Context, vs *types.Valset) error {
-	if err := retry.Do(func() error {
+	signFn := func() error {
 		return l.inj.SendValsetConfirm(ctx, l.ethFrom, l.peggyID, vs)
-	},
+	}
+
+	if err := retry.Do(signFn,
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -208,7 +209,7 @@ func (l *ethSignerLoop) signValset(ctx context.Context, vs *types.Valset) error 
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"nonce": vs.Nonce, "members": len(vs.Members)}).Infoln("confirmed valset update on Injective")
+	l.Logger().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
 
 	return nil
 }
