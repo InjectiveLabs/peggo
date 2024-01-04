@@ -126,7 +126,6 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		// here
 		var (
 			peggyBroadcastClient cosmos.PeggyBroadcastClient
 			customCosmosRPC      = *cosmosGRPC != "" && *tendermintRPC != ""

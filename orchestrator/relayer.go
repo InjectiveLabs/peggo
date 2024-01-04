@@ -84,43 +84,87 @@ func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
 	return nil
 }
 
-func (l *relayerLoop) loopFn(ctx context.Context) func() error {
-	return func() error {
-		var pg loops.ParanoidGroup
+func (l *relayerLoop) relayValset(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
 
-		if l.valsetRelayEnabled {
-			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayValset(ctx) },
-					retry.Context(ctx),
-					retry.Attempts(l.maxAttempts),
-					retry.OnRetry(func(n uint, err error) {
-						l.Logger().WithError(err).Warningf("failed to relay valsets, will retry (%d)", n)
-					}),
-				)
-			})
+	// we should determine if we need to relay one
+	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
+	latestValsets, err := l.inj.LatestValsets(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest valset updates from Injective")
+	}
+
+	var (
+		oldestConfirmedValset     *types.Valset
+		oldestConfirmedValsetSigs []*types.MsgValsetConfirm
+	)
+
+	for _, set := range latestValsets {
+		sigs, err := l.inj.AllValsetConfirms(ctx, set.Nonce)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
+		} else if len(sigs) == 0 {
+			continue
 		}
 
-		if l.batchRelayEnabled {
-			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayBatch(ctx) },
-					retry.Context(ctx),
-					retry.Attempts(l.maxAttempts),
-					retry.OnRetry(func(n uint, err error) {
-						l.Logger().WithError(err).Warningf("failed to relay batches, will retry (%d)", n)
-					}),
-				)
-			})
-		}
+		oldestConfirmedValsetSigs = sigs
+		oldestConfirmedValset = set
+		break
+	}
 
-		if pg.Initialized() {
-			if err := pg.Wait(); err != nil {
-				l.Logger().WithError(err).Errorln("got error, loop exits")
-				return err
-			}
-		}
-
+	if oldestConfirmedValset == nil {
+		l.Logger().Debugln("no valset update to relay")
 		return nil
 	}
+
+	currentEthValset, err := l.findLatestValsetOnEth(ctx, l.inj, l.eth)
+	if err != nil {
+		return errors.Wrap(err, "failed to find latest confirmed valset update on Ethereum")
+	}
+
+	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
+		return nil
+	}
+
+	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest valset nonce from Ethereum")
+	}
+
+	// Check if other validators already updated the valset
+	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
+		return nil
+	}
+
+	l.Logger().WithFields(log.Fields{"inj_valset_nonce": oldestConfirmedValset.Nonce, "eth_valset_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
+
+	// Check custom time delay offset
+	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse timestamp from block")
+	}
+
+	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
+		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
+		return nil
+	}
+
+	txHash, err := l.eth.SendEthValsetUpdate(
+		ctx,
+		currentEthValset,
+		oldestConfirmedValset,
+		oldestConfirmedValsetSigs,
+	)
+	if err != nil {
+		return err
+	}
+
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update on Ethereum")
+
+	return nil
 }
 
 func (l *relayerLoop) relayBatch(ctx context.Context) error {
@@ -202,89 +246,6 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent tx batch to Ethereum")
-
-	return nil
-}
-
-func (l *relayerLoop) relayValset(ctx context.Context) error {
-	metrics.ReportFuncCall(l.svcTags)
-	doneFn := metrics.ReportFuncTiming(l.svcTags)
-	defer doneFn()
-
-	// we should determine if we need to relay one
-	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
-	latestValsets, err := l.inj.LatestValsets(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to get latest valset updates from Injective")
-	}
-
-	var (
-		oldestConfirmedValset     *types.Valset
-		oldestConfirmedValsetSigs []*types.MsgValsetConfirm
-	)
-
-	for _, set := range latestValsets {
-		sigs, err := l.inj.AllValsetConfirms(ctx, set.Nonce)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
-		} else if len(sigs) == 0 {
-			continue
-		}
-
-		oldestConfirmedValsetSigs = sigs
-		oldestConfirmedValset = set
-		break
-	}
-
-	if oldestConfirmedValset == nil {
-		l.Logger().Debugln("no valset update to relay")
-		return nil
-	}
-
-	currentEthValset, err := l.findLatestValsetOnEth(ctx, l.inj, l.eth)
-	if err != nil {
-		return errors.Wrap(err, "failed to find latest confirmed valset update on Ethereum")
-	}
-
-	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
-		return nil
-	}
-
-	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to get latest valset nonce from Ethereum")
-	}
-
-	// Check if other validators already updated the valset
-	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
-		return nil
-	}
-
-	l.Logger().WithFields(log.Fields{"inj_valset_nonce": oldestConfirmedValset.Nonce, "eth_valset_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
-
-	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
-	if err != nil {
-		return errors.Wrap(err, "failed to parse timestamp from block")
-	}
-
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
-		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
-		return nil
-	}
-
-	txHash, err := l.eth.SendEthValsetUpdate(
-		ctx,
-		currentEthValset,
-		oldestConfirmedValset,
-		oldestConfirmedValsetSigs,
-	)
-	if err != nil {
-		return err
-	}
-
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update on Ethereum")
 
 	return nil
 }
