@@ -61,14 +61,12 @@ func initCosmosOptions(
 		Name:   "cosmos-grpc",
 		Desc:   "Cosmos GRPC querying endpoint",
 		EnvVar: "PEGGO_COSMOS_GRPC",
-		Value:  "tcp://localhost:9900",
 	})
 
 	*tendermintRPC = cmd.String(cli.StringOpt{
 		Name:   "tendermint-rpc",
 		Desc:   "Tendermint RPC endpoint",
 		EnvVar: "PEGGO_TENDERMINT_RPC",
-		Value:  "http://localhost:26657",
 	})
 
 	*cosmosGasPrices = cmd.String(cli.StringOpt{
