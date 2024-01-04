@@ -162,7 +162,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update on Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update to Ethereum")
 
 	return nil
 }

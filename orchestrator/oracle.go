@@ -188,7 +188,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
-		l.logger.WithFields(log.Fields{
+		l.Logger().WithFields(log.Fields{
 			"event_nonce":  lastClaimEvent.EthereumEventNonce,
 			"event_height": lastClaimEvent.EthereumEventHeight,
 		}).Debugln("last Ethereum claim event on Injective")
