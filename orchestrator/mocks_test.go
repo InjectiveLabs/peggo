@@ -3,10 +3,10 @@ package orchestrator
 import (
 	"context"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"math/big"
+	"time"
 
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
@@ -45,17 +45,23 @@ type mockInjective struct {
 	oldestUnsignedTransactionBatchFn func(context.Context) (*peggytypes.OutgoingTxBatch, error)
 	sendBatchConfirmFn               func(context.Context, eth.Hash, *peggytypes.OutgoingTxBatch, eth.Address) error
 
-	latestValsetsFn func(context.Context) ([]*peggytypes.Valset, error)
-	getBlockFn      func(context.Context, int64) (*tmctypes.ResultBlock, error)
+	latestValsetsFn        func(context.Context) ([]*peggytypes.Valset, error)
+	getBlockCreationTimeFn func(context.Context, int64) (time.Time, error)
 
 	allValsetConfirmsFn func(context.Context, uint64) ([]*peggytypes.MsgValsetConfirm, error)
 	valsetAtFn          func(context.Context, uint64) (*peggytypes.Valset, error)
 
 	latestTransactionBatchesFn   func(context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	transactionBatchSignaturesFn func(context.Context, uint64, eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
+
+	hasRegisteredEthAddress func(ctx context.Context, address eth.Address) (bool, error)
 }
 
-func (i *mockInjective) UnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+func (i *mockInjective) HasRegisteredEthAddress(ctx context.Context, addr eth.Address) (bool, error) {
+	return i.hasRegisteredEthAddress(ctx, addr)
+}
+
+func (i *mockInjective) UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	i.unbatchedTokenFeesCallCount++
 	return i.unbatchedTokenFeesFn(ctx)
 }
@@ -98,16 +104,12 @@ func (i *mockInjective) OldestUnsignedValsets(ctx context.Context) ([]*peggytype
 	return i.oldestUnsignedValsetsFn(ctx)
 }
 
-func (i *mockInjective) SendValsetConfirm(ctx context.Context, peggyID eth.Hash, valset *peggytypes.Valset, ethFrom eth.Address) error {
+func (i *mockInjective) SendValsetConfirm(ctx context.Context, ethFrom eth.Address, peggyID eth.Hash, valset *peggytypes.Valset) error {
 	return i.sendValsetConfirmFn(ctx, peggyID, valset, ethFrom)
 }
 
 func (i *mockInjective) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
 	return i.oldestUnsignedTransactionBatchFn(ctx)
-}
-
-func (i *mockInjective) GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error) {
-	return i.getBlockFn(ctx, height)
 }
 
 func (i *mockInjective) LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
@@ -118,7 +120,7 @@ func (i *mockInjective) AllValsetConfirms(ctx context.Context, nonce uint64) ([]
 	return i.allValsetConfirmsFn(ctx, nonce)
 }
 
-func (i *mockInjective) SendBatchConfirm(ctx context.Context, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch, ethFrom eth.Address) error {
+func (i *mockInjective) SendBatchConfirm(ctx context.Context, ethFrom eth.Address, peggyID eth.Hash, batch *peggytypes.OutgoingTxBatch) error {
 	return i.sendBatchConfirmFn(ctx, peggyID, batch, ethFrom)
 }
 
@@ -132,6 +134,10 @@ func (i *mockInjective) LatestTransactionBatches(ctx context.Context) ([]*peggyt
 
 func (i *mockInjective) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract eth.Address) ([]*peggytypes.MsgConfirmBatch, error) {
 	return i.transactionBatchSignaturesFn(ctx, nonce, tokenContract)
+}
+
+func (i *mockInjective) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
+	return i.getBlockCreationTimeFn(ctx, height)
 }
 
 type mockEthereum struct {

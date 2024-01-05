@@ -2,20 +2,17 @@ package orchestrator
 
 import (
 	"context"
-	"math/big"
-	"testing"
-	"time"
-
-	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
-	tmtypes "github.com/cometbft/cometbft/types"
+	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/xlab/suplog"
+	"math/big"
+	"testing"
+	"time"
 
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
@@ -31,13 +28,19 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                injective,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), injective, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to fetch confirms for a valset", func(t *testing.T) {
@@ -52,13 +55,19 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("no confirms for valset", func(t *testing.T) {
@@ -73,13 +82,19 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.NoError(t, rel.relayValsets(context.TODO(), inj, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -107,13 +122,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -141,13 +163,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to get valset nonce from peggy contract", func(t *testing.T) {
@@ -178,13 +207,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to get specific valset from injective", func(t *testing.T) {
@@ -218,13 +254,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("failed to get valset update events from ethereum", func(t *testing.T) {
@@ -261,13 +304,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("ethereum valset is not higher than injective valset", func(t *testing.T) {
@@ -320,13 +370,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.NoError(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("injective valset is higher than ethereum but failed to get block from injective", func(t *testing.T) {
@@ -359,8 +416,8 @@ func TestValsetRelaying(t *testing.T) {
 					RewardToken:  "0xfafafafafafafafa",
 				}, nil // non-empty will do
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return nil, errors.New("fail")
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Time{}, errors.New("fail")
 			},
 		}
 
@@ -382,13 +439,20 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:            suplog.DefaultLogger,
-			retries:        1,
-			valsetRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:             suplog.DefaultLogger,
+			inj:                inj,
+			eth:                eth,
+			maxAttempts:        1,
+			valsetRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("injective valset is higher than ethereum but valsetOffsetDur has not expired", func(t *testing.T) {
@@ -421,14 +485,8 @@ func TestValsetRelaying(t *testing.T) {
 					RewardToken:  "0xfafafafafafafafa",
 				}, nil // non-empty will do
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Now().Add(time.Hour),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Now().Add(time.Hour), nil
 			},
 		}
 
@@ -450,14 +508,21 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                  suplog.DefaultLogger,
-			retries:              1,
-			valsetRelaying:       true,
+		o := &PeggyOrchestrator{
+			logger:               suplog.DefaultLogger,
+			inj:                  inj,
+			eth:                  eth,
+			maxAttempts:          1,
+			valsetRelayEnabled:   true,
 			relayValsetOffsetDur: time.Second * 5,
 		}
 
-		assert.NoError(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("injective valset is higher than ethereum but failed to send update tx to ethereum", func(t *testing.T) {
@@ -490,14 +555,8 @@ func TestValsetRelaying(t *testing.T) {
 					RewardToken:  "0xfafafafafafafafa",
 				}, nil // non-empty will do
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC), nil
 			},
 		}
 
@@ -522,14 +581,21 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                  suplog.DefaultLogger,
-			retries:              1,
-			valsetRelaying:       true,
+		o := &PeggyOrchestrator{
+			logger:               suplog.DefaultLogger,
+			inj:                  inj,
+			eth:                  eth,
+			maxAttempts:          1,
+			valsetRelayEnabled:   true,
 			relayValsetOffsetDur: time.Second * 5,
 		}
 
-		assert.Error(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayValset(context.TODO()))
 	})
 
 	t.Run("new valset update is sent to ethereum", func(t *testing.T) {
@@ -562,14 +628,8 @@ func TestValsetRelaying(t *testing.T) {
 					RewardToken:  "0xfafafafafafafafa",
 				}, nil
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC), nil
 			},
 		}
 
@@ -594,14 +654,21 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                  suplog.DefaultLogger,
-			retries:              1,
-			valsetRelaying:       true,
+		o := &PeggyOrchestrator{
+			logger:               suplog.DefaultLogger,
+			inj:                  inj,
+			eth:                  eth,
+			maxAttempts:          1,
+			valsetRelayEnabled:   true,
 			relayValsetOffsetDur: time.Second * 5,
 		}
 
-		assert.NoError(t, rel.relayValsets(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayValset(context.TODO()))
 	})
 }
 
@@ -617,13 +684,19 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get latest batches from injective", func(t *testing.T) {
@@ -638,13 +711,19 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("no batch confirms", func(t *testing.T) {
@@ -659,13 +738,19 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.NoError(t, rel.relayBatches(context.TODO(), inj, nil))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get batch nonce from ethereum", func(t *testing.T) {
@@ -686,13 +771,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get latest ethereum header", func(t *testing.T) {
@@ -721,13 +813,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get valset nonce from ethereum", func(t *testing.T) {
@@ -760,13 +859,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get specific valset from injective", func(t *testing.T) {
@@ -802,13 +908,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("failed to get valset updated events from ethereum", func(t *testing.T) {
@@ -847,13 +960,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("ethereum batch is not lower than injective batch", func(t *testing.T) {
@@ -898,13 +1018,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.NoError(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but failed to get block from injhective", func(t *testing.T) {
@@ -925,8 +1052,8 @@ func TestBatchRelaying(t *testing.T) {
 			valsetAtFn: func(_ context.Context, _ uint64) (*types.Valset, error) {
 				return &types.Valset{Nonce: 202}, nil
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return nil, errors.New("fail")
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Time{}, errors.New("fail")
 			},
 		}
 
@@ -952,13 +1079,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:           suplog.DefaultLogger,
-			retries:       1,
-			batchRelaying: true,
+		o := &PeggyOrchestrator{
+			logger:            suplog.DefaultLogger,
+			inj:               inj,
+			eth:               eth,
+			maxAttempts:       1,
+			batchRelayEnabled: true,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but relayBatchOffsetDur has not expired", func(t *testing.T) {
@@ -979,14 +1113,8 @@ func TestBatchRelaying(t *testing.T) {
 			valsetAtFn: func(_ context.Context, _ uint64) (*types.Valset, error) {
 				return &types.Valset{Nonce: 202}, nil
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Now().Add(time.Hour),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Now().Add(time.Hour), nil
 			},
 		}
 
@@ -1012,14 +1140,21 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                 suplog.DefaultLogger,
-			retries:             1,
-			batchRelaying:       true,
-			relayBatchOffsetDur: 5 * time.Second,
+		o := &PeggyOrchestrator{
+			logger:              suplog.DefaultLogger,
+			inj:                 inj,
+			eth:                 eth,
+			maxAttempts:         1,
+			batchRelayEnabled:   true,
+			relayBatchOffsetDur: time.Second * 5,
 		}
 
-		assert.NoError(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayBatch(context.TODO()))
 	})
 
 	t.Run("ethereum batch is lower than injective batch but failed to send batch update", func(t *testing.T) {
@@ -1040,14 +1175,8 @@ func TestBatchRelaying(t *testing.T) {
 			valsetAtFn: func(_ context.Context, _ uint64) (*types.Valset, error) {
 				return &types.Valset{Nonce: 202}, nil
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC), nil
 			},
 		}
 
@@ -1076,14 +1205,22 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                 suplog.DefaultLogger,
-			retries:             1,
-			batchRelaying:       true,
-			relayBatchOffsetDur: 5 * time.Second,
+		o := &PeggyOrchestrator{
+			logger:              suplog.DefaultLogger,
+			inj:                 inj,
+			eth:                 eth,
+			maxAttempts:         1,
+			batchRelayEnabled:   true,
+			relayBatchOffsetDur: time.Second * 5,
 		}
 
-		assert.Error(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.Error(t, l.relayBatch(context.TODO()))
+
 	})
 
 	t.Run("sending a batch update to ethereum", func(t *testing.T) {
@@ -1104,14 +1241,8 @@ func TestBatchRelaying(t *testing.T) {
 			valsetAtFn: func(_ context.Context, _ uint64) (*types.Valset, error) {
 				return &types.Valset{Nonce: 202}, nil
 			},
-			getBlockFn: func(_ context.Context, _ int64) (*tmctypes.ResultBlock, error) {
-				return &tmctypes.ResultBlock{
-					Block: &tmtypes.Block{
-						Header: tmtypes.Header{
-							Time: time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC),
-						},
-					},
-				}, nil
+			getBlockCreationTimeFn: func(_ context.Context, _ int64) (time.Time, error) {
+				return time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC), nil
 			},
 		}
 
@@ -1140,13 +1271,20 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		rel := &relayer{
-			log:                 suplog.DefaultLogger,
-			retries:             1,
-			batchRelaying:       true,
-			relayBatchOffsetDur: 5 * time.Second,
+		o := &PeggyOrchestrator{
+			logger:              suplog.DefaultLogger,
+			inj:                 inj,
+			eth:                 eth,
+			maxAttempts:         1,
+			batchRelayEnabled:   true,
+			relayBatchOffsetDur: time.Second * 5,
 		}
 
-		assert.NoError(t, rel.relayBatches(context.TODO(), inj, eth))
+		l := relayerLoop{
+			PeggyOrchestrator: o,
+			loopDuration:      defaultRelayerLoopDur,
+		}
+
+		assert.NoError(t, l.relayBatch(context.TODO()))
 	})
 }

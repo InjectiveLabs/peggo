@@ -79,13 +79,11 @@ type PeggyBroadcastClient interface {
 func NewPeggyBroadcastClient(
 	queryClient types.QueryClient,
 	broadcastClient chainclient.ChainClient,
-	ethSignerFn keystore.SignerFn,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
 	return &peggyBroadcastClient{
 		daemonQueryClient: queryClient,
 		broadcastClient:   broadcastClient,
-		ethSignerFn:       ethSignerFn,
 		ethPersonalSignFn: ethPersonalSignFn,
 
 		svcTags: metrics.Tags{
@@ -255,7 +253,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		"destination": sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
 		"amount":      oldDeposit.Amount.String(),
 		"event_nonce": oldDeposit.EventNonce.String(),
-	}).Infoln("Oracle observed old deposit event. Sending MsgDepositClaim")
+	}).Debugln("observed SendToCosmosEvent")
 
 	msg := &types.MsgDepositClaim{
 		EventNonce:     oldDeposit.EventNonce.Uint64(),
@@ -275,8 +273,8 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": oldDeposit.EventNonce.String(),
-			"txHash":      txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent old deposit event successfully")
+			"tx_hash":     txResponse.TxResponse.TxHash,
+		}).Debugln("Oracle sent MsgDepositClaim")
 	}
 
 	return nil
@@ -301,7 +299,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		"amount":      deposit.Amount.String(),
 		"event_nonce": deposit.EventNonce.String(),
 		"data":        deposit.Data,
-	}).Infoln("Oracle observed a deposit event. Sending MsgDepositClaim")
+	}).Debugln("observed SendToInjectiveEvent")
 
 	msg := &types.MsgDepositClaim{
 		EventNonce:     deposit.EventNonce.Uint64(),
@@ -321,8 +319,8 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": deposit.EventNonce.String(),
-			"txHash":      txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent deposit event successfully")
+			"tx_hash":     txResponse.TxResponse.TxHash,
+		}).Debugln("Oracle sent MsgDepositClaim")
 	}
 
 	return nil
@@ -340,7 +338,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 		"nonce":          withdraw.BatchNonce.String(),
 		"token_contract": withdraw.Token.Hex(),
 		"event_nonce":    withdraw.EventNonce.String(),
-	}).Infoln("Oracle observed a withdraw batch event. Sending MsgWithdrawClaim")
+	}).Debugln("observed TransactionBatchExecutedEvent")
 
 	// WithdrawClaim claims that a batch of withdrawal
 	// operations on the bridge contract was executed.
@@ -359,8 +357,8 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": withdraw.EventNonce.String(),
-			"txHash":      txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent Withdraw event successfully")
+			"tx_hash":     txResponse.TxResponse.TxHash,
+		}).Debugln("Oracle sent MsgWithdrawClaim")
 	}
 
 	return nil
@@ -375,13 +373,13 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"EventNonce":   valsetUpdate.EventNonce.Uint64(),
-		"ValsetNonce":  valsetUpdate.NewValsetNonce.Uint64(),
-		"_validators":  valsetUpdate.Validators,
-		"_powers":      valsetUpdate.Powers,
-		"rewardAmount": valsetUpdate.RewardAmount,
-		"rewardToken":  valsetUpdate.RewardToken.Hex(),
-	}).Infoln("Oracle observed a valsetUpdate event. Sending MsgValsetUpdatedClaim")
+		"event_nonce":   valsetUpdate.EventNonce.Uint64(),
+		"valset_nonce":  valsetUpdate.NewValsetNonce.Uint64(),
+		"validators":    valsetUpdate.Validators,
+		"powers":        valsetUpdate.Powers,
+		"reward_amount": valsetUpdate.RewardAmount,
+		"reward_token":  valsetUpdate.RewardToken.Hex(),
+	}).Debugln("observed ValsetUpdatedEvent")
 
 	members := make([]*types.BridgeValidator, len(valsetUpdate.Validators))
 	for i, val := range valsetUpdate.Validators {
@@ -408,8 +406,8 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": valsetUpdate.EventNonce.String(),
-			"txHash":      txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent ValsetUpdate event successfully")
+			"tx_hash":     txResponse.TxResponse.TxHash,
+		}).Debugln("Oracle sent MsgValsetUpdatedClaim")
 	}
 
 	return nil
@@ -424,13 +422,13 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"EventNonce":    erc20Deployed.EventNonce.Uint64(),
-		"CosmosDenom":   erc20Deployed.CosmosDenom,
-		"TokenContract": erc20Deployed.TokenContract.Hex(),
-		"Name":          erc20Deployed.Name,
-		"Symbol":        erc20Deployed.Symbol,
-		"Decimals":      erc20Deployed.Decimals,
-	}).Infoln("Oracle observed a erc20Deployed event. Sending MsgERC20DeployedClaim")
+		"event_nonce":    erc20Deployed.EventNonce.Uint64(),
+		"cosmos_denom":   erc20Deployed.CosmosDenom,
+		"token_contract": erc20Deployed.TokenContract.Hex(),
+		"name":           erc20Deployed.Name,
+		"symbol":         erc20Deployed.Symbol,
+		"decimals":       erc20Deployed.Decimals,
+	}).Debugln("observed ERC20DeployedEvent")
 
 	msg := &types.MsgERC20DeployedClaim{
 		EventNonce:    erc20Deployed.EventNonce.Uint64(),
@@ -450,8 +448,8 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 	} else {
 		log.WithFields(log.Fields{
 			"event_nonce": erc20Deployed.EventNonce.String(),
-			"txHash":      txResponse.TxResponse.TxHash,
-		}).Infoln("Oracle sent ERC20DeployedEvent event successfully")
+			"tx_hash":     txResponse.TxResponse.TxHash,
+		}).Debugln("Oracle sent MsgERC20DeployedClaim")
 	}
 
 	return nil
@@ -521,10 +519,10 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 		count = count + 1
 		lastClaimEvent = lastClaimEvent + 1
 
-		// Considering blockTime=2.8s on Injective chain, Adding Sleep to make sure new event is
+		// Considering blockTime=1s on Injective chain, Adding Sleep to make sure new event is
 		// sent only after previous event is executed successfully.
 		// Otherwise it will through `non contiguous event nonce` failing CheckTx.
-		time.Sleep(3 * time.Second)
+		time.Sleep(1200 * time.Millisecond)
 	}
 	return nil
 }

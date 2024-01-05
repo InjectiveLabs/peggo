@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/xlab/suplog"
 
-	peggy "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func TestRequestBatches(t *testing.T) {
@@ -19,37 +19,46 @@ func TestRequestBatches(t *testing.T) {
 	t.Run("failed to get unbatched tokens from injective", func(t *testing.T) {
 		t.Parallel()
 
-		r := &batchRequester{
-			log:     suplog.DefaultLogger,
-			retries: 1,
-		}
-
 		inj := &mockInjective{
-			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
+			unbatchedTokenFeesFn: func(context.Context) ([]*peggytypes.BatchFees, error) {
 				return nil, errors.New("fail")
 			},
 		}
-		feed := mockPriceFeed{}
 
-		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		o := &PeggyOrchestrator{
+			logger:      suplog.DefaultLogger,
+			inj:         inj,
+			maxAttempts: 1,
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 	})
 
 	t.Run("no unbatched tokens", func(t *testing.T) {
 		t.Parallel()
 
-		r := &batchRequester{
-			log:     suplog.DefaultLogger,
-			retries: 1,
-		}
-
 		inj := &mockInjective{
-			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
+			unbatchedTokenFeesFn: func(context.Context) ([]*peggytypes.BatchFees, error) {
 				return nil, nil
 			},
 		}
-		feed := mockPriceFeed{}
 
-		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		o := &PeggyOrchestrator{
+			logger:      suplog.DefaultLogger,
+			inj:         inj,
+			maxAttempts: 1,
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
+		assert.NoError(t, loop.requestBatches(context.TODO()))
+
 	})
 
 	t.Run("batch does not meet fee threshold", func(t *testing.T) {
@@ -57,20 +66,11 @@ func TestRequestBatches(t *testing.T) {
 
 		tokenAddr := "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30"
 
-		r := &batchRequester{
-			log:         suplog.DefaultLogger,
-			minBatchFee: 51.0,
-			retries:     1,
-			erc20ContractMapping: map[eth.Address]string{
-				eth.HexToAddress(tokenAddr): "inj",
-			},
-		}
-
 		inj := &mockInjective{
 			sendRequestBatchFn: func(context.Context, string) error { return nil },
-			unbatchedTokenFeesFn: func(context.Context) ([]*peggy.BatchFees, error) {
+			unbatchedTokenFeesFn: func(context.Context) ([]*peggytypes.BatchFees, error) {
 				fees, _ := cosmtypes.NewIntFromString("50000000000000000000")
-				return []*peggy.BatchFees{
+				return []*peggytypes.BatchFees{
 					{
 						Token:     eth.HexToAddress(tokenAddr).String(),
 						TotalFees: fees,
@@ -81,7 +81,22 @@ func TestRequestBatches(t *testing.T) {
 
 		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		o := &PeggyOrchestrator{
+			logger:         suplog.DefaultLogger,
+			inj:            inj,
+			pricefeed:      feed,
+			maxAttempts:    1,
+			minBatchFeeUSD: 51.0,
+			erc20ContractMapping: map[eth.Address]string{
+				eth.HexToAddress(tokenAddr): "inj",
+			},
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 		assert.Equal(t, inj.sendRequestBatchCallCount, 0)
 	})
 
@@ -90,20 +105,11 @@ func TestRequestBatches(t *testing.T) {
 
 		tokenAddr := "0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30"
 
-		r := &batchRequester{
-			log:         suplog.DefaultLogger,
-			minBatchFee: 49.0,
-			retries:     1,
-			erc20ContractMapping: map[eth.Address]string{
-				eth.HexToAddress(tokenAddr): "inj",
-			},
-		}
-
 		inj := &mockInjective{
 			sendRequestBatchFn: func(context.Context, string) error { return nil },
-			unbatchedTokenFeesFn: func(_ context.Context) ([]*peggy.BatchFees, error) {
+			unbatchedTokenFeesFn: func(_ context.Context) ([]*peggytypes.BatchFees, error) {
 				fees, _ := cosmtypes.NewIntFromString("50000000000000000000")
-				return []*peggy.BatchFees{
+				return []*peggytypes.BatchFees{
 					{
 						Token:     eth.HexToAddress(tokenAddr).String(),
 						TotalFees: fees,
@@ -114,7 +120,22 @@ func TestRequestBatches(t *testing.T) {
 
 		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		assert.NoError(t, r.run(context.TODO(), inj, feed))
+		o := &PeggyOrchestrator{
+			logger:         suplog.DefaultLogger,
+			inj:            inj,
+			pricefeed:      feed,
+			maxAttempts:    1,
+			minBatchFeeUSD: 49.0,
+			erc20ContractMapping: map[eth.Address]string{
+				eth.HexToAddress(tokenAddr): "inj",
+			},
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
+		assert.NoError(t, loop.requestBatches(context.TODO()))
 		assert.Equal(t, inj.sendRequestBatchCallCount, 1)
 	})
 
@@ -127,23 +148,34 @@ func TestCheckFeeThreshold(t *testing.T) {
 		t.Parallel()
 
 		var (
-			requester    = &batchRequester{minBatchFee: 21}
-			tokenAddr    = eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
 			totalFees, _ = cosmtypes.NewIntFromString("10000000000000000000") // 10inj
+			tokenAddr    = eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
 			feed         = mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {
 				return 2.5, nil
 			}}
 		)
 
+		o := &PeggyOrchestrator{
+			logger:         suplog.DefaultLogger,
+			pricefeed:      feed,
+			minBatchFeeUSD: 21,
+			erc20ContractMapping: map[eth.Address]string{
+				tokenAddr: "inj",
+			},
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
 		// 2.5 * 10 > 21
-		assert.True(t, requester.checkFeeThreshold(feed, tokenAddr, totalFees))
+		assert.True(t, loop.checkFeeThreshold(tokenAddr, totalFees))
 	})
 
 	t.Run("fee threshold is met", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			requester    = &batchRequester{minBatchFee: 333.333}
 			tokenAddr    = eth.HexToAddress("0xe28b3B32B6c345A34Ff64674606124Dd5Aceca30")
 			totalFees, _ = cosmtypes.NewIntFromString("100000000000000000000") // 10inj
 			feed         = mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) {
@@ -151,7 +183,20 @@ func TestCheckFeeThreshold(t *testing.T) {
 			}}
 		)
 
+		o := &PeggyOrchestrator{
+			logger:         suplog.DefaultLogger,
+			pricefeed:      feed,
+			minBatchFeeUSD: 333.333,
+			erc20ContractMapping: map[eth.Address]string{
+				tokenAddr: "inj",
+			},
+		}
+
+		loop := batchRequestLoop{
+			PeggyOrchestrator: o,
+		}
+
 		// 2.5 * 100 < 333.333
-		assert.False(t, requester.checkFeeThreshold(feed, tokenAddr, totalFees))
+		assert.False(t, loop.checkFeeThreshold(tokenAddr, totalFees))
 	})
 }

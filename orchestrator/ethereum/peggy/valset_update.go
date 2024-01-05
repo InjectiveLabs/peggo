@@ -38,9 +38,10 @@ func (s *peggyContract) SendEthValsetUpdate(
 	}
 
 	log.WithFields(log.Fields{
-		"old_nonce": oldValset.Nonce,
-		"new_nonce": newValset.Nonce,
-	}).Infoln("Checking signatures and submitting validator set update to Ethereum")
+		"valset_nonce":  newValset.Nonce,
+		"validators":    len(newValset.Members),
+		"confirmations": len(confirms),
+	}).Debugln("checking signatures and submitting valset update")
 
 	newValidators, newPowers := validatorsAndPowers(newValset)
 	newValsetNonce := new(big.Int).SetUint64(newValset.Nonce)
@@ -86,7 +87,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 	// 		bytes32[] memory _r,
 	// 		bytes32[] memory _s
 	// )
-	log.Debugln("Sending updateValset Ethereum tx", "currentValidators", currentValidators, "currentPowers", currentPowers, "currentValsetNonce", currentValsetNonce)
+
 	txData, err := peggyABI.Pack("updateValset",
 		newValsetArgs,
 		currentValsetArgs,
@@ -111,8 +112,6 @@ func (s *peggyContract) SendEthValsetUpdate(
 		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (Peggy updateValset) to EVM")
 		return nil, err
 	}
-
-	log.Infoln("Sent Tx (Peggy updateValset):", txHash.Hex())
 
 	//     let before_nonce = get_valset_nonce(peggy_contract_address, eth_address, web3).await?;
 	//     if before_nonce != old_nonce {
