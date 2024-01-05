@@ -9,6 +9,7 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -18,7 +19,7 @@ import (
 // we broadcast only 20 events in each iteration.
 // So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
 const (
-	ethBlockConfirmationDelay uint64 = 96
+	ethBlockConfirmationDelay uint64 = 12
 	defaultBlocksToSearch     uint64 = 2000
 )
 
