@@ -160,8 +160,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	signature, err := s.ethPersonalSignFn(ethFrom, confirmHash.Bytes())
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.New("failed to sign validator address")
-		return err
+		return errors.Wrap(err, "failed to sign validator address")
 	}
 	// MsgValsetConfirm
 	// this is the message sent by the validators when they wish to submit their
@@ -184,10 +183,10 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 		Nonce:        valset.Nonce,
 		Signature:    ethcmn.Bytes2Hex(signature),
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+
+	if _, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgValsetConfirm failed")
-		return err
+		return errors.Wrap(err, "failed to broadcast MsgValsetConfirm")
 	}
 
 	return nil
@@ -226,10 +225,10 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 		EthSigner:     ethFrom.Hex(),
 		TokenContract: batch.TokenContract,
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+
+	if _, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgConfirmBatch failed")
-		return err
+		return errors.Wrap(err, "broadcasting MsgConfirmBatch failed")
 	}
 
 	return nil
@@ -554,10 +553,9 @@ func (s *peggyBroadcastClient) SendToEth(
 		Amount:    amount,
 		BridgeFee: fee, // TODO: use exactly that fee for transaction
 	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+	if _, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgSendToEth failed")
-		return err
+		return errors.Wrap(err, "broadcasting MsgSendToEth failed")
 	}
 
 	return nil
@@ -584,10 +582,10 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 		Denom:        denom,
 		Orchestrator: s.AccFromAddress().String(),
 	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+
+	if _, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
-		return err
+		return errors.Wrap(err, "broadcasting MsgRequestBatch failed")
 	}
 
 	return nil
