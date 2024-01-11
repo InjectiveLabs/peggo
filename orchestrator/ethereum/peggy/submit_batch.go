@@ -25,9 +25,9 @@ func (s *peggyContract) SendTransactionBatch(
 	log.WithFields(log.Fields{
 		"token_contract": batch.TokenContract,
 		"batch_nonce":    batch.BatchNonce,
-		"transactions":   len(batch.Transactions),
+		"txs":            len(batch.Transactions),
 		"confirmations":  len(confirms),
-	}).Debugln("checking signatures and submitting batch")
+	}).Infoln("checking signatures and submitting batch")
 
 	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {

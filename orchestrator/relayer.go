@@ -125,6 +125,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 	}
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
+		l.Logger().WithFields(log.Fields{"eth_valset_nonce": currentEthValset.Nonce, "inj_valset_nonce": currentEthValset.Nonce}).Debugln("valset already updated on Ethereum")
 		return nil
 	}
 
@@ -135,6 +136,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 
 	// Check if other validators already updated the valset
 	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_valset_nonce": latestEthereumValsetNonce, "inj_valset_nonce": currentEthValset.Nonce}).Debugln("valset already updated on Ethereum")
 		return nil
 	}
 
@@ -212,6 +214,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_batch_nonce": latestEthereumBatch.Uint64(), "inj_batch_nonce": oldestConfirmedBatch.BatchNonce}).Debugln("batch already updated on Ethereum")
 		return nil
 	}
 
@@ -222,6 +225,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 
 	// Check if ethereum batch was updated by other validators
 	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_batch_nonce": latestEthereumBatch.Uint64(), "inj_batch_nonce": oldestConfirmedBatch.BatchNonce}).Debugln("batch already updated on Ethereum")
 		return nil
 	}
 
