@@ -116,21 +116,9 @@ func (e *ethCommitter) SendTx(
 	}
 
 	// estimate gas limit
-	peggyContract := recipient
-
-	// Gas estimation cannot succeed without code for method invocations
-	code, err := e.evmProvider.PendingCodeAt(opts.Context, peggyContract)
-	if err != nil {
-		return common.Hash{}, errors.Wrap(err, "failed to get code")
-	}
-
-	if len(code) == 0 {
-		return common.Hash{}, bind.ErrNoCode
-	}
-
 	msg := ethereum.CallMsg{
 		From:     opts.From,
-		To:       &peggyContract,
+		To:       &recipient,
 		GasPrice: gasPrice,
 		Value:    new(big.Int),
 		Data:     txData,
