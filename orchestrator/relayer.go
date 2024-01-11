@@ -125,6 +125,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 	}
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
+		l.Logger().WithFields(log.Fields{"eth_nonce": currentEthValset.Nonce, "inj_nonce": currentEthValset.Nonce}).Debugln("valset already updated on Ethereum")
 		return nil
 	}
 
@@ -135,10 +136,11 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 
 	// Check if other validators already updated the valset
 	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthereumValsetNonce, "inj_nonce": currentEthValset.Nonce}).Debugln("valset already updated on Ethereum")
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_valset_nonce": oldestConfirmedValset.Nonce, "eth_valset_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
+	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
@@ -148,7 +150,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 
 	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
-		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset duration not expired")
+		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset not reached yet")
 		return nil
 	}
 
@@ -162,7 +164,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset update to Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset tx to Ethereum")
 
 	return nil
 }
@@ -195,7 +197,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	if oldestConfirmedBatch == nil {
-		l.Logger().Debugln("no outgoing batch to relay")
+		l.Logger().Debugln("no batch to relay")
 		return nil
 	}
 
@@ -212,6 +214,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthereumBatch.Uint64(), "inj_nonce": oldestConfirmedBatch.BatchNonce}).Debugln("batch already updated on Ethereum")
 		return nil
 	}
 
@@ -222,10 +225,11 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 
 	// Check if ethereum batch was updated by other validators
 	if oldestConfirmedBatch.BatchNonce <= latestEthereumBatch.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthereumBatch.Uint64(), "inj_nonce": oldestConfirmedBatch.BatchNonce}).Debugln("batch already updated on Ethereum")
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_batch_nonce": oldestConfirmedBatch.BatchNonce, "eth_batch_nonce": latestEthereumBatch.Uint64()}).Debugln("latest batch updates")
+	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedBatch.BatchNonce, "eth_nonce": latestEthereumBatch.Uint64()}).Debugln("latest batch updates")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedBatch.Block))
@@ -235,7 +239,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 
 	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayBatchOffsetDur {
 		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
-		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset duration not expired")
+		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset not reached yet")
 		return nil
 	}
 
@@ -245,7 +249,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent tx batch to Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
 
 	return nil
 }

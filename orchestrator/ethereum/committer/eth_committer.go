@@ -115,38 +115,10 @@ func (e *ethCommitter) SendTx(
 		return common.Hash{}, errors.Errorf("Suggested gas price %v is greater than max gas price %v", opts.GasPrice.Int64(), maxGasPrice.Int64())
 	}
 
-	log.WithFields(log.Fields{
-		"gas_price": opts.GasPrice.String(),
-		"gas_limit": opts.GasLimit,
-	}).Debugln("batch tx options")
-
-	resyncNonces := func(from common.Address) {
-		e.nonceCache.Sync(from, func() (uint64, error) {
-			nonce, err := e.evmProvider.PendingNonceAt(context.TODO(), from)
-			if err != nil {
-				log.WithError(err).Warningln("unable to acquire nonce")
-			}
-
-			return nonce, err
-		})
-	}
-
 	// estimate gas limit
-	contract := recipient
-	// Gas estimation cannot succeed without code for method invocations
-	code, err := e.evmProvider.PendingCodeAt(opts.Context, contract)
-	if err != nil {
-		return common.Hash{}, errors.Wrap(err, "failed to get code")
-	}
-
-	if len(code) == 0 {
-		return common.Hash{}, bind.ErrNoCode
-	}
-
-	// If the contract surely has code (or code is not needed), estimate the transaction
 	msg := ethereum.CallMsg{
 		From:     opts.From,
-		To:       &contract,
+		To:       &recipient,
 		GasPrice: gasPrice,
 		Value:    new(big.Int),
 		Data:     txData,
@@ -158,6 +130,17 @@ func (e *ethCommitter) SendTx(
 	}
 
 	opts.GasLimit = gasLimit
+
+	resyncNonces := func(from common.Address) {
+		e.nonceCache.Sync(from, func() (uint64, error) {
+			nonce, err := e.evmProvider.PendingNonceAt(context.TODO(), from)
+			if err != nil {
+				log.WithError(err).Warningln("unable to acquire nonce")
+			}
+
+			return nonce, err
+		})
+	}
 
 	if err := e.nonceCache.Serialize(e.fromAddress, func() (err error) {
 		nonce, _ := e.nonceCache.Get(e.fromAddress)
