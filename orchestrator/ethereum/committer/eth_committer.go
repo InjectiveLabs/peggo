@@ -2,6 +2,7 @@ package committer
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
 
@@ -129,6 +130,34 @@ func (e *ethCommitter) SendTx(
 			return nonce, err
 		})
 	}
+
+	// estimate gas limit
+	contract := recipient
+	// Gas estimation cannot succeed without code for method invocations
+	code, err := e.evmProvider.PendingCodeAt(opts.Context, contract)
+	if err != nil {
+		return common.Hash{}, errors.Wrap(err, "failed to get code")
+	}
+
+	if len(code) == 0 {
+		return common.Hash{}, bind.ErrNoCode
+	}
+
+	// If the contract surely has code (or code is not needed), estimate the transaction
+	msg := ethereum.CallMsg{
+		From:     opts.From,
+		To:       &contract,
+		GasPrice: gasPrice,
+		Value:    new(big.Int),
+		Data:     txData,
+	}
+
+	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
+	if err != nil {
+		return common.Hash{}, errors.Wrap(err, "failed to estimate gas")
+	}
+
+	opts.GasLimit = gasLimit
 
 	if err := e.nonceCache.Serialize(e.fromAddress, func() (err error) {
 		nonce, _ := e.nonceCache.Get(e.fromAddress)
