@@ -114,6 +114,11 @@ func (e *ethCommitter) SendTx(
 		return common.Hash{}, errors.Errorf("Suggested gas price %v is greater than max gas price %v", opts.GasPrice.Int64(), maxGasPrice.Int64())
 	}
 
+	log.WithFields(log.Fields{
+		"gas_price": opts.GasPrice.String(),
+		"gas_limit": opts.GasLimit,
+	}).Debugln("batch tx options")
+
 	resyncNonces := func(from common.Address) {
 		e.nonceCache.Sync(from, func() (uint64, error) {
 			nonce, err := e.evmProvider.PendingNonceAt(context.TODO(), from)
