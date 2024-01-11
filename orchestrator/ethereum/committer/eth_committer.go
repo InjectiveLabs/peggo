@@ -2,6 +2,7 @@ package committer
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
 
@@ -113,6 +114,34 @@ func (e *ethCommitter) SendTx(
 	if opts.GasPrice.Cmp(maxGasPrice) > 0 {
 		return common.Hash{}, errors.Errorf("Suggested gas price %v is greater than max gas price %v", opts.GasPrice.Int64(), maxGasPrice.Int64())
 	}
+
+	// estimate gas limit
+	peggyContract := recipient
+
+	// Gas estimation cannot succeed without code for method invocations
+	code, err := e.evmProvider.PendingCodeAt(opts.Context, peggyContract)
+	if err != nil {
+		return common.Hash{}, errors.Wrap(err, "failed to get code")
+	}
+
+	if len(code) == 0 {
+		return common.Hash{}, bind.ErrNoCode
+	}
+
+	msg := ethereum.CallMsg{
+		From:     opts.From,
+		To:       &peggyContract,
+		GasPrice: gasPrice,
+		Value:    new(big.Int),
+		Data:     txData,
+	}
+
+	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
+	if err != nil {
+		return common.Hash{}, errors.Wrap(err, "failed to estimate gas")
+	}
+
+	opts.GasLimit = gasLimit
 
 	resyncNonces := func(from common.Address) {
 		e.nonceCache.Sync(from, func() (uint64, error) {
