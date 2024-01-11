@@ -25,9 +25,9 @@ func (s *peggyContract) SendTransactionBatch(
 	log.WithFields(log.Fields{
 		"token_contract": batch.TokenContract,
 		"batch_nonce":    batch.BatchNonce,
-		"transactions":   len(batch.Transactions),
+		"txs":            len(batch.Transactions),
 		"confirmations":  len(confirms),
-	}).Debugln("checking signatures and submitting batch")
+	}).Infoln("checking signatures and submitting batch")
 
 	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {
@@ -93,7 +93,7 @@ func (s *peggyContract) SendTransactionBatch(
 	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (Peggy submitBatch) to EVM")
+		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("failed to sign and submit (Peggy submitBatch) to EVM")
 		return nil, err
 	}
 

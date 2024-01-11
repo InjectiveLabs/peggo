@@ -47,7 +47,7 @@ func (l *batchRequestLoop) requestBatches(ctx context.Context) error {
 	}
 
 	if len(fees) == 0 {
-		l.Logger().Debugln("no outgoing withdrawals to batch")
+		l.Logger().Debugln("no withdrawals to batch")
 		return nil
 	}
 
