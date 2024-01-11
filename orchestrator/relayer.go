@@ -56,7 +56,7 @@ func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
 				retry.Context(ctx),
 				retry.Attempts(l.maxAttempts),
 				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay valsets, will retry (%d)", n)
+					l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
 				}),
 			)
 		})
@@ -68,7 +68,7 @@ func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
 				retry.Context(ctx),
 				retry.Attempts(l.maxAttempts),
 				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay batches, will retry (%d)", n)
+					l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
 				}),
 			)
 		})
@@ -115,7 +115,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 	}
 
 	if oldestConfirmedValset == nil {
-		l.Logger().Debugln("no valset update to relay")
+		l.Logger().Infoln("no valset to relay")
 		return nil
 	}
 
