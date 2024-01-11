@@ -88,7 +88,7 @@ func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
 	}
 
 	if len(oldestUnsignedValsets) == 0 {
-		l.Logger().Debugln("no valset updates to confirm")
+		l.Logger().Infoln("no valset updates to confirm")
 		return nil
 	}
 
@@ -110,7 +110,7 @@ func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
 	}
 
 	if oldestUnsignedTransactionBatch == nil {
-		l.Logger().Debugln("no batch to confirm")
+		l.Logger().Infoln("no batch to confirm")
 		return nil
 	}
 

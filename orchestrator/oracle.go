@@ -202,7 +202,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 
 		if noEvents := len(legacyDeposits) == 0 && len(deposits) == 0 && len(withdrawals) == 0 &&
 			len(erc20Deployments) == 0 && len(valsetUpdates) == 0; noEvents {
-			l.Logger().Debugln("no new events on Ethereum")
+			l.Logger().Infoln("no new events on Ethereum")
 			return nil
 		}
 
