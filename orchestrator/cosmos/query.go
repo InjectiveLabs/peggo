@@ -25,7 +25,7 @@ type PeggyQueryClient interface {
 	LastClaimEventByAddr(ctx context.Context, validatorAccountAddress sdk.AccAddress) (*types.LastClaimEvent, error)
 
 	PeggyParams(ctx context.Context) (*types.Params, error)
-	GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.ValAddress, error)
+	GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.AccAddress, error)
 }
 
 func NewPeggyQueryClient(client types.QueryClient) PeggyQueryClient {
@@ -44,7 +44,7 @@ type peggyQueryClient struct {
 
 var ErrNotFound = errors.New("not found")
 
-func (s *peggyQueryClient) GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.ValAddress, error) {
+func (s *peggyQueryClient) GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.AccAddress, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
@@ -61,7 +61,7 @@ func (s *peggyQueryClient) GetValidatorAddress(ctx context.Context, addr ethcmn.
 		return nil, ErrNotFound
 	}
 
-	valAddr, err := sdk.ValAddressFromBech32(resp.ValidatorAddress)
+	valAddr, err := sdk.AccAddressFromBech32(resp.ValidatorAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to decode validator address: %v", resp.ValidatorAddress)
 	}

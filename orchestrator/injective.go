@@ -15,7 +15,7 @@ import (
 type InjectiveNetwork interface {
 	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
 	GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error)
-	GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (sdk.ValAddress, error)
+	GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (sdk.AccAddress, error)
 
 	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)
 	SendEthereumClaims(ctx context.Context,
