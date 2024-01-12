@@ -97,7 +97,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			)
 		}
 
-		log.WithField("inj_addr", valAddress.String()).Infoln("connected to Injective network")
+		log.Infoln("using", valAddress.String(), "for Injective")
 
 		orShutdown(err)
 
@@ -129,7 +129,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		log.WithField("eth_addr", ethKeyFromAddress.Hex()).Infoln("connected to Ethereum network")
+		log.Infoln("using", ethKeyFromAddress.Hex(), "for Ethereum")
 
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
 

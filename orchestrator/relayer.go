@@ -147,7 +147,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("latest valset updates")
+	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("new valset update")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
@@ -204,7 +204,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	if oldestConfirmedBatch == nil {
-		l.Logger().Debugln("no batch to relay")
+		l.Logger().Infoln("no batch to relay")
 		return nil
 	}
 
@@ -236,7 +236,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 		return nil
 	}
 
-	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedBatch.BatchNonce, "eth_nonce": latestEthereumBatch.Uint64()}).Debugln("latest batch updates")
+	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedBatch.BatchNonce, "eth_nonce": latestEthereumBatch.Uint64()}).Debugln("new batch update")
 
 	// Check custom time delay offset
 	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedBatch.Block))

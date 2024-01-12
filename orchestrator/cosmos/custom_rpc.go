@@ -82,10 +82,9 @@ func NewCustomRPCNetwork(
 
 	log.WithFields(log.Fields{
 		"chain_id":   chainID,
-		"conn":       "custom",
 		"injective":  injectiveGRPC,
 		"tendermint": tendermintRPC,
-	}).Infoln("connected to Injective network")
+	}).Infoln("connected to custom Injective endpoints")
 
 	return n, nil
 }

@@ -80,7 +80,11 @@ func NewLoadBalancedNetwork(
 		ExplorerClient:       explorer,
 	}
 
-	log.WithFields(log.Fields{"chain_id": chainID, "conn": "load_balanced"}).Infoln("connected to Injective network")
+	log.WithFields(log.Fields{
+		"chain_id":   chainID,
+		"injective":  netCfg.ChainGrpcEndpoint,
+		"tendermint": netCfg.TmEndpoint,
+	}).Infoln("connected to Injective's load balanced endpoints")
 
 	return n, nil
 }

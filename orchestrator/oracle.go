@@ -112,7 +112,7 @@ func (l *ethOracleLoop) observeEthEvents(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": newHeight}).Debugln("scanned Ethereum blocks for events")
+	l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": newHeight}).Debugln("scanned Ethereum blocks")
 	l.lastCheckedEthHeight = newHeight
 
 	if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
@@ -192,10 +192,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
-		l.Logger().WithFields(log.Fields{
-			"event_nonce":  lastClaimEvent.EthereumEventNonce,
-			"event_height": lastClaimEvent.EthereumEventHeight,
-		}).Debugln("last Ethereum claim event on Injective")
+		l.Logger().WithFields(log.Fields{"event_nonce": lastClaimEvent.EthereumEventNonce, "event_height": lastClaimEvent.EthereumEventHeight}).Debugln("last observed Ethereum event")
 
 		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
 		deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
@@ -226,7 +223,7 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 			"withdrawals":       len(withdrawals),
 			"erc20_deployments": len(erc20Deployments),
 			"valset_updates":    len(valsetUpdates),
-		}).Infoln("sent new claims to Injective")
+		}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}

@@ -30,6 +30,8 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
 		ethFrom:           s.eth.FromAddress(),
 	}
 
+	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting EthSigner loop...")
+
 	return loop.Run(ctx)
 }
 
