@@ -94,6 +94,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 
 	validator, err := s.inj.GetValidatorAddress(subCtx, s.eth.FromAddress())
 	if err != nil {
+		s.logger.WithError(err).Warningln("failed to get validator address")
 		return false
 	}
 
