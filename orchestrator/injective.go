@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"time"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -14,7 +15,7 @@ import (
 type InjectiveNetwork interface {
 	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
 	GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error)
-	HasRegisteredEthAddress(ctx context.Context, addr gethcommon.Address) (bool, error)
+	GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (sdk.ValAddress, error)
 
 	LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error)
 	SendEthereumClaims(ctx context.Context,

@@ -43,7 +43,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}).Infoln("peggo - peggy binary for Ethereum bridge")
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
-			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
+			log.Fatalln("cannot use Ledger for orchestrator, since signatures must be realtime")
 		}
 
 		valAddress, cosmosKeyring, err := initCosmosKeyring(
@@ -71,7 +71,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.WithFields(log.Fields{"inj_addr": valAddress.String(), "eth_addr": ethKeyFromAddress.String()}).Infoln("starting peggo service")
+		//log.WithFields(log.Fields{"inj_addr": valAddress.String(), "eth_addr": ethKeyFromAddress.String()}).Infoln("starting orchestrator service...")
 
 		var (
 			injectiveNet       orchestrator.InjectiveNetwork

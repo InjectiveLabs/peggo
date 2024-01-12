@@ -25,7 +25,7 @@ type PeggyQueryClient interface {
 	LastClaimEventByAddr(ctx context.Context, validatorAccountAddress sdk.AccAddress) (*types.LastClaimEvent, error)
 
 	PeggyParams(ctx context.Context) (*types.Params, error)
-	HasRegisteredEthAddress(ctx context.Context, addr ethcmn.Address) (bool, error)
+	GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.ValAddress, error)
 }
 
 func NewPeggyQueryClient(client types.QueryClient) PeggyQueryClient {
@@ -44,29 +44,29 @@ type peggyQueryClient struct {
 
 var ErrNotFound = errors.New("not found")
 
-func (s *peggyQueryClient) HasRegisteredEthAddress(ctx context.Context, addr ethcmn.Address) (bool, error) {
+func (s *peggyQueryClient) GetValidatorAddress(ctx context.Context, addr ethcmn.Address) (sdk.ValAddress, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	req := &types.QueryDelegateKeysByEthAddress{EthAddress: addr.Hex()}
-	resp, err := s.daemonQueryClient.GetDelegateKeyByEth(ctx, req)
-
-	if errors.Is(err, types.ErrInvalid) {
-		// no record found
-		return false, nil
-	}
+	resp, err := s.daemonQueryClient.GetDelegateKeyByEth(ctx, &types.QueryDelegateKeysByEthAddress{
+		EthAddress: addr.Hex(),
+	})
 
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		return false, errors.Wrap(err, "failed to query GetDelegateKeyByEth from daemon")
+		return nil, err
 	}
 
 	if resp == nil {
-		return false, nil
+		return nil, ErrNotFound
 	}
 
-	return true, nil
+	valAddr, err := sdk.ValAddressFromBech32(resp.ValidatorAddress)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode validator address: %v", resp.ValidatorAddress)
+	}
+
+	return valAddr, nil
 }
 
 func (s *peggyQueryClient) ValsetAt(ctx context.Context, nonce uint64) (*types.Valset, error) {

@@ -81,19 +81,25 @@ func NewPeggyOrchestrator(
 // Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
 func (s *PeggyOrchestrator) Run(ctx context.Context) error {
-	if !s.hasRegisteredETHAddress(ctx) {
+	if !s.hasDelegateValidator(ctx) {
 		return s.startRelayerMode(ctx)
 	}
 
 	return s.startValidatorMode(ctx)
 }
 
-func (s *PeggyOrchestrator) hasRegisteredETHAddress(ctx context.Context) bool {
+func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 	subCtx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelFn()
 
-	ok, _ := s.inj.HasRegisteredEthAddress(subCtx, s.eth.FromAddress())
-	return ok
+	validator, err := s.inj.GetValidatorAddress(subCtx, s.eth.FromAddress())
+	if err != nil {
+		return false
+	}
+
+	s.logger.WithField("validator_addr", validator.String()).Debugln("found delegate validator address")
+
+	return true
 }
 
 // startValidatorMode runs all orchestrator processes. This is called
