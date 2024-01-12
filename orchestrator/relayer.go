@@ -29,6 +29,12 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
 		loopDuration:      defaultRelayerLoopDur,
 	}
 
+	s.logger.WithFields(log.Fields{
+		"loop_duration": loop.loopDuration.String(),
+		"relay_batches": s.batchRelayEnabled,
+		"relay_valsets": s.valsetRelayEnabled,
+	}).Debugln("starting Relayer loop...")
+
 	return loop.Run(ctx)
 }
 
@@ -42,6 +48,7 @@ func (l *relayerLoop) Logger() log.Logger {
 }
 
 func (l *relayerLoop) Run(ctx context.Context) error {
+
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
 		return l.relayValsetsAndBatches(ctx)
 	})

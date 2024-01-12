@@ -26,6 +26,7 @@ const (
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
 func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
+
 	lastConfirmedEthHeight, err := s.getLastConfirmedEthHeightOnInjective(ctx)
 	if err != nil {
 		return err
@@ -39,6 +40,8 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
 		lastCheckedEthHeight:    lastConfirmedEthHeight,
 		lastResyncWithInjective: time.Now(),
 	}
+
+	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting EthOracle loop...")
 
 	return loop.Run(ctx)
 }

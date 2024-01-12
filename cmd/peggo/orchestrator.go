@@ -71,8 +71,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		//log.WithFields(log.Fields{"inj_addr": valAddress.String(), "eth_addr": ethKeyFromAddress.String()}).Infoln("starting orchestrator service...")
-
 		var (
 			injectiveNet       orchestrator.InjectiveNetwork
 			customEndpointRPCs = *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""
@@ -98,6 +96,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 				personalSignFn,
 			)
 		}
+
+		log.WithField("inj_addr", valAddress.String()).Infoln("connected to Injective network")
 
 		orShutdown(err)
 
@@ -128,6 +128,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			*cfg.ethNodeAlchemyWS,
 		)
 		orShutdown(err)
+
+		log.WithField("eth_addr", ethKeyFromAddress.Hex()).Infoln("connected to Ethereum network")
 
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
 

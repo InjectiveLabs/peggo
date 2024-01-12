@@ -94,7 +94,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 
 	validator, err := s.inj.GetValidatorAddress(subCtx, s.eth.FromAddress())
 	if err != nil {
-		s.logger.WithError(err).Warningln("failed to get validator address")
+		s.logger.WithError(err).Debugln("no delegate validator address found")
 		return false
 	}
 
@@ -106,14 +106,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
-	log.WithFields(log.Fields{
-		"batch_requesting":   true,
-		"eth_event_tracking": true,
-		"batch_signing":      true,
-		"valset_signing":     true,
-		"valset_relaying":    s.valsetRelayEnabled,
-		"batch_relaying":     s.batchRelayEnabled,
-	}).Infoln("running in validator mode")
+	log.Infoln("running orchestrator in validator mode")
 
 	var pg loops.ParanoidGroup
 
@@ -129,11 +122,7 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
 func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
-	log.WithFields(log.Fields{
-		"batch_requesting": true,
-		"valset_relaying":  s.valsetRelayEnabled,
-		"batch_relaying":   s.batchRelayEnabled,
-	}).Infoln("running in relayer mode")
+	log.Infoln("running orchestrator in relayer mode")
 
 	var pg loops.ParanoidGroup
 
