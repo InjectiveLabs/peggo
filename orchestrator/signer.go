@@ -110,7 +110,7 @@ func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
 	}
 
 	if oldestUnsignedTransactionBatch == nil {
-		l.Logger().Debugln("no outgoing batch to confirm")
+		l.Logger().Debugln("no batch to confirm")
 		return nil
 	}
 

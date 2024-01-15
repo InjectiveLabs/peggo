@@ -19,7 +19,7 @@ push:
 install: export GOPROXY=direct
 install: export VERSION_FLAGS="-X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 install:
-	docker=$(DOCKER) && go install -tags muslc -ldflags $(VERSION_FLAGS) ./cmd/... || go install -ldflags $(VERSION_FLAGS) ./cmd/...
+	$(DOCKER) && go install -tags muslc -ldflags $(VERSION_FLAGS) ./cmd/... || go install -ldflags $(VERSION_FLAGS) ./cmd/...
 
 .PHONY: install image push test gen
 
