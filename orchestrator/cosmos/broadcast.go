@@ -235,6 +235,200 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	return nil
 }
 
+func (s *peggyBroadcastClient) SendToEth(
+	ctx context.Context,
+	destination ethcmn.Address,
+	amount, fee sdk.Coin,
+) error {
+	// MsgSendToEth
+	// This is the message that a user calls when they want to bridge an asset
+	// it will later be removed when it is included in a batch and successfully
+	// submitted tokens are removed from the users balance immediately
+	// -------------
+	// AMOUNT:
+	// the coin to send across the bridge, note the restriction that this is a
+	// single coin not a set of coins that is normal in other Cosmos messages
+	// FEE:
+	// the fee paid for the bridge, distinct from the fee paid to the chain to
+	// actually send this message in the first place. So a successful send has
+	// two layers of fees for the user
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	msg := &types.MsgSendToEth{
+		Sender:    s.AccFromAddress().String(),
+		EthDest:   destination.Hex(),
+		Amount:    amount,
+		BridgeFee: fee, // TODO: use exactly that fee for transaction
+	}
+	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		err = errors.Wrap(err, "broadcasting MsgSendToEth failed")
+		return err
+	}
+
+	return nil
+}
+
+func (s *peggyBroadcastClient) SendRequestBatch(
+	ctx context.Context,
+	denom string,
+) error {
+	// MsgRequestBatch
+	// this is a message anyone can send that requests a batch of transactions to
+	// send across the bridge be created for whatever block height this message is
+	// included in. This acts as a coordination point, the handler for this message
+	// looks at the AddToOutgoingPool tx's in the store and generates a batch, also
+	// available in the store tied to this message. The validators then grab this
+	// batch, sign it, submit the signatures with a MsgConfirmBatch before a relayer
+	// can finally submit the batch
+	// -------------
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	msg := &types.MsgRequestBatch{
+		Denom:        denom,
+		Orchestrator: s.AccFromAddress().String(),
+	}
+	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(s.svcTags)
+		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
+		return err
+	}
+
+	return nil
+}
+
+type event interface {
+	Nonce() uint64
+}
+
+type (
+	eventSendToCosmos             wrappers.PeggySendToCosmosEvent
+	eventSendToInjective          wrappers.PeggySendToInjectiveEvent
+	eventTransactionBatchExecuted wrappers.PeggyTransactionBatchExecutedEvent
+	eventERC20Deployed            wrappers.PeggyERC20DeployedEvent
+	eventValsetUpdated            wrappers.PeggyValsetUpdatedEvent
+)
+
+func (e eventSendToCosmos) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e eventSendToInjective) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e eventTransactionBatchExecuted) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e eventERC20Deployed) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e eventValsetUpdated) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (s *peggyBroadcastClient) SendEthereumClaims(
+	ctx context.Context,
+	lastClaimEvent uint64,
+	oldDeposits []*wrappers.PeggySendToCosmosEvent,
+	deposits []*wrappers.PeggySendToInjectiveEvent,
+	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
+	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
+	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
+) error {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	events := make([]event, 0)
+
+	for _, deposit := range oldDeposits {
+		events = append(events, eventSendToCosmos(*deposit))
+	}
+
+	for _, deposit := range deposits {
+		events = append(events, eventSendToInjective(*deposit))
+	}
+
+	for _, withdrawal := range withdraws {
+		events = append(events, eventTransactionBatchExecuted(*withdrawal))
+	}
+
+	for _, deployment := range erc20Deployed {
+		events = append(events, eventERC20Deployed(*deployment))
+	}
+
+	for _, vs := range valsetUpdates {
+		events = append(events, eventValsetUpdated(*vs))
+	}
+
+	// todo: sort the events
+
+	totalClaimEvents := len(oldDeposits) + len(deposits) + len(withdraws) + len(erc20Deployed) + len(valsetUpdates)
+	var count, h, i, j, k, l int
+
+	// Individual arrays (oldDeposits, deposits, withdraws, valsetUpdates) are sorted.
+	// Broadcast claim events sequentially starting with eventNonce = lastClaimEvent + 1.
+	for count < totalClaimEvents {
+		if h < len(oldDeposits) && oldDeposits[h].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send old deposit
+			if err := s.sendOldDepositClaims(ctx, oldDeposits[h]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			h++
+		}
+		if i < len(deposits) && deposits[i].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send deposit
+			if err := s.sendDepositClaims(ctx, deposits[i]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
+				return err
+			}
+			i++
+		} else if j < len(withdraws) && withdraws[j].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send withdraw claim
+			if err := s.sendWithdrawClaims(ctx, withdraws[j]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
+				return err
+			}
+			j++
+		} else if k < len(valsetUpdates) && valsetUpdates[k].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send valset update claim
+			if err := s.sendValsetUpdateClaims(ctx, valsetUpdates[k]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgValsetUpdateClaim failed")
+				return err
+			}
+			k++
+		} else if l < len(erc20Deployed) && erc20Deployed[l].EventNonce.Uint64() == lastClaimEvent+1 {
+			// send erc20 deployed claim
+			if err := s.sendErc20DeployedClaims(ctx, erc20Deployed[l]); err != nil {
+				metrics.ReportFuncError(s.svcTags)
+				log.WithError(err).Errorln("broadcasting MsgERC20DeployedClaim failed")
+				return err
+			}
+			l++
+		}
+		count = count + 1
+		lastClaimEvent = lastClaimEvent + 1
+
+		// Considering blockTime=1s on Injective chain, Adding Sleep to make sure new event is
+		// sent only after previous event is executed successfully.
+		// Otherwise it will through `non contiguous event nonce` failing CheckTx.
+		time.Sleep(1200 * time.Millisecond)
+	}
+	return nil
+}
+
 func (s *peggyBroadcastClient) sendOldDepositClaims(
 	ctx context.Context,
 	oldDeposit *wrappers.PeggySendToCosmosEvent,
@@ -450,144 +644,6 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 			"event_nonce": erc20Deployed.EventNonce.String(),
 			"tx_hash":     txResponse.TxResponse.TxHash,
 		}).Debugln("Oracle sent MsgERC20DeployedClaim")
-	}
-
-	return nil
-}
-
-func (s *peggyBroadcastClient) SendEthereumClaims(
-	ctx context.Context,
-	lastClaimEvent uint64,
-	oldDeposits []*wrappers.PeggySendToCosmosEvent,
-	deposits []*wrappers.PeggySendToInjectiveEvent,
-	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
-	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
-	totalClaimEvents := len(oldDeposits) + len(deposits) + len(withdraws) + len(erc20Deployed) + len(valsetUpdates)
-	var count, h, i, j, k, l int
-
-	// Individual arrays (oldDeposits, deposits, withdraws, valsetUpdates) are sorted.
-	// Broadcast claim events sequentially starting with eventNonce = lastClaimEvent + 1.
-	for count < totalClaimEvents {
-		if h < len(oldDeposits) && oldDeposits[h].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send old deposit
-			if err := s.sendOldDepositClaims(ctx, oldDeposits[h]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-				return err
-			}
-			h++
-		}
-		if i < len(deposits) && deposits[i].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send deposit
-			if err := s.sendDepositClaims(ctx, deposits[i]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-				return err
-			}
-			i++
-		} else if j < len(withdraws) && withdraws[j].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send withdraw claim
-			if err := s.sendWithdrawClaims(ctx, withdraws[j]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
-				return err
-			}
-			j++
-		} else if k < len(valsetUpdates) && valsetUpdates[k].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send valset update claim
-			if err := s.sendValsetUpdateClaims(ctx, valsetUpdates[k]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgValsetUpdateClaim failed")
-				return err
-			}
-			k++
-		} else if l < len(erc20Deployed) && erc20Deployed[l].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send erc20 deployed claim
-			if err := s.sendErc20DeployedClaims(ctx, erc20Deployed[l]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgERC20DeployedClaim failed")
-				return err
-			}
-			l++
-		}
-		count = count + 1
-		lastClaimEvent = lastClaimEvent + 1
-
-		// Considering blockTime=1s on Injective chain, Adding Sleep to make sure new event is
-		// sent only after previous event is executed successfully.
-		// Otherwise it will through `non contiguous event nonce` failing CheckTx.
-		time.Sleep(1200 * time.Millisecond)
-	}
-	return nil
-}
-
-func (s *peggyBroadcastClient) SendToEth(
-	ctx context.Context,
-	destination ethcmn.Address,
-	amount, fee sdk.Coin,
-) error {
-	// MsgSendToEth
-	// This is the message that a user calls when they want to bridge an asset
-	// it will later be removed when it is included in a batch and successfully
-	// submitted tokens are removed from the users balance immediately
-	// -------------
-	// AMOUNT:
-	// the coin to send across the bridge, note the restriction that this is a
-	// single coin not a set of coins that is normal in other Cosmos messages
-	// FEE:
-	// the fee paid for the bridge, distinct from the fee paid to the chain to
-	// actually send this message in the first place. So a successful send has
-	// two layers of fees for the user
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
-	msg := &types.MsgSendToEth{
-		Sender:    s.AccFromAddress().String(),
-		EthDest:   destination.Hex(),
-		Amount:    amount,
-		BridgeFee: fee, // TODO: use exactly that fee for transaction
-	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgSendToEth failed")
-		return err
-	}
-
-	return nil
-}
-
-func (s *peggyBroadcastClient) SendRequestBatch(
-	ctx context.Context,
-	denom string,
-) error {
-	// MsgRequestBatch
-	// this is a message anyone can send that requests a batch of transactions to
-	// send across the bridge be created for whatever block height this message is
-	// included in. This acts as a coordination point, the handler for this message
-	// looks at the AddToOutgoingPool tx's in the store and generates a batch, also
-	// available in the store tied to this message. The validators then grab this
-	// batch, sign it, submit the signatures with a MsgConfirmBatch before a relayer
-	// can finally submit the batch
-	// -------------
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
-	msg := &types.MsgRequestBatch{
-		Denom:        denom,
-		Orchestrator: s.AccFromAddress().String(),
-	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
-		return err
 	}
 
 	return nil
