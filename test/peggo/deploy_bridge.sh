@@ -51,17 +51,19 @@ peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy \
                     deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
 echo "Deployed TransparentUpgradeableProxy for $peggy_impl_address (Peggy) with $proxy_admin_address (ProxyAdmin) as the admin"
 
-coin_contract_address=$(etherman --name CosmosERC20 \
-                      -P "$deployer_pk" \
-                      --source "$cosmos_coin_contract_path" \
-                      deploy "$peggy_proxy_address" "Injective" "inj" 18)
-echo "Deployed Cosmos Coin contract: $coin_contract_address"
 
+# get the block number early so Oracle can catch the first event by Peggy.sol
 peggy_block_number=$(curl http://localhost:8545 \
                 -X POST \
                 -H "Content-Type: application/json" \
                 -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' 2>/dev/null \
                 | python3 -c "import sys, json; print(int(json.load(sys.stdin)['result']['number'], 0))")
+
+coin_contract_address=$(etherman --name CosmosERC20 \
+                      -P "$deployer_pk" \
+                      --source "$cosmos_coin_contract_path" \
+                      deploy "$peggy_proxy_address" "Injective" "inj" 18)
+echo "Deployed Cosmos Coin contract: $coin_contract_address"
 
 echo "Peggy deployment done!"
 echo "  * Contract address: $peggy_proxy_address"
