@@ -3,6 +3,7 @@ package cosmos
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,15 +11,12 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-
 	"github.com/InjectiveLabs/metrics"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
-
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 )
 
 type PeggyBroadcastClient interface {
@@ -38,7 +36,7 @@ type PeggyBroadcastClient interface {
 		ctx context.Context,
 		ethFrom ethcmn.Address,
 		peggyID ethcmn.Hash,
-		valset *types.Valset,
+		valset *peggytypes.Valset,
 	) error
 
 	// SendBatchConfirm broadcasts in a confirmation for a specific transaction batch set for a specific block height
@@ -47,18 +45,18 @@ type PeggyBroadcastClient interface {
 		ctx context.Context,
 		ethFrom ethcmn.Address,
 		peggyID ethcmn.Hash,
-		batch *types.OutgoingTxBatch,
+		batch *peggytypes.OutgoingTxBatch,
 	) error
 
 	SendEthereumClaims(
 		ctx context.Context,
 		lastClaimEvent uint64,
-		oldDeposits []*wrappers.PeggySendToCosmosEvent,
-		deposits []*wrappers.PeggySendToInjectiveEvent,
-		withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-		erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
-		valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-	) error
+		oldDeposits []*peggyevents.PeggySendToCosmosEvent,
+		deposits []*peggyevents.PeggySendToInjectiveEvent,
+		withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
+		erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
+		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
+	) (uint64, error)
 
 	// SendToEth broadcasts a Tx that tokens from Cosmos to Ethereum.
 	// These tokens will not be sent immediately. Instead, they will require
@@ -77,7 +75,7 @@ type PeggyBroadcastClient interface {
 }
 
 func NewPeggyBroadcastClient(
-	queryClient types.QueryClient,
+	queryClient peggytypes.QueryClient,
 	broadcastClient chainclient.ChainClient,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
@@ -101,7 +99,7 @@ func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
 }
 
 type peggyBroadcastClient struct {
-	daemonQueryClient types.QueryClient
+	daemonQueryClient peggytypes.QueryClient
 	broadcastClient   chainclient.ChainClient
 	ethSignerFn       keystore.SignerFn
 	ethPersonalSignFn keystore.PersonalSignFn
@@ -129,7 +127,7 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	// sets submissions carry any weight.
 
 	// -------------
-	msg := &types.MsgSetOrchestratorAddresses{
+	msg := &peggytypes.MsgSetOrchestratorAddresses{
 		Sender:       s.AccFromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
 		Orchestrator: orchestratorAddr.String(),
@@ -150,7 +148,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
 	peggyID ethcmn.Hash,
-	valset *types.Valset,
+	valset *peggytypes.Valset,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -178,7 +176,7 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	// signatures it is then possible for anyone to view these signatures in the
 	// chain store and submit them to Ethereum to update the validator set
 	// -------------
-	msg := &types.MsgValsetConfirm{
+	msg := &peggytypes.MsgValsetConfirm{
 		Orchestrator: s.AccFromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
 		Nonce:        valset.Nonce,
@@ -197,7 +195,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	ctx context.Context,
 	ethFrom ethcmn.Address,
 	peggyID ethcmn.Hash,
-	batch *types.OutgoingTxBatch,
+	batch *peggytypes.OutgoingTxBatch,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -219,7 +217,7 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	// (TODO determine this without nondeterminism) This message includes the batch
 	// as well as an Ethereum signature over this batch by the validator
 	// -------------
-	msg := &types.MsgConfirmBatch{
+	msg := &peggytypes.MsgConfirmBatch{
 		Orchestrator:  s.AccFromAddress().String(),
 		Nonce:         batch.BatchNonce,
 		Signature:     ethcmn.Bytes2Hex(signature),
@@ -256,7 +254,7 @@ func (s *peggyBroadcastClient) SendToEth(
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	msg := &types.MsgSendToEth{
+	msg := &peggytypes.MsgSendToEth{
 		Sender:    s.AccFromAddress().String(),
 		EthDest:   destination.Hex(),
 		Amount:    amount,
@@ -288,7 +286,7 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	msg := &types.MsgRequestBatch{
+	msg := &peggytypes.MsgRequestBatch{
 		Denom:        denom,
 		Orchestrator: s.AccFromAddress().String(),
 	}
@@ -301,137 +299,142 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	return nil
 }
 
-type event interface {
-	Nonce() uint64
-}
-
-type (
-	eventSendToCosmos             wrappers.PeggySendToCosmosEvent
-	eventSendToInjective          wrappers.PeggySendToInjectiveEvent
-	eventTransactionBatchExecuted wrappers.PeggyTransactionBatchExecutedEvent
-	eventERC20Deployed            wrappers.PeggyERC20DeployedEvent
-	eventValsetUpdated            wrappers.PeggyValsetUpdatedEvent
-)
-
-func (e eventSendToCosmos) Nonce() uint64 {
-	return e.EventNonce.Uint64()
-}
-
-func (e eventSendToInjective) Nonce() uint64 {
-	return e.EventNonce.Uint64()
-}
-
-func (e eventTransactionBatchExecuted) Nonce() uint64 {
-	return e.EventNonce.Uint64()
-}
-
-func (e eventERC20Deployed) Nonce() uint64 {
-	return e.EventNonce.Uint64()
-}
-
-func (e eventValsetUpdated) Nonce() uint64 {
-	return e.EventNonce.Uint64()
-}
-
 func (s *peggyBroadcastClient) SendEthereumClaims(
 	ctx context.Context,
-	lastClaimEvent uint64,
-	oldDeposits []*wrappers.PeggySendToCosmosEvent,
-	deposits []*wrappers.PeggySendToInjectiveEvent,
-	withdraws []*wrappers.PeggyTransactionBatchExecutedEvent,
-	erc20Deployed []*wrappers.PeggyERC20DeployedEvent,
-	valsetUpdates []*wrappers.PeggyValsetUpdatedEvent,
-) error {
+	lastClaimEventNonce uint64,
+	oldDeposits []*peggyevents.PeggySendToCosmosEvent,
+	deposits []*peggyevents.PeggySendToInjectiveEvent,
+	withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
+	erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
+	valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
+) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	events := make([]event, 0)
+	events := sortEventsByNonce(oldDeposits, deposits, withdraws, erc20Deployed, valsetUpdates)
 
-	for _, deposit := range oldDeposits {
-		events = append(events, eventSendToCosmos(*deposit))
+	// this can't happen outside of programmer error
+	if firstToSend := events[0]; firstToSend.Nonce() != lastClaimEventNonce+1 {
+		return 0, errors.Errorf("expected event with nonce %d, got %d", lastClaimEventNonce+1, firstToSend.Nonce())
 	}
 
-	for _, deposit := range deposits {
-		events = append(events, eventSendToInjective(*deposit))
-	}
-
-	for _, withdrawal := range withdraws {
-		events = append(events, eventTransactionBatchExecuted(*withdrawal))
-	}
-
-	for _, deployment := range erc20Deployed {
-		events = append(events, eventERC20Deployed(*deployment))
-	}
-
-	for _, vs := range valsetUpdates {
-		events = append(events, eventValsetUpdated(*vs))
-	}
-
-	// todo: sort the events
-
-	totalClaimEvents := len(oldDeposits) + len(deposits) + len(withdraws) + len(erc20Deployed) + len(valsetUpdates)
-	var count, h, i, j, k, l int
-
-	// Individual arrays (oldDeposits, deposits, withdraws, valsetUpdates) are sorted.
-	// Broadcast claim events sequentially starting with eventNonce = lastClaimEvent + 1.
-	for count < totalClaimEvents {
-		if h < len(oldDeposits) && oldDeposits[h].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send old deposit
-			if err := s.sendOldDepositClaims(ctx, oldDeposits[h]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-				return err
-			}
-			h++
+	for _, e := range events {
+		if err := s.sendEventClaim(ctx, e); err != nil {
+			return 0, err
 		}
-		if i < len(deposits) && deposits[i].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send deposit
-			if err := s.sendDepositClaims(ctx, deposits[i]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-				return err
-			}
-			i++
-		} else if j < len(withdraws) && withdraws[j].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send withdraw claim
-			if err := s.sendWithdrawClaims(ctx, withdraws[j]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
-				return err
-			}
-			j++
-		} else if k < len(valsetUpdates) && valsetUpdates[k].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send valset update claim
-			if err := s.sendValsetUpdateClaims(ctx, valsetUpdates[k]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgValsetUpdateClaim failed")
-				return err
-			}
-			k++
-		} else if l < len(erc20Deployed) && erc20Deployed[l].EventNonce.Uint64() == lastClaimEvent+1 {
-			// send erc20 deployed claim
-			if err := s.sendErc20DeployedClaims(ctx, erc20Deployed[l]); err != nil {
-				metrics.ReportFuncError(s.svcTags)
-				log.WithError(err).Errorln("broadcasting MsgERC20DeployedClaim failed")
-				return err
-			}
-			l++
-		}
-		count = count + 1
-		lastClaimEvent = lastClaimEvent + 1
 
 		// Considering blockTime=1s on Injective chain, Adding Sleep to make sure new event is
 		// sent only after previous event is executed successfully.
 		// Otherwise it will through `non contiguous event nonce` failing CheckTx.
 		time.Sleep(1200 * time.Millisecond)
 	}
-	return nil
+
+	lastClaimEventNonce = events[len(events)-1].Nonce()
+
+	return lastClaimEventNonce, nil
+}
+
+type event interface {
+	Nonce() uint64
+}
+
+type (
+	eventSendToCosmos             peggyevents.PeggySendToCosmosEvent
+	eventSendToInjective          peggyevents.PeggySendToInjectiveEvent
+	eventTransactionBatchExecuted peggyevents.PeggyTransactionBatchExecutedEvent
+	eventERC20Deployed            peggyevents.PeggyERC20DeployedEvent
+	eventValsetUpdated            peggyevents.PeggyValsetUpdatedEvent
+)
+
+func (e *eventSendToCosmos) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e *eventSendToInjective) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e *eventTransactionBatchExecuted) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e *eventERC20Deployed) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func (e *eventValsetUpdated) Nonce() uint64 {
+	return e.EventNonce.Uint64()
+}
+
+func sortEventsByNonce(
+	oldDeposits []*peggyevents.PeggySendToCosmosEvent,
+	deposits []*peggyevents.PeggySendToInjectiveEvent,
+	withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
+	erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
+	valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
+) []event {
+	total := len(oldDeposits) + len(deposits) + len(withdraws) + len(erc20Deployed) + len(valsetUpdates)
+	events := make([]event, 0, total)
+
+	for _, deposit := range oldDeposits {
+		e := eventSendToCosmos(*deposit)
+		events = append(events, &e)
+	}
+
+	for _, deposit := range deposits {
+		e := eventSendToInjective(*deposit)
+		events = append(events, &e)
+	}
+
+	for _, withdrawal := range withdraws {
+		e := eventTransactionBatchExecuted(*withdrawal)
+		events = append(events, &e)
+	}
+
+	for _, deployment := range erc20Deployed {
+		e := eventERC20Deployed(*deployment)
+		events = append(events, &e)
+	}
+
+	for _, vs := range valsetUpdates {
+		e := eventValsetUpdated(*vs)
+		events = append(events, &e)
+	}
+
+	// sort by nonce
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Nonce() < events[j].Nonce()
+	})
+
+	return events
+}
+
+func (s *peggyBroadcastClient) sendEventClaim(ctx context.Context, ev event) error {
+	switch ev := ev.(type) {
+	case *eventSendToCosmos:
+		e := peggyevents.PeggySendToCosmosEvent(*ev)
+		return s.sendOldDepositClaims(ctx, &e)
+	case *eventSendToInjective:
+		e := peggyevents.PeggySendToInjectiveEvent(*ev)
+		return s.sendDepositClaims(ctx, &e)
+	case *eventTransactionBatchExecuted:
+		e := peggyevents.PeggyTransactionBatchExecutedEvent(*ev)
+		return s.sendWithdrawClaims(ctx, &e)
+	case *eventERC20Deployed:
+		e := peggyevents.PeggyERC20DeployedEvent(*ev)
+		return s.sendErc20DeployedClaims(ctx, &e)
+	case *eventValsetUpdated:
+		e := peggyevents.PeggyValsetUpdatedEvent(*ev)
+		return s.sendValsetUpdateClaims(ctx, &e)
+	}
+
+	return errors.Errorf("unknown event type %T", ev)
 }
 
 func (s *peggyBroadcastClient) sendOldDepositClaims(
 	ctx context.Context,
-	oldDeposit *wrappers.PeggySendToCosmosEvent,
+	oldDeposit *peggyevents.PeggySendToCosmosEvent,
 ) error {
 	// EthereumBridgeDepositClaim
 	// When more than 66% of the active validator set has
@@ -449,7 +452,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		"event_nonce": oldDeposit.EventNonce.String(),
 	}).Debugln("observed SendToCosmosEvent")
 
-	msg := &types.MsgDepositClaim{
+	msg := &peggytypes.MsgDepositClaim{
 		EventNonce:     oldDeposit.EventNonce.Uint64(),
 		BlockHeight:    oldDeposit.Raw.BlockNumber,
 		TokenContract:  oldDeposit.TokenContract.Hex(),
@@ -476,7 +479,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 
 func (s *peggyBroadcastClient) sendDepositClaims(
 	ctx context.Context,
-	deposit *wrappers.PeggySendToInjectiveEvent,
+	deposit *peggyevents.PeggySendToInjectiveEvent,
 ) error {
 	// EthereumBridgeDepositClaim
 	// When more than 66% of the active validator set has
@@ -495,7 +498,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		"data":        deposit.Data,
 	}).Debugln("observed SendToInjectiveEvent")
 
-	msg := &types.MsgDepositClaim{
+	msg := &peggytypes.MsgDepositClaim{
 		EventNonce:     deposit.EventNonce.Uint64(),
 		BlockHeight:    deposit.Raw.BlockNumber,
 		TokenContract:  deposit.TokenContract.Hex(),
@@ -522,7 +525,7 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 
 func (s *peggyBroadcastClient) sendWithdrawClaims(
 	ctx context.Context,
-	withdraw *wrappers.PeggyTransactionBatchExecutedEvent,
+	withdraw *peggyevents.PeggyTransactionBatchExecutedEvent,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -536,7 +539,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 
 	// WithdrawClaim claims that a batch of withdrawal
 	// operations on the bridge contract was executed.
-	msg := &types.MsgWithdrawClaim{
+	msg := &peggytypes.MsgWithdrawClaim{
 		EventNonce:    withdraw.EventNonce.Uint64(),
 		BatchNonce:    withdraw.BatchNonce.Uint64(),
 		BlockHeight:   withdraw.Raw.BlockNumber,
@@ -560,7 +563,7 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 
 func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	ctx context.Context,
-	valsetUpdate *wrappers.PeggyValsetUpdatedEvent,
+	valsetUpdate *peggyevents.PeggyValsetUpdatedEvent,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -575,15 +578,15 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 		"reward_token":  valsetUpdate.RewardToken.Hex(),
 	}).Debugln("observed ValsetUpdatedEvent")
 
-	members := make([]*types.BridgeValidator, len(valsetUpdate.Validators))
+	members := make([]*peggytypes.BridgeValidator, len(valsetUpdate.Validators))
 	for i, val := range valsetUpdate.Validators {
-		members[i] = &types.BridgeValidator{
+		members[i] = &peggytypes.BridgeValidator{
 			EthereumAddress: val.Hex(),
 			Power:           valsetUpdate.Powers[i].Uint64(),
 		}
 	}
 
-	msg := &types.MsgValsetUpdatedClaim{
+	msg := &peggytypes.MsgValsetUpdatedClaim{
 		EventNonce:   valsetUpdate.EventNonce.Uint64(),
 		ValsetNonce:  valsetUpdate.NewValsetNonce.Uint64(),
 		BlockHeight:  valsetUpdate.Raw.BlockNumber,
@@ -609,7 +612,7 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 
 func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 	ctx context.Context,
-	erc20Deployed *wrappers.PeggyERC20DeployedEvent,
+	erc20Deployed *peggyevents.PeggyERC20DeployedEvent,
 ) error {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
@@ -624,7 +627,7 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 		"decimals":       erc20Deployed.Decimals,
 	}).Debugln("observed ERC20DeployedEvent")
 
-	msg := &types.MsgERC20DeployedClaim{
+	msg := &peggytypes.MsgERC20DeployedClaim{
 		EventNonce:    erc20Deployed.EventNonce.Uint64(),
 		BlockHeight:   erc20Deployed.Raw.BlockNumber,
 		CosmosDenom:   erc20Deployed.CosmosDenom,

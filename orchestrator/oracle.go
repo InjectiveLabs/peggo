@@ -200,30 +200,26 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 		erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
 		valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
 
-		if noEvents := len(legacyDeposits) == 0 && len(deposits) == 0 && len(withdrawals) == 0 &&
-			len(erc20Deployments) == 0 && len(valsetUpdates) == 0; noEvents {
+		events := len(legacyDeposits) + len(deposits) + len(withdrawals) + len(erc20Deployments) + len(valsetUpdates)
+		if events == 0 {
 			l.Logger().Infoln("no new events on Ethereum")
 			return nil
 		}
 
-		if err := l.inj.SendEthereumClaims(ctx,
+		latestEventNonce, err := l.inj.SendEthereumClaims(ctx,
 			lastClaimEvent.EthereumEventNonce,
 			legacyDeposits,
 			deposits,
 			withdrawals,
 			erc20Deployments,
 			valsetUpdates,
-		); err != nil {
+		)
+
+		if err != nil {
 			return errors.Wrap(err, "failed to send event claims to Injective")
 		}
 
-		l.Logger().WithFields(log.Fields{
-			"legacy_deposits":   len(legacyDeposits),
-			"deposits":          len(deposits),
-			"withdrawals":       len(withdrawals),
-			"erc20_deployments": len(erc20Deployments),
-			"valset_updates":    len(valsetUpdates),
-		}).Infoln("sent new event claims to Injective")
+		l.Logger().WithFields(log.Fields{"num": events, "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}

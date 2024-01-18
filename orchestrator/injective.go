@@ -25,7 +25,7 @@ type InjectiveNetwork interface {
 		withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
 		erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
 		valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
-	) error
+	) (uint64, error)
 
 	UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	SendRequestBatch(ctx context.Context, denom string) error
