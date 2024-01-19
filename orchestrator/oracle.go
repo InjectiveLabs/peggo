@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -132,99 +133,152 @@ func (l *ethOracleLoop) observeEthEvents(ctx context.Context) error {
 }
 
 func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
-	var (
-		currentHeight = l.lastCheckedEthHeight
-		latestHeight  uint64
-	)
-
-	scanEthBlocksAndRelayEventsFn := func() error {
-		metrics.ReportFuncCall(l.svcTags)
-		doneFn := metrics.ReportFuncTiming(l.svcTags)
-		defer doneFn()
-
+	var latestHeight uint64
+	getLatestEthHeightFn := func() error {
 		latestHeader, err := l.eth.HeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
 
-		// add delay to ensure minimum confirmations are received and block is finalised
-		latestHeight = latestHeader.Number.Uint64() - ethBlockConfirmationDelay
-		if latestHeight < currentHeight {
-			return nil
-		}
+		latestHeight = latestHeader.Number.Uint64()
+		return nil
+	}
 
-		if latestHeight > currentHeight+defaultBlocksToSearch {
-			latestHeight = currentHeight + defaultBlocksToSearch
-		}
+	if err := retry.Do(getLatestEthHeightFn,
+		retry.Context(ctx),
+		retry.Attempts(l.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
+		}),
+	); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return 0, err
+	}
 
-		legacyDeposits, err := l.eth.GetSendToCosmosEvents(currentHeight, latestHeight)
+	// not enough blocks on ethereum yet
+	if latestHeight <= ethBlockConfirmationDelay {
+		return l.lastCheckedEthHeight, nil
+	}
+
+	latestHeight = latestHeight - ethBlockConfirmationDelay // ensure minimum confirmations that a block is finalized
+	if latestHeight <= l.lastCheckedEthHeight {
+		return l.lastCheckedEthHeight, nil
+	}
+
+	if latestHeight > l.lastCheckedEthHeight+defaultBlocksToSearch {
+		latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
+	}
+
+	// query all events within [lastCheckedEthHeight, latestHeight] range
+	events := struct {
+		oldDeposits      []*peggyevents.PeggySendToCosmosEvent
+		deposits         []*peggyevents.PeggySendToInjectiveEvent
+		withdrawals      []*peggyevents.PeggyTransactionBatchExecutedEvent
+		valsetUpdates    []*peggyevents.PeggyValsetUpdatedEvent
+		erc20Deployments []*peggyevents.PeggyERC20DeployedEvent
+	}{}
+
+	scanEthEventsFn := func() error {
+		legacyDeposits, err := l.eth.GetSendToCosmosEvents(l.lastCheckedEthHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToCosmos events")
 		}
 
-		deposits, err := l.eth.GetSendToInjectiveEvents(currentHeight, latestHeight)
+		deposits, err := l.eth.GetSendToInjectiveEvents(l.lastCheckedEthHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToInjective events")
 		}
 
-		withdrawals, err := l.eth.GetTransactionBatchExecutedEvents(currentHeight, latestHeight)
+		withdrawals, err := l.eth.GetTransactionBatchExecutedEvents(l.lastCheckedEthHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get TransactionBatchExecuted events")
 		}
 
-		erc20Deployments, err := l.eth.GetPeggyERC20DeployedEvents(currentHeight, latestHeight)
+		erc20Deployments, err := l.eth.GetPeggyERC20DeployedEvents(l.lastCheckedEthHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ERC20Deployed events")
 		}
 
-		valsetUpdates, err := l.eth.GetValsetUpdatedEvents(currentHeight, latestHeight)
+		valsetUpdates, err := l.eth.GetValsetUpdatedEvents(l.lastCheckedEthHeight, latestHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ValsetUpdated events")
 		}
 
-		// note that starting block overlaps with our last checked block, because we have to deal with
-		// the possibility that the relayer was killed after relaying only one of multiple events in a single
-		// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
-		// multi event block again. In theory we only send all events for every block and that will pass of fail
-		// atomically but lets not take that risk.
-		lastClaimEvent, err := l.inj.LastClaimEvent(ctx)
+		events.oldDeposits = legacyDeposits
+		events.deposits = deposits
+		events.withdrawals = withdrawals
+		events.valsetUpdates = valsetUpdates
+		events.erc20Deployments = erc20Deployments
+
+		return nil
+	}
+
+	if err := retry.Do(scanEthEventsFn,
+		retry.Context(ctx),
+		retry.Attempts(l.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
+		}),
+	); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return 0, err
+	}
+
+	var lastClaimEvent *types.LastClaimEvent
+	getLastClaimEventFn := func() error {
+		claim, err := l.inj.LastClaimEvent(ctx)
 		if err != nil {
 			return errors.Wrap(err, "failed to query last claim event from Injective")
 		}
 
-		l.Logger().WithFields(log.Fields{"event_nonce": lastClaimEvent.EthereumEventNonce, "event_height": lastClaimEvent.EthereumEventHeight}).Debugln("last observed Ethereum event")
+		lastClaimEvent = claim
+		return nil
+	}
 
-		legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
-		deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
-		withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
-		erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
-		valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
+	if err := retry.Do(getLastClaimEventFn,
+		retry.Context(ctx),
+		retry.Attempts(l.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
+		}),
+	); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return 0, err
+	}
 
-		events := len(legacyDeposits) + len(deposits) + len(withdrawals) + len(erc20Deployments) + len(valsetUpdates)
-		if events == 0 {
-			l.Logger().Infoln("no new events on Ethereum")
-			return nil
-		}
+	// filter processed events
+	events.oldDeposits = filterSendToCosmosEventsByNonce(events.oldDeposits, lastClaimEvent.EthereumEventNonce)
+	events.deposits = filterSendToInjectiveEventsByNonce(events.deposits, lastClaimEvent.EthereumEventNonce)
+	events.withdrawals = filterTransactionBatchExecutedEventsByNonce(events.withdrawals, lastClaimEvent.EthereumEventNonce)
+	events.erc20Deployments = filterERC20DeployedEventsByNonce(events.erc20Deployments, lastClaimEvent.EthereumEventNonce)
+	events.valsetUpdates = filterValsetUpdateEventsByNonce(events.valsetUpdates, lastClaimEvent.EthereumEventNonce)
 
-		latestEventNonce, err := l.inj.SendEthereumClaims(ctx,
+	eventsNum := len(events.oldDeposits) + len(events.deposits) + len(events.valsetUpdates) + len(events.withdrawals) + len(events.erc20Deployments)
+	if eventsNum == 0 {
+		l.Logger().Infoln("no new events on Ethereum")
+		return latestHeight, nil
+	}
+
+	sendClaimsFn := func() error {
+		newEventNonce, err := l.inj.SendEthereumClaims(ctx,
 			lastClaimEvent.EthereumEventNonce,
-			legacyDeposits,
-			deposits,
-			withdrawals,
-			erc20Deployments,
-			valsetUpdates,
+			events.oldDeposits,
+			events.deposits,
+			events.withdrawals,
+			events.erc20Deployments,
+			events.valsetUpdates,
 		)
 
 		if err != nil {
 			return errors.Wrap(err, "failed to send event claims to Injective")
 		}
 
-		l.Logger().WithFields(log.Fields{"num": events, "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
+		l.Logger().WithFields(log.Fields{"num": events, "latest_event_nonce": newEventNonce}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
 
-	if err := retry.Do(scanEthBlocksAndRelayEventsFn,
+	if err := retry.Do(sendClaimsFn,
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
@@ -236,6 +290,106 @@ func (l *ethOracleLoop) relayEvents(ctx context.Context) (uint64, error) {
 	}
 
 	return latestHeight, nil
+	//
+	//scanEthBlocksAndRelayEventsFn := func() error {
+	//	metrics.ReportFuncCall(l.svcTags)
+	//	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	//	defer doneFn()
+	//
+	//	latestHeader, err := l.eth.HeaderByNumber(ctx, nil)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get latest ethereum header")
+	//	}
+	//
+	//	// add delay to ensure minimum confirmations are received and block is finalised
+	//	latestHeight = latestHeader.Number.Uint64() - ethBlockConfirmationDelay
+	//	if latestHeight < currentHeight {
+	//		return nil
+	//	}
+	//
+	//	if latestHeight > currentHeight+defaultBlocksToSearch {
+	//		latestHeight = currentHeight + defaultBlocksToSearch
+	//	}
+	//
+	//	legacyDeposits, err := l.eth.GetSendToCosmosEvents(currentHeight, latestHeight)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get SendToCosmos events")
+	//	}
+	//
+	//	deposits, err := l.eth.GetSendToInjectiveEvents(currentHeight, latestHeight)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get SendToInjective events")
+	//	}
+	//
+	//	withdrawals, err := l.eth.GetTransactionBatchExecutedEvents(currentHeight, latestHeight)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get TransactionBatchExecuted events")
+	//	}
+	//
+	//	erc20Deployments, err := l.eth.GetPeggyERC20DeployedEvents(currentHeight, latestHeight)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get ERC20Deployed events")
+	//	}
+	//
+	//	valsetUpdates, err := l.eth.GetValsetUpdatedEvents(currentHeight, latestHeight)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to get ValsetUpdated events")
+	//	}
+	//
+	//	// note that starting block overlaps with our last checked block, because we have to deal with
+	//	// the possibility that the relayer was killed after relaying only one of multiple events in a single
+	//	// block, so we also need this routine so make sure we don't send in the first event in this hypothetical
+	//	// multi event block again. In theory we only send all events for every block and that will pass of fail
+	//	// atomically but lets not take that risk.
+	//	lastClaimEvent, err := l.inj.LastClaimEvent(ctx)
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to query last claim event from Injective")
+	//	}
+	//
+	//	l.Logger().WithFields(log.Fields{"event_nonce": lastClaimEvent.EthereumEventNonce, "event_height": lastClaimEvent.EthereumEventHeight}).Debugln("last observed Ethereum event")
+	//
+	//	legacyDeposits = filterSendToCosmosEventsByNonce(legacyDeposits, lastClaimEvent.EthereumEventNonce)
+	//	deposits = filterSendToInjectiveEventsByNonce(deposits, lastClaimEvent.EthereumEventNonce)
+	//	withdrawals = filterTransactionBatchExecutedEventsByNonce(withdrawals, lastClaimEvent.EthereumEventNonce)
+	//	erc20Deployments = filterERC20DeployedEventsByNonce(erc20Deployments, lastClaimEvent.EthereumEventNonce)
+	//	valsetUpdates = filterValsetUpdateEventsByNonce(valsetUpdates, lastClaimEvent.EthereumEventNonce)
+	//
+	//	events := len(legacyDeposits) + len(deposits) + len(withdrawals) + len(erc20Deployments) + len(valsetUpdates)
+	//	if events == 0 {
+	//		l.Logger().Infoln("no new events on Ethereum")
+	//		return nil
+	//	}
+	//
+	//	latestEventNonce, err := l.inj.SendEthereumClaims(ctx,
+	//		lastClaimEvent.EthereumEventNonce,
+	//		legacyDeposits,
+	//		deposits,
+	//		withdrawals,
+	//		erc20Deployments,
+	//		valsetUpdates,
+	//	)
+	//
+	//	if err != nil {
+	//		return errors.Wrap(err, "failed to send event claims to Injective")
+	//	}
+	//
+	//	l.Logger().WithFields(log.Fields{"num": events, "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
+	//
+	//	return nil
+	//}
+	//
+	//if err := retry.Do(scanEthBlocksAndRelayEventsFn,
+	//	retry.Context(ctx),
+	//	retry.Attempts(l.maxAttempts),
+	//	retry.OnRetry(func(n uint, err error) {
+	//		l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
+	//	}),
+	//); err != nil {
+	//	l.Logger().WithError(err).Errorln("got error, loop exits")
+	//	return 0, err
+	//}
+	//
+	//return latestHeight, nil
 }
 
 func (l *ethOracleLoop) autoResync(ctx context.Context) error {
