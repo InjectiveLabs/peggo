@@ -31,8 +31,6 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context, lastObservedB
 		lastResyncWithInjective: time.Now(),
 	}
 
-	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting EthOracle loop...")
-
 	return loop.Run(ctx)
 }
 
@@ -48,6 +46,8 @@ func (l *ethOracleLoop) Logger() log.Logger {
 }
 
 func (l *ethOracleLoop) Run(ctx context.Context) error {
+	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting EthOracle loop...")
+
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
 		return l.observeEthEvents(ctx)
 	})

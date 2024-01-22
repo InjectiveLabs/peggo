@@ -15,7 +15,7 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 const (
@@ -24,16 +24,14 @@ const (
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
+	if noRelay := !s.batchRelayEnabled && !s.valsetRelayEnabled; noRelay {
+		return nil
+	}
+
 	loop := relayerLoop{
 		PeggyOrchestrator: s,
 		loopDuration:      defaultRelayerLoopDur,
 	}
-
-	s.logger.WithFields(log.Fields{
-		"loop_duration": loop.loopDuration.String(),
-		"relay_batches": s.batchRelayEnabled,
-		"relay_valsets": s.valsetRelayEnabled,
-	}).Debugln("starting Relayer loop...")
 
 	return loop.Run(ctx)
 }
@@ -48,6 +46,11 @@ func (l *relayerLoop) Logger() log.Logger {
 }
 
 func (l *relayerLoop) Run(ctx context.Context) error {
+	l.Logger().WithFields(log.Fields{
+		"loop_duration": l.loopDuration.String(),
+		"relay_batches": l.batchRelayEnabled,
+		"relay_valsets": l.valsetRelayEnabled,
+	}).Debugln("starting Relayer loop...")
 
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
 		return l.relayValsetsAndBatches(ctx)
@@ -104,8 +107,8 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 	}
 
 	var (
-		oldestConfirmedValset     *types.Valset
-		oldestConfirmedValsetSigs []*types.MsgValsetConfirm
+		oldestConfirmedValset     *peggytypes.Valset
+		oldestConfirmedValsetSigs []*peggytypes.MsgValsetConfirm
 	)
 
 	for _, set := range latestValsets {
@@ -187,8 +190,8 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	}
 
 	var (
-		oldestConfirmedBatch     *types.OutgoingTxBatch
-		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
+		oldestConfirmedBatch     *peggytypes.OutgoingTxBatch
+		oldestConfirmedBatchSigs []*peggytypes.MsgConfirmBatch
 	)
 
 	for _, batch := range latestBatches {
@@ -266,7 +269,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 // as the latest update will be in recent blockchain history and the search moves from the present
 // backwards in time. In the case that the validator set has not been updated for a very long time
 // this will take longer.
-func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) (*types.Valset, error) {
+func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context, injective InjectiveNetwork, ethereum EthereumNetwork) (*peggytypes.Valset, error) {
 	latestHeader, err := ethereum.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get latest eth header")
@@ -310,15 +313,15 @@ func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context, injective Injec
 
 		// we take only the first event if we find any at all.
 		event := valsetUpdatedEvents[0]
-		valset := &types.Valset{
+		valset := &peggytypes.Valset{
 			Nonce:        event.NewValsetNonce.Uint64(),
-			Members:      make([]*types.BridgeValidator, 0, len(event.Powers)),
+			Members:      make([]*peggytypes.BridgeValidator, 0, len(event.Powers)),
 			RewardAmount: sdk.NewIntFromBigInt(event.RewardAmount),
 			RewardToken:  event.RewardToken.Hex(),
 		}
 
 		for idx, p := range event.Powers {
-			valset.Members = append(valset.Members, &types.BridgeValidator{
+			valset.Members = append(valset.Members, &peggytypes.BridgeValidator{
 				Power:           p.Uint64(),
 				EthereumAddress: event.Validators[idx].Hex(),
 			})
@@ -352,7 +355,7 @@ func (a PeggyValsetUpdatedEvents) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 // The other (and far worse) way a disagreement here could occur is if validators are colluding to steal
 // funds from the Peggy contract and have submitted a hijacking update. If slashing for off Cosmos chain
 // Ethereum signatures is implemented you would put that handler here.
-func checkIfValsetsDiffer(cosmosValset, ethereumValset *types.Valset) {
+func checkIfValsetsDiffer(cosmosValset, ethereumValset *peggytypes.Valset) {
 	if cosmosValset == nil && ethereumValset.Nonce == 0 {
 		// bootstrapping case
 		return
@@ -393,7 +396,7 @@ func checkIfValsetsDiffer(cosmosValset, ethereumValset *types.Valset) {
 	}
 }
 
-type BridgeValidators []*types.BridgeValidator
+type BridgeValidators []*peggytypes.BridgeValidator
 
 // Sort sorts the validators by power
 func (b BridgeValidators) Sort() {

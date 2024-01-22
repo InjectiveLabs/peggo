@@ -15,13 +15,10 @@ import (
 )
 
 func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
-
 	loop := batchRequestLoop{
 		PeggyOrchestrator: s,
 		loopDuration:      defaultLoopDur,
 	}
-
-	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting BatchRequester loop...")
 
 	return loop.Run(ctx)
 }
@@ -36,6 +33,8 @@ func (l *batchRequestLoop) Logger() log.Logger {
 }
 
 func (l *batchRequestLoop) Run(ctx context.Context) error {
+	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting BatchRequester loop...")
+
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
 		return l.requestBatches(ctx)
 	})

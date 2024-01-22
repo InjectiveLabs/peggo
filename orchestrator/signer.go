@@ -25,32 +25,7 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, peggyID commo
 		ethFrom:           s.eth.FromAddress(),
 	}
 
-	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting EthSigner loop...")
-
 	return loop.Run(ctx)
-}
-
-func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error) {
-	var peggyID common.Hash
-	getPeggyIDFn := func() (err error) {
-		peggyID, err = s.eth.GetPeggyID(ctx)
-		return err
-	}
-
-	if err := retry.Do(getPeggyIDFn,
-		retry.Context(ctx),
-		retry.Attempts(s.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			log.WithError(err).Warningf("failed to get Peggy ID from Ethereum contract, will retry (%d)", n)
-		}),
-	); err != nil {
-		log.WithError(err).Errorln("got error, loop exits")
-		return [32]byte{}, err
-	}
-
-	log.WithField("id", peggyID.Hex()).Debugln("got peggy ID from Ethereum contract")
-
-	return peggyID, nil
 }
 
 type ethSignerLoop struct {
@@ -65,6 +40,8 @@ func (l *ethSignerLoop) Logger() log.Logger {
 }
 
 func (l *ethSignerLoop) Run(ctx context.Context) error {
+	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting EthSigner loop...")
+
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
 		if err := l.signNewValsetUpdates(ctx); err != nil {
 			return err
