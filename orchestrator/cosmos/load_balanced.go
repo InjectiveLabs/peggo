@@ -81,6 +81,7 @@ func NewLoadBalancedNetwork(
 	}
 
 	log.WithFields(log.Fields{
+		"addr":       validatorAddress,
 		"chain_id":   chainID,
 		"injective":  netCfg.ChainGrpcEndpoint,
 		"tendermint": netCfg.TmEndpoint,

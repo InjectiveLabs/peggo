@@ -97,8 +97,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			)
 		}
 
-		log.Infoln("using", valAddress.String(), "for Injective")
-
 		orShutdown(err)
 
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -128,8 +126,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			*cfg.ethNodeAlchemyWS,
 		)
 		orShutdown(err)
-
-		log.Infoln("using", ethKeyFromAddress.Hex(), "for Ethereum")
 
 		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
 

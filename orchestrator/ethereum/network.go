@@ -61,8 +61,9 @@ func NewNetwork(
 	}
 
 	log.WithFields(log.Fields{
-		"rpc":                 ethNodeRPC,
-		"peggy_contract_addr": peggyContractAddr,
+		"rpc":            ethNodeRPC,
+		"addr":           fromAddr.String(),
+		"peggy_contract": peggyContractAddr,
 	}).Infoln("connected to Ethereum network")
 
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
