@@ -8,8 +8,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/metrics"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -25,68 +23,17 @@ const (
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
-func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context) error {
-
-	lastConfirmedEthHeight, err := s.getLastConfirmedEthHeightOnInjective(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.logger.Debugln("last observed Ethereum block", lastConfirmedEthHeight)
-
+func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context, lastObservedBlock uint64) error {
 	loop := ethOracleLoop{
 		PeggyOrchestrator:       s,
 		loopDuration:            defaultLoopDur,
-		lastCheckedEthHeight:    lastConfirmedEthHeight,
+		lastCheckedEthHeight:    lastObservedBlock,
 		lastResyncWithInjective: time.Now(),
 	}
 
 	s.logger.WithField("loop_duration", loop.loopDuration.String()).Debugln("starting EthOracle loop...")
 
 	return loop.Run(ctx)
-}
-
-func (s *PeggyOrchestrator) getLastConfirmedEthHeightOnInjective(ctx context.Context) (uint64, error) {
-	var lastConfirmedEthHeight uint64
-	getLastConfirmedEthHeightFn := func() (err error) {
-		lastConfirmedEthHeight, err = s.getLastClaimBlockHeight(ctx)
-		if lastConfirmedEthHeight == 0 {
-			peggyParams, err := s.inj.PeggyParams(ctx)
-			if err != nil {
-				s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
-				return err
-			}
-
-			lastConfirmedEthHeight = peggyParams.BridgeContractStartHeight
-		}
-		return
-	}
-
-	if err := retry.Do(getLastConfirmedEthHeightFn,
-		retry.Context(ctx),
-		retry.Attempts(s.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			s.logger.WithError(err).Warningf("failed to get last confirmed Ethereum height on Injective, will retry (%d)", n)
-		}),
-	); err != nil {
-		s.logger.WithError(err).Errorln("got error, loop exits")
-		return 0, err
-	}
-
-	return lastConfirmedEthHeight, nil
-}
-
-func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context) (uint64, error) {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
-	claim, err := s.inj.LastClaimEvent(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	return claim.EthereumEventHeight, nil
 }
 
 type ethOracleLoop struct {
@@ -276,7 +223,7 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 
 		newEvents := events.Filter(lastClaim.EthereumEventNonce)
 		if newEvents.Num() == 0 {
-			l.Logger().WithField("last_claim_event_nonce", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
+			l.Logger().WithField("last_claimed_event", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
 			return nil
 		}
 
@@ -293,7 +240,7 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 			return err
 		}
 
-		l.Logger().WithFields(log.Fields{"claimed_events": events.Num(), "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
+		l.Logger().WithFields(log.Fields{"events": events.Num(), "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}

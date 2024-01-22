@@ -17,12 +17,7 @@ import (
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
 // since these are provided directly by a trusted Injective node they can simply be assumed to be
 // valid and signed off on.
-func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
-	peggyID, err := s.getPeggyID(ctx)
-	if err != nil {
-		return err
-	}
-
+func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, peggyID common.Hash) error {
 	loop := ethSignerLoop{
 		PeggyOrchestrator: s,
 		loopDuration:      defaultLoopDur,

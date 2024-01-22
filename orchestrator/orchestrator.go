@@ -108,11 +108,28 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	log.Infoln("running orchestrator in validator mode")
 
+	// get eth block observed by this validator
+	lastObservedEthBlock, _ := s.getLastClaimBlockHeight(ctx)
+	if lastObservedEthBlock == 0 {
+		peggyParams, err := s.inj.PeggyParams(ctx)
+		if err != nil {
+			s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
+		}
+
+		lastObservedEthBlock = peggyParams.BridgeContractStartHeight
+	}
+
+	// get peggy ID from contract
+	peggyContractID, err := s.eth.GetPeggyID(ctx)
+	if err != nil {
+		s.logger.WithError(err).Fatalln("unable to query peggy ID from contract")
+	}
+
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.EthOracleMainLoop(ctx) })
+	pg.Go(func() error { return s.EthOracleMainLoop(ctx, lastObservedEthBlock) })
 	pg.Go(func() error { return s.BatchRequesterLoop(ctx) })
-	pg.Go(func() error { return s.EthSignerMainLoop(ctx) })
+	pg.Go(func() error { return s.EthSignerMainLoop(ctx, peggyContractID) })
 	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
 
 	return pg.Wait()
@@ -130,4 +147,17 @@ func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
 	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
 
 	return pg.Wait()
+}
+
+func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context) (uint64, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	claim, err := s.inj.LastClaimEvent(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return claim.EthereumEventHeight, nil
 }
