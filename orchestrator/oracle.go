@@ -229,18 +229,18 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 
 		latestEventNonce, err := l.inj.SendEthereumClaims(ctx,
 			lastClaim.EthereumEventNonce,
-			events.OldDeposits,
-			events.Deposits,
-			events.Withdrawals,
-			events.ERC20Deployments,
-			events.ValsetUpdates,
+			newEvents.OldDeposits,
+			newEvents.Deposits,
+			newEvents.Withdrawals,
+			newEvents.ERC20Deployments,
+			newEvents.ValsetUpdates,
 		)
 
 		if err != nil {
 			return err
 		}
 
-		l.Logger().WithFields(log.Fields{"events": events.Num(), "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
+		l.Logger().WithFields(log.Fields{"events": newEvents.Num(), "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
