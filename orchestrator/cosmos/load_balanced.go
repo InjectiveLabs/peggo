@@ -57,12 +57,12 @@ func NewLoadBalancedNetwork(
 	netCfg := common.LoadNetwork(networkName, "lb")
 	explorer, err := explorerclient.NewExplorerClient(netCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to initialize explorer client")
 	}
 
 	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to Injective network: %s", networkName)
+		return nil, errors.Wrapf(err, "failed to intialize chain client (%s)", networkName)
 	}
 
 	time.Sleep(1 * time.Second)
