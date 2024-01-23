@@ -463,16 +463,17 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		Data:           "",
 	}
 
-	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-		return err
-	} else {
-		log.WithFields(log.Fields{
-			"event_nonce": oldDeposit.EventNonce.String(),
-			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Debugln("Oracle sent MsgDepositClaim")
+		return errors.Wrap(err, "broadcasting MsgDepositClaim failed")
 	}
+
+	log.WithFields(log.Fields{
+		"event_height": msg.BlockHeight,
+		"event_nonce":  msg.EventNonce,
+		"tx_hash":      resp.TxResponse.TxHash,
+	}).Infoln("Oracle sent MsgDepositClaim")
 
 	return nil
 }
@@ -491,11 +492,11 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"sender":      deposit.Sender.Hex(),
-		"destination": sdk.AccAddress(deposit.Destination[12:32]).String(),
-		"amount":      deposit.Amount.String(),
-		"event_nonce": deposit.EventNonce.String(),
-		"data":        deposit.Data,
+		"sender":         deposit.Sender.Hex(),
+		"destination":    sdk.AccAddress(deposit.Destination[12:32]).String(),
+		"amount":         deposit.Amount.String(),
+		"data":           deposit.Data,
+		"token_contract": deposit.TokenContract.Hex(),
 	}).Debugln("observed SendToInjectiveEvent")
 
 	msg := &peggytypes.MsgDepositClaim{
@@ -509,16 +510,17 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		Data:           deposit.Data,
 	}
 
-	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).Errorln("broadcasting MsgDepositClaim failed")
-		return err
-	} else {
-		log.WithFields(log.Fields{
-			"event_nonce": deposit.EventNonce.String(),
-			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Debugln("Oracle sent MsgDepositClaim")
+		return errors.Wrap(err, "broadcasting MsgDepositClaim failed")
 	}
+
+	log.WithFields(log.Fields{
+		"event_nonce":  msg.EventNonce,
+		"event_height": msg.BlockHeight,
+		"tx_hash":      resp.TxResponse.TxHash,
+	}).Infoln("EthOracle sent MsgDepositClaim")
 
 	return nil
 }
@@ -532,9 +534,8 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"nonce":          withdraw.BatchNonce.String(),
+		"batch_nonce":    withdraw.BatchNonce.String(),
 		"token_contract": withdraw.Token.Hex(),
-		"event_nonce":    withdraw.EventNonce.String(),
 	}).Debugln("observed TransactionBatchExecutedEvent")
 
 	// WithdrawClaim claims that a batch of withdrawal
@@ -547,16 +548,17 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 		Orchestrator:  s.AccFromAddress().String(),
 	}
 
-	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).Errorln("broadcasting MsgWithdrawClaim failed")
-		return err
-	} else {
-		log.WithFields(log.Fields{
-			"event_nonce": withdraw.EventNonce.String(),
-			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Debugln("Oracle sent MsgWithdrawClaim")
+		return errors.Wrap(err, "broadcasting MsgWithdrawClaim failed")
 	}
+
+	log.WithFields(log.Fields{
+		"event_height": msg.BlockHeight,
+		"event_nonce":  msg.EventNonce,
+		"tx_hash":      resp.TxResponse.TxHash,
+	}).Infoln("EthOracle sent MsgWithdrawClaim")
 
 	return nil
 }
@@ -570,7 +572,6 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"event_nonce":   valsetUpdate.EventNonce.Uint64(),
 		"valset_nonce":  valsetUpdate.NewValsetNonce.Uint64(),
 		"validators":    valsetUpdate.Validators,
 		"powers":        valsetUpdate.Powers,
@@ -596,16 +597,17 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 		Orchestrator: s.AccFromAddress().String(),
 	}
 
-	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).Errorln("broadcasting MsgValsetUpdatedClaim failed")
-		return err
-	} else {
-		log.WithFields(log.Fields{
-			"event_nonce": valsetUpdate.EventNonce.String(),
-			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Debugln("Oracle sent MsgValsetUpdatedClaim")
+		return errors.Wrap(err, "broadcasting MsgValsetUpdatedClaim failed")
 	}
+
+	log.WithFields(log.Fields{
+		"event_nonce":   msg.EventNonce,
+		"event__height": msg.BlockHeight,
+		"tx_hash":       resp.TxResponse.TxHash,
+	}).Infoln("Oracle sent MsgValsetUpdatedClaim")
 
 	return nil
 }
@@ -619,7 +621,6 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"event_nonce":    erc20Deployed.EventNonce.Uint64(),
 		"cosmos_denom":   erc20Deployed.CosmosDenom,
 		"token_contract": erc20Deployed.TokenContract.Hex(),
 		"name":           erc20Deployed.Name,
@@ -638,16 +639,17 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 		Orchestrator:  s.AccFromAddress().String(),
 	}
 
-	if txResponse, err := s.broadcastClient.SyncBroadcastMsg(msg); err != nil {
+	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).Errorln("broadcasting MsgERC20DeployedClaim failed")
-		return err
-	} else {
-		log.WithFields(log.Fields{
-			"event_nonce": erc20Deployed.EventNonce.String(),
-			"tx_hash":     txResponse.TxResponse.TxHash,
-		}).Debugln("Oracle sent MsgERC20DeployedClaim")
+		return errors.Wrap(err, "broadcasting MsgERC20DeployedClaim failed")
 	}
+
+	log.WithFields(log.Fields{
+		"event_nonce":  msg.EventNonce,
+		"event_height": msg.BlockHeight,
+		"tx_hash":      resp.TxResponse.TxHash,
+	}).Infoln("Oracle sent MsgERC20DeployedClaim")
 
 	return nil
 }

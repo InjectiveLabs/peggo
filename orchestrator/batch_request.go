@@ -55,8 +55,6 @@ func (l *batchRequestLoop) requestBatches(ctx context.Context) error {
 
 	for _, fee := range fees {
 		l.requestBatch(ctx, fee)
-
-		// todo: in case of multiple requests, we should sleep in between (non-continuous nonce)
 	}
 
 	return nil

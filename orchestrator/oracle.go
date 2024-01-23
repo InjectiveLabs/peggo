@@ -121,7 +121,7 @@ func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get last confirmed eth height, will retry (%d)", n)
+			l.Logger().WithError(err).Warningf("failed to get last claimed event height, will retry (%d)", n)
 		}),
 	); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
@@ -131,7 +131,7 @@ func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 	l.lastCheckedEthHeight = latestHeight
 	l.lastResyncWithInjective = time.Now()
 
-	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_confirmed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync event nonce with Injective")
+	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync last claimed event height with Injective")
 
 	return nil
 }
@@ -223,7 +223,7 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 
 		newEvents := events.Filter(lastClaim.EthereumEventNonce)
 		if newEvents.Num() == 0 {
-			l.Logger().WithField("last_claimed_event", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
+			l.Logger().WithField("last_claimed_event_nonce", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
 			return nil
 		}
 
@@ -249,7 +249,7 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
+			l.Logger().WithError(err).Warningf("failed to send events to Injective, will retry (%d)", n)
 		}),
 	); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
