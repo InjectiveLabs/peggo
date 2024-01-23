@@ -675,8 +675,8 @@ github.com/InjectiveLabs/bandchain-packet v0.0.4-0.20230327115226-35199d4659d5 h
 github.com/InjectiveLabs/bandchain-packet v0.0.4-0.20230327115226-35199d4659d5/go.mod h1:VoNDHSybdPQ35/3zxNwjewaGpzWHhYyTgV7cJzFglEE=
 github.com/InjectiveLabs/cometbft v0.37.1-inj h1:mNSorEwP72ovlb2HrYsH3L+uIgNgrUj5rI4DDXhatxk=
 github.com/InjectiveLabs/cometbft v0.37.1-inj/go.mod h1:Y2MMMN//O5K4YKd8ze4r9jmk4Y7h0ajqILXbH5JQFVs=
-github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-5 h1:WbNT7o2AbXBqOvmPptAd1nVmx67l1LtXIs4GjR0gvXo=
-github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-5/go.mod h1:c4OfLdAykA9zsj1CqrxBRqXzVz48I++JSvIMPSPcEmk=
+github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-9 h1:/x20L4ZfYIhGu/wsmXb2nV6DF6t5QVNq7ecAFqAcrMU=
+github.com/InjectiveLabs/cosmos-sdk v0.47.3-inj-9/go.mod h1:c4OfLdAykA9zsj1CqrxBRqXzVz48I++JSvIMPSPcEmk=
 github.com/InjectiveLabs/etherman v1.7.0 h1:ryYW87fqpnhRP33x+ykDhy6Lx9215Fl5T5LIiA78W88=
 github.com/InjectiveLabs/etherman v1.7.0/go.mod h1:7unNlA/9UVNZhneEWtNnFWfGDJ5KijkGprkpEF9I1BA=
 github.com/InjectiveLabs/metrics v0.0.1 h1:MXNj8JWOdIqiGZw83JdUTR+i6hgBrb12HatIUvaly9I=
