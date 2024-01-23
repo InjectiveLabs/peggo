@@ -13,12 +13,6 @@ import (
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
-func TestDusan(t *testing.T) {
-	logger := suplog.DefaultLogger
-	d := "dusan"
-	logger.Infoln("using", d, "for me")
-}
-
 func TestRequestBatches(t *testing.T) {
 	t.Parallel()
 

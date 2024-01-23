@@ -73,7 +73,7 @@ func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
+			l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
 		})); err != nil {
 		return err
 	}
