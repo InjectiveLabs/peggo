@@ -127,43 +127,22 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		var peggyBroadcastClient peggy.BroadcastClient
-		if customCosmosRPC := *cosmosGRPC != "" && *tendermintRPC != ""; customCosmosRPC {
-			net, err := cosmos.NewCustomRPCNetwork(
-				*cosmosChainID,
-				valAddress.String(),
-				*cosmosGRPC,
-				*cosmosGasPrices,
-				*tendermintRPC,
-				cosmosKeyring,
-				personalSignFn,
-			)
+		net, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
+			ChainID:          *cosmosChainID,
+			ValidatorAddress: valAddress.String(),
+			CosmosGRPC:       *cosmosGRPC,
+			TendermintRPC:    *cosmosGasPrices,
+			GasPrice:         *tendermintRPC,
+		})
 
-			if err != nil {
-				log.Fatalln("failed to connect to Injective network")
-			}
-
-			peggyBroadcastClient = peggy.BroadcastClient(net)
-		} else {
-			net, err := cosmos.NewLoadBalancedNetwork(
-				*cosmosChainID,
-				valAddress.String(),
-				*cosmosGasPrices,
-				cosmosKeyring,
-				personalSignFn,
-			)
-
-			if err != nil {
-				log.Fatalln("failed to connect to Injective network")
-			}
-
-			peggyBroadcastClient = peggy.BroadcastClient(net)
+		if err != nil {
+			log.Fatalln("failed to connect to Injective network")
 		}
 
 		broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFn()
 
-		if err = peggyBroadcastClient.UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
+		if err = peggy.BroadcastClient(net).UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
 			log.WithError(err).Errorln("failed to broadcast Tx")
 			time.Sleep(time.Second)
 			return

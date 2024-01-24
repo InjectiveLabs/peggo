@@ -2,7 +2,7 @@ package cosmos
 
 import (
 	"context"
-	"strconv"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
 	"time"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
@@ -12,19 +12,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/client/chain"
 	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
-	explorer "github.com/InjectiveLabs/sdk-go/client/explorer"
-
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 )
 
-type LoadBalancedNetwork struct {
+type providerNetwork struct {
 	peggy.QueryClient
 	peggy.BroadcastClient
-	explorer.ExplorerClient
+	tendermint.Client
 }
 
 // NewLoadBalancedNetwork creates a load balanced connection to the Injective network.
@@ -32,15 +30,13 @@ type LoadBalancedNetwork struct {
 //   - injective-1 (mainnet)
 //   - injective-777 (devnet)
 //   - injective-888 (testnet)
-func NewLoadBalancedNetwork(
-	chainID,
-	validatorAddress,
-	injectiveGasPrices string,
+func newProviderNetwork(
+	cfg NetworkConfig,
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
 ) (Network, error) {
 	var networkName string
-	switch chainID {
+	switch cfg.ChainID {
 	case "injective-1":
 		networkName = "mainnet"
 	case "injective-777":
@@ -48,11 +44,11 @@ func NewLoadBalancedNetwork(
 	case "injective-888":
 		networkName = "testnet"
 	default:
-		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
+		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", cfg.ChainID)
 	}
 	netCfg := clientcommon.LoadNetwork(networkName, "lb")
 
-	clientCtx, err := chain.NewClientContext(chainID, validatorAddress, keyring)
+	clientCtx, err := chain.NewClientContext(cfg.ChainID, cfg.ValidatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
@@ -64,7 +60,7 @@ func NewLoadBalancedNetwork(
 
 	clientCtx = clientCtx.WithNodeURI(netCfg.TmEndpoint).WithClient(tmClient)
 
-	daemonClient, err := chain.NewChainClient(clientCtx, netCfg, clientcommon.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chain.NewChainClient(clientCtx, netCfg, clientcommon.OptionGasPrices(cfg.GasPrice))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to intialize chain client (%s)", networkName)
 	}
@@ -78,20 +74,20 @@ func NewLoadBalancedNetwork(
 	waitForService(daemonWaitCtx, grpcConn)
 	peggyQuerier := peggytypes.NewQueryClient(grpcConn)
 
-	explorerCLient, err := explorer.NewExplorerClient(netCfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize explorer client")
-	}
+	//explorerCLient, err := explorer.NewExplorerClient(netCfg)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "failed to initialize explorer client")
+	//}
 
-	n := &LoadBalancedNetwork{
+	n := &providerNetwork{
+		Client:          tendermint.NewRPCClient(netCfg.TmEndpoint),
 		QueryClient:     peggy.NewQueryClient(peggyQuerier),
 		BroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
-		ExplorerClient:  explorerCLient,
 	}
 
 	log.WithFields(log.Fields{
-		"addr":       validatorAddress,
-		"chain_id":   chainID,
+		"addr":       cfg.ValidatorAddress,
+		"chain_id":   cfg.ChainID,
 		"injective":  netCfg.ChainGrpcEndpoint,
 		"tendermint": netCfg.TmEndpoint,
 	}).Infoln("connected to Injective's load balanced endpoints")
@@ -99,18 +95,28 @@ func NewLoadBalancedNetwork(
 	return n, nil
 }
 
-func (n *LoadBalancedNetwork) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
-	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+//
+//func (n *providerNetwork) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
+//	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
+//	if err != nil {
+//		return time.Time{}, err
+//	}
+//
+//	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", block.Data.Timestamp)
+//	if err != nil {
+//		return time.Time{}, errors.Wrap(err, "failed to parse timestamp from block")
+//	}
+//
+//	return blockTime, nil
+//}
+
+func (n *providerNetwork) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
+	block, err := n.Client.GetBlock(ctx, height)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	blockTime, err := time.Parse("2006-01-02 15:04:05.999 -0700 MST", block.Data.Timestamp)
-	if err != nil {
-		return time.Time{}, errors.Wrap(err, "failed to parse timestamp from block")
-	}
-
-	return blockTime, nil
+	return block.Block.Time, nil
 }
 
 // waitForService awaits an active ClientConn to a GRPC service.

@@ -25,28 +25,10 @@ type NetworkConfig struct {
 	GasPrice string
 }
 
-func NewCosmosNetwork(
-	k keyring.Keyring,
-	ethSignFn keystore.PersonalSignFn,
-	cfg NetworkConfig,
-) (Network, error) {
+func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg NetworkConfig) (Network, error) {
 	if isCustom := cfg.CosmosGRPC != "" && cfg.TendermintRPC != ""; isCustom {
-		return NewCustomRPCNetwork(
-			cfg.ChainID,
-			cfg.ValidatorAddress,
-			cfg.CosmosGRPC,
-			cfg.GasPrice,
-			cfg.TendermintRPC,
-			k,
-			ethSignFn,
-		)
+		return newCustomNetwork(cfg, k, ethSignFn)
 	}
 
-	return NewLoadBalancedNetwork(
-		cfg.ChainID,
-		cfg.ValidatorAddress,
-		cfg.GasPrice,
-		k,
-		ethSignFn,
-	)
+	return newProviderNetwork(cfg, k, ethSignFn)
 }

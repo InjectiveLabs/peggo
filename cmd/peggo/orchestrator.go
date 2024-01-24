@@ -82,30 +82,6 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		cosmosNetwork, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmosCfg)
 		orShutdown(err)
 
-		//var cosmosNetwork cosmos.Network
-		//if customEndpointRPCs := *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""; customEndpointRPCs {
-		//	cosmosNetwork, err = cosmos.NewCustomRPCNetwork(
-		//		*cfg.cosmosChainID,
-		//		valAddress.String(),
-		//		*cfg.cosmosGRPC,
-		//		*cfg.cosmosGasPrices,
-		//		*cfg.tendermintRPC,
-		//		cosmosKeyring,
-		//		personalSignFn,
-		//	)
-		//} else {
-		//	// load balanced connection
-		//	cosmosNetwork, err = cosmos.NewLoadBalancedNetwork(
-		//		*cfg.cosmosChainID,
-		//		valAddress.String(),
-		//		*cfg.cosmosGasPrices,
-		//		cosmosKeyring,
-		//		personalSignFn,
-		//	)
-		//}
-
-		orShutdown(err)
-
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
 
