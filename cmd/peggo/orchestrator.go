@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
@@ -14,7 +15,6 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
-	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 )
 
 // startOrchestrator action runs an infinite loop,
@@ -71,27 +71,38 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		var cosmosNetwork cosmos.Network
-		if customEndpointRPCs := *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""; customEndpointRPCs {
-			cosmosNetwork, err = cosmos.NewCustomRPCNetwork(
-				*cfg.cosmosChainID,
-				valAddress.String(),
-				*cfg.cosmosGRPC,
-				*cfg.cosmosGasPrices,
-				*cfg.tendermintRPC,
-				cosmosKeyring,
-				personalSignFn,
-			)
-		} else {
-			// load balanced connection
-			cosmosNetwork, err = cosmos.NewLoadBalancedNetwork(
-				*cfg.cosmosChainID,
-				valAddress.String(),
-				*cfg.cosmosGasPrices,
-				cosmosKeyring,
-				personalSignFn,
-			)
+		cosmosCfg := cosmos.NetworkConfig{
+			ChainID:          *cfg.cosmosChainID,
+			ValidatorAddress: valAddress.String(),
+			CosmosGRPC:       *cfg.cosmosGRPC,
+			TendermintRPC:    *cfg.tendermintRPC,
+			GasPrice:         *cfg.cosmosGasPrices,
 		}
+
+		cosmosNetwork, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmosCfg)
+		orShutdown(err)
+
+		//var cosmosNetwork cosmos.Network
+		//if customEndpointRPCs := *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""; customEndpointRPCs {
+		//	cosmosNetwork, err = cosmos.NewCustomRPCNetwork(
+		//		*cfg.cosmosChainID,
+		//		valAddress.String(),
+		//		*cfg.cosmosGRPC,
+		//		*cfg.cosmosGasPrices,
+		//		*cfg.tendermintRPC,
+		//		cosmosKeyring,
+		//		personalSignFn,
+		//	)
+		//} else {
+		//	// load balanced connection
+		//	cosmosNetwork, err = cosmos.NewLoadBalancedNetwork(
+		//		*cfg.cosmosChainID,
+		//		valAddress.String(),
+		//		*cfg.cosmosGasPrices,
+		//		cosmosKeyring,
+		//		personalSignFn,
+		//	)
+		//}
 
 		orShutdown(err)
 
