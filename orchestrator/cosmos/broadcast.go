@@ -75,12 +75,10 @@ type PeggyBroadcastClient interface {
 }
 
 func NewPeggyBroadcastClient(
-	queryClient peggytypes.QueryClient,
 	broadcastClient chainclient.ChainClient,
 	ethPersonalSignFn keystore.PersonalSignFn,
 ) PeggyBroadcastClient {
 	return &peggyBroadcastClient{
-		daemonQueryClient: queryClient,
 		broadcastClient:   broadcastClient,
 		ethPersonalSignFn: ethPersonalSignFn,
 
