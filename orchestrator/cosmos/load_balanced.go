@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"strconv"
 	"time"
 
@@ -16,17 +15,14 @@ import (
 
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	"github.com/InjectiveLabs/sdk-go/client/common"
 	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
 )
 
 type LoadBalancedNetwork struct {
-	addr sdk.AccAddress
-
-	PeggyQueryClient
-	PeggyBroadcastClient
+	peggy.QueryClient
+	peggy.BroadcastClient
 	explorerclient.ExplorerClient
 }
 
@@ -41,12 +37,7 @@ func NewLoadBalancedNetwork(
 	injectiveGasPrices string,
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
-) (*LoadBalancedNetwork, error) {
-	addr, err := sdk.AccAddressFromBech32(validatorAddress)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid address")
-	}
-
+) (Network, error) {
 	var networkName string
 	switch chainID {
 	case "injective-1":
@@ -92,10 +83,9 @@ func NewLoadBalancedNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &LoadBalancedNetwork{
-		addr:                 addr,
-		PeggyQueryClient:     peggy.NewQueryClient(peggyQuerier),
-		PeggyBroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
-		ExplorerClient:       explorer,
+		QueryClient:     peggy.NewQueryClient(peggyQuerier),
+		BroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
+		ExplorerClient:  explorer,
 	}
 
 	log.WithFields(log.Fields{
@@ -108,7 +98,7 @@ func NewLoadBalancedNetwork(
 	return n, nil
 }
 
-func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
+func (n *LoadBalancedNetwork) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
 	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
 	if err != nil {
 		return time.Time{}, err
@@ -120,18 +110,6 @@ func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height i
 	}
 
 	return blockTime, nil
-}
-
-func (n *LoadBalancedNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
-	return n.LastClaimEventByAddr(ctx, n.addr)
-}
-
-func (n *LoadBalancedNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.addr)
-}
-
-func (n *LoadBalancedNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.addr)
 }
 
 // waitForService awaits an active ClientConn to a GRPC service.

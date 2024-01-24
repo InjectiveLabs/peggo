@@ -97,7 +97,7 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTx
 	var oldestUnsignedBatch *types.OutgoingTxBatch
 	getOldestUnsignedBatchFn := func() (err error) {
 		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
+		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx, l.orchestratorAddr)
 		if oldestUnsignedBatch == nil {
 			return nil
 		}
@@ -143,7 +143,7 @@ func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBa
 func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset, error) {
 	var oldestUnsignedValsets []*types.Valset
 	getOldestUnsignedValsetsFn := func() (err error) {
-		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx)
+		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx, l.orchestratorAddr)
 		if oldestUnsignedValsets == nil {
 			return nil
 		}

@@ -216,7 +216,7 @@ func (l *ethOracleLoop) getLatestEthHeight(ctx context.Context) (uint64, error) 
 
 func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents) error {
 	sendEventsFn := func() error {
-		lastClaim, err := l.inj.LastClaimEvent(ctx)
+		lastClaim, err := l.inj.LastClaimEventByAddr(ctx, l.orchestratorAddr)
 		if err != nil {
 			return err
 		}

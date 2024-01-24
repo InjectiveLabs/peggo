@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"time"
 
 	cli "github.com/jawher/mow.cli"
@@ -126,12 +127,8 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		var (
-			peggyBroadcastClient cosmos.PeggyBroadcastClient
-			customCosmosRPC      = *cosmosGRPC != "" && *tendermintRPC != ""
-		)
-
-		if customCosmosRPC {
+		var peggyBroadcastClient peggy.BroadcastClient
+		if customCosmosRPC := *cosmosGRPC != "" && *tendermintRPC != ""; customCosmosRPC {
 			net, err := cosmos.NewCustomRPCNetwork(
 				*cosmosChainID,
 				valAddress.String(),
@@ -146,7 +143,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 				log.Fatalln("failed to connect to Injective network")
 			}
 
-			peggyBroadcastClient = net.PeggyBroadcastClient
+			peggyBroadcastClient = peggy.BroadcastClient(net)
 		} else {
 			net, err := cosmos.NewLoadBalancedNetwork(
 				*cosmosChainID,
@@ -160,7 +157,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 				log.Fatalln("failed to connect to Injective network")
 			}
 
-			peggyBroadcastClient = net.PeggyBroadcastClient
+			peggyBroadcastClient = peggy.BroadcastClient(net)
 		}
 
 		broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)

@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/cosmos/cosmos-sdk/types"
 	"time"
 
 	eth "github.com/ethereum/go-ethereum/common"
@@ -18,7 +20,9 @@ type PeggyOrchestrator struct {
 	logger  log.Logger
 	svcTags metrics.Tags
 
-	inj       InjectiveNetwork
+	inj              cosmos.Network
+	orchestratorAddr types.AccAddress
+
 	eth       EthereumNetwork
 	pricefeed PriceFeed
 
@@ -34,7 +38,8 @@ type PeggyOrchestrator struct {
 }
 
 func NewPeggyOrchestrator(
-	injective InjectiveNetwork,
+	orchestratorAddr types.AccAddress,
+	injective cosmos.Network,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
 	erc20ContractMapping map[eth.Address]string,
@@ -48,6 +53,7 @@ func NewPeggyOrchestrator(
 		logger:               log.DefaultLogger,
 		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
 		inj:                  injective,
+		orchestratorAddr:     orchestratorAddr,
 		eth:                  ethereum,
 		pricefeed:            priceFeed,
 		erc20ContractMapping: erc20ContractMapping,
@@ -154,7 +160,7 @@ func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context) (uint64
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	claim, err := s.inj.LastClaimEvent(ctx)
+	claim, err := s.inj.LastClaimEventByAddr(ctx, s.orchestratorAddr)
 	if err != nil {
 		return 0, err
 	}

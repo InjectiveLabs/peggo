@@ -168,7 +168,7 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("new valset update")
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedValset.Height))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
@@ -240,7 +240,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedInjBatch.BatchNonce, "eth_nonce": latestEthBatch.Uint64()}).Debugln("new batch update")
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedInjBatch.Block))
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedInjBatch.Block))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
