@@ -2,7 +2,8 @@ package cosmos
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggyclient"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"time"
 
 	"github.com/InjectiveLabs/sdk-go/client/common"
@@ -18,6 +19,8 @@ import (
 )
 
 type CustomRPCNetwork struct {
+	addr sdk.AccAddress
+
 	tmclient.TendermintClient
 	PeggyQueryClient
 	PeggyBroadcastClient
@@ -47,6 +50,11 @@ func NewCustomRPCNetwork(
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*CustomRPCNetwork, error) {
+	addr, err := sdk.AccAddressFromBech32(validatorAddress)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid address")
+	}
+
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
@@ -76,9 +84,10 @@ func NewCustomRPCNetwork(
 	peggyQuerier := peggytypes.NewQueryClient(grpcConn)
 
 	n := &CustomRPCNetwork{
+		addr:                 addr,
 		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
-		PeggyQueryClient:     peggyclient.NewPeggyQueryClient(peggyQuerier),
-		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
+		PeggyQueryClient:     peggy.NewQueryClient(peggyQuerier),
+		PeggyBroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
 	}
 
 	log.WithFields(log.Fields{
@@ -101,13 +110,13 @@ func (n *CustomRPCNetwork) GetBlockCreationTime(ctx context.Context, height int6
 }
 
 func (n *CustomRPCNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
-	return n.LastClaimEventByAddr(ctx, n.AccFromAddress())
+	return n.LastClaimEventByAddr(ctx, n.addr)
 }
 
 func (n *CustomRPCNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.AccFromAddress())
+	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.addr)
 }
 
 func (n *CustomRPCNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.AccFromAddress())
+	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.addr)
 }

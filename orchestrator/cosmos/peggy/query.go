@@ -1,4 +1,4 @@
-package peggyclient
+package peggy
 
 import (
 	"context"
@@ -13,20 +13,20 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-type PeggyQueryClient struct {
+type QueryClient struct {
 	peggytypes.QueryClient
 
 	svcTags metrics.Tags
 }
 
-func NewPeggyQueryClient(client peggytypes.QueryClient) *PeggyQueryClient {
-	return &PeggyQueryClient{
+func NewQueryClient(client peggytypes.QueryClient) QueryClient {
+	return QueryClient{
 		QueryClient: client,
 		svcTags:     metrics.Tags{"svc": "peggy_query"},
 	}
 }
 
-func (c PeggyQueryClient) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
+func (c QueryClient) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -47,7 +47,7 @@ func (c PeggyQueryClient) ValsetAt(ctx context.Context, nonce uint64) (*peggytyp
 	return resp.Valset, nil
 }
 
-func (c PeggyQueryClient) CurrentValset(ctx context.Context) (*peggytypes.Valset, error) {
+func (c QueryClient) CurrentValset(ctx context.Context) (*peggytypes.Valset, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -66,7 +66,7 @@ func (c PeggyQueryClient) CurrentValset(ctx context.Context) (*peggytypes.Valset
 	return resp.Valset, nil
 }
 
-func (c PeggyQueryClient) OldestUnsignedValsets(ctx context.Context, valAccountAddress cosmostypes.AccAddress) ([]*peggytypes.Valset, error) {
+func (c QueryClient) OldestUnsignedValsets(ctx context.Context, valAccountAddress cosmostypes.AccAddress) ([]*peggytypes.Valset, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -89,7 +89,7 @@ func (c PeggyQueryClient) OldestUnsignedValsets(ctx context.Context, valAccountA
 	return resp.Valsets, nil
 }
 
-func (c PeggyQueryClient) LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
+func (c QueryClient) LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -108,7 +108,7 @@ func (c PeggyQueryClient) LatestValsets(ctx context.Context) ([]*peggytypes.Vals
 	return resp.Valsets, nil
 }
 
-func (c PeggyQueryClient) AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error) {
+func (c QueryClient) AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -127,7 +127,7 @@ func (c PeggyQueryClient) AllValsetConfirms(ctx context.Context, nonce uint64) (
 	return resp.Confirms, nil
 }
 
-func (c PeggyQueryClient) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
+func (c QueryClient) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -150,7 +150,7 @@ func (c PeggyQueryClient) OldestUnsignedTransactionBatch(ctx context.Context, va
 	return resp.Batch, nil
 }
 
-func (c PeggyQueryClient) LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error) {
+func (c QueryClient) LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -169,7 +169,7 @@ func (c PeggyQueryClient) LatestTransactionBatches(ctx context.Context) ([]*pegg
 	return resp.Batches, nil
 }
 
-func (c PeggyQueryClient) UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+func (c QueryClient) UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -188,7 +188,7 @@ func (c PeggyQueryClient) UnbatchedTokensWithFees(ctx context.Context) ([]*peggy
 	return resp.BatchFees, nil
 }
 
-func (c PeggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error) {
+func (c QueryClient) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -212,7 +212,7 @@ func (c PeggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce 
 	return resp.Confirms, nil
 }
 
-func (c PeggyQueryClient) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
+func (c QueryClient) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -235,7 +235,7 @@ func (c PeggyQueryClient) LastClaimEventByAddr(ctx context.Context, validatorAcc
 	return resp.LastClaimEvent, nil
 }
 
-func (c PeggyQueryClient) PeggyParams(ctx context.Context) (*peggytypes.Params, error) {
+func (c QueryClient) PeggyParams(ctx context.Context) (*peggytypes.Params, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -254,7 +254,7 @@ func (c PeggyQueryClient) PeggyParams(ctx context.Context) (*peggytypes.Params, 
 	return &resp.Params, nil
 }
 
-func (c PeggyQueryClient) GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error) {
+func (c QueryClient) GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()

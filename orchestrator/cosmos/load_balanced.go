@@ -2,8 +2,9 @@ package cosmos
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggyclient"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"strconv"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 )
 
 type LoadBalancedNetwork struct {
+	addr sdk.AccAddress
+
 	PeggyQueryClient
 	PeggyBroadcastClient
 	explorerclient.ExplorerClient
@@ -39,6 +42,11 @@ func NewLoadBalancedNetwork(
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*LoadBalancedNetwork, error) {
+	addr, err := sdk.AccAddressFromBech32(validatorAddress)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid address")
+	}
+
 	var networkName string
 	switch chainID {
 	case "injective-1":
@@ -84,8 +92,9 @@ func NewLoadBalancedNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &LoadBalancedNetwork{
-		PeggyQueryClient:     peggyclient.NewPeggyQueryClient(peggyQuerier),
-		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
+		addr:                 addr,
+		PeggyQueryClient:     peggy.NewQueryClient(peggyQuerier),
+		PeggyBroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
 		ExplorerClient:       explorer,
 	}
 
@@ -114,15 +123,15 @@ func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height i
 }
 
 func (n *LoadBalancedNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
-	return n.LastClaimEventByAddr(ctx, n.AccFromAddress())
+	return n.LastClaimEventByAddr(ctx, n.addr)
 }
 
 func (n *LoadBalancedNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.AccFromAddress())
+	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.addr)
 }
 
 func (n *LoadBalancedNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.AccFromAddress())
+	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.addr)
 }
 
 // waitForService awaits an active ClientConn to a GRPC service.

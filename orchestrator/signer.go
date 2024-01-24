@@ -6,10 +6,8 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
@@ -100,7 +98,7 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTx
 	getOldestUnsignedBatchFn := func() (err error) {
 		// sign the last unsigned batch, TODO check if we already have signed this
 		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
-		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedBatch == nil {
+		if oldestUnsignedBatch == nil {
 			return nil
 		}
 
@@ -146,7 +144,7 @@ func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset
 	var oldestUnsignedValsets []*types.Valset
 	getOldestUnsignedValsetsFn := func() (err error) {
 		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx)
-		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedValsets == nil {
+		if oldestUnsignedValsets == nil {
 			return nil
 		}
 
