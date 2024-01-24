@@ -2,6 +2,7 @@ package cosmos
 
 import (
 	"context"
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"strconv"
 	"time"
 
@@ -37,11 +38,6 @@ func NewLoadBalancedNetwork(
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
 ) (*LoadBalancedNetwork, error) {
-	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
-	}
-
 	var networkName string
 	switch chainID {
 	case "injective-1":
@@ -59,6 +55,18 @@ func NewLoadBalancedNetwork(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize explorer client")
 	}
+
+	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
+	}
+
+	tmClient, err := rpchttp.New(netCfg.TmEndpoint, "/websocket")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize tendermint client")
+	}
+
+	clientCtx = clientCtx.WithNodeURI(netCfg.TmEndpoint).WithClient(tmClient)
 
 	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
