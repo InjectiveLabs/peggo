@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
-	eth "github.com/ethereum/go-ethereum/common"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
@@ -36,32 +36,28 @@ func (l *batchRequestLoop) Run(ctx context.Context) error {
 	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting BatchRequester loop...")
 
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		return l.requestBatches(ctx)
+		fees, err := l.getUnbatchedTokenFees(ctx)
+		if err != nil {
+			// non-fatal, just alert
+			l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
+			return nil
+		}
+
+		if len(fees) == 0 {
+			l.Logger().Infoln("no withdrawals to batch")
+			return nil
+		}
+
+		for _, fee := range fees {
+			l.requestBatch(ctx, fee)
+		}
+
+		return nil
 	})
 }
 
-func (l *batchRequestLoop) requestBatches(ctx context.Context) error {
-	fees, err := l.getUnbatchedTokenFees(ctx)
-	if err != nil {
-		// non-fatal, just alert
-		l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
-		return nil
-	}
-
-	if len(fees) == 0 {
-		l.Logger().Infoln("no withdrawals to batch")
-		return nil
-	}
-
-	for _, fee := range fees {
-		l.requestBatch(ctx, fee)
-	}
-
-	return nil
-}
-
-func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*types.BatchFees, error) {
-	var unbatchedFees []*types.BatchFees
+func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+	var unbatchedFees []*peggytypes.BatchFees
 	getUnbatchedTokenFeesFn := func() (err error) {
 		unbatchedFees, err = l.inj.UnbatchedTokensWithFees(ctx)
 		return err
@@ -80,9 +76,9 @@ func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*types.
 	return unbatchedFees, nil
 }
 
-func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *types.BatchFees) {
+func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
 	var (
-		tokenAddr  = eth.HexToAddress(fee.Token)
+		tokenAddr  = gethcommon.HexToAddress(fee.Token)
 		tokenDenom = l.tokenDenom(tokenAddr)
 	)
 
@@ -95,18 +91,16 @@ func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *types.BatchFee
 	_ = l.inj.SendRequestBatch(ctx, tokenDenom)
 }
 
-func (l *batchRequestLoop) tokenDenom(tokenAddr eth.Address) string {
+func (l *batchRequestLoop) tokenDenom(tokenAddr gethcommon.Address) string {
 	if cosmosDenom, ok := l.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
 
-	// peggy denom
-	// todo: in reality, peggy denominators don't have an actual price listing
-	// So it seems that bridge fee must always be inj
-	return types.PeggyDenomString(tokenAddr)
+	// todo: revisit peggy denom addresses
+	return peggytypes.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequestLoop) checkFeeThreshold(tokenAddr eth.Address, fees cosmtypes.Int) bool {
+func (l *batchRequestLoop) checkFeeThreshold(tokenAddr gethcommon.Address, fees cosmostypes.Int) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}

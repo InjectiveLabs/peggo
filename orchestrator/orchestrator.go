@@ -2,27 +2,36 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/cosmos/cosmos-sdk/types"
 	"time"
 
-	eth "github.com/ethereum/go-ethereum/common"
+	"github.com/InjectiveLabs/metrics"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
 const defaultLoopDur = 60 * time.Second
 
+// PriceFeed provides token price for a given contract address
+type PriceFeed interface {
+	QueryUSDPrice(address gethcommon.Address) (float64, error)
+}
+
 type PeggyOrchestrator struct {
 	logger  log.Logger
 	svcTags metrics.Tags
 
-	inj       InjectiveNetwork
+	inj              cosmos.Network
+	orchestratorAddr types.AccAddress
+
 	eth       EthereumNetwork
 	pricefeed PriceFeed
 
-	erc20ContractMapping map[eth.Address]string
+	erc20ContractMapping map[gethcommon.Address]string
 	relayValsetOffsetDur time.Duration
 	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
@@ -34,10 +43,11 @@ type PeggyOrchestrator struct {
 }
 
 func NewPeggyOrchestrator(
-	injective InjectiveNetwork,
+	orchestratorAddr types.AccAddress,
+	injective cosmos.Network,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
-	erc20ContractMapping map[eth.Address]string,
+	erc20ContractMapping map[gethcommon.Address]string,
 	minBatchFeeUSD float64,
 	valsetRelayingEnabled,
 	batchRelayingEnabled bool,
@@ -48,6 +58,7 @@ func NewPeggyOrchestrator(
 		logger:               log.DefaultLogger,
 		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
 		inj:                  injective,
+		orchestratorAddr:     orchestratorAddr,
 		eth:                  ethereum,
 		pricefeed:            priceFeed,
 		erc20ContractMapping: erc20ContractMapping,
@@ -108,7 +119,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	log.Infoln("running orchestrator in validator mode")
 
-	// get eth block observed by this validator
+	// get gethcommon block observed by this validator
 	lastObservedEthBlock, _ := s.getLastClaimBlockHeight(ctx)
 	if lastObservedEthBlock == 0 {
 		peggyParams, err := s.inj.PeggyParams(ctx)
@@ -154,7 +165,7 @@ func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context) (uint64
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()
 
-	claim, err := s.inj.LastClaimEvent(ctx)
+	claim, err := s.inj.LastClaimEventByAddr(ctx, s.orchestratorAddr)
 	if err != nil {
 		return 0, err
 	}

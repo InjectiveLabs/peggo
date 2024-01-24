@@ -5,17 +5,17 @@ import (
 	"sort"
 	"time"
 
+	"github.com/InjectiveLabs/metrics"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 const (
@@ -53,65 +53,61 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 	}).Debugln("starting Relayer loop...")
 
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		return l.relayValsetsAndBatches(ctx)
-	})
-}
+		var latestEthValset *peggytypes.Valset
+		getLatestEthValsetFn := func() error {
+			vs, err := l.findLatestValsetOnEth(ctx)
+			if err != nil {
+				return err
+			}
 
-func (l *relayerLoop) relayValsetsAndBatches(ctx context.Context) error {
-	var latestEthValset *peggytypes.Valset
-	getLatestEthValsetFn := func() error {
-		vs, err := l.findLatestValsetOnEth(ctx)
-		if err != nil {
+			latestEthValset = vs
+			return nil
+		}
+
+		if err := retry.Do(getLatestEthValsetFn,
+			retry.Context(ctx),
+			retry.Attempts(l.maxAttempts),
+			retry.OnRetry(func(n uint, err error) {
+				l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
+			})); err != nil {
 			return err
 		}
 
-		latestEthValset = vs
+		var pg loops.ParanoidGroup
+
+		if l.valsetRelayEnabled {
+			pg.Go(func() error {
+				return retry.Do(func() error { return l.relayValset(ctx, latestEthValset) },
+					retry.Context(ctx),
+					retry.Attempts(l.maxAttempts),
+					retry.OnRetry(func(n uint, err error) {
+						l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
+					}),
+				)
+			})
+		}
+
+		if l.batchRelayEnabled {
+			pg.Go(func() error {
+				return retry.Do(func() error { return l.relayBatch(ctx, latestEthValset) },
+					retry.Context(ctx),
+					retry.Attempts(l.maxAttempts),
+					retry.OnRetry(func(n uint, err error) {
+						l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
+					}),
+				)
+			})
+		}
+
+		if pg.Initialized() {
+			if err := pg.Wait(); err != nil {
+				l.Logger().WithError(err).Errorln("got error, loop exits")
+				return err
+			}
+		}
+
 		return nil
-	}
-
-	if err := retry.Do(getLatestEthValsetFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
-		})); err != nil {
-		return err
-	}
-
-	var pg loops.ParanoidGroup
-
-	if l.valsetRelayEnabled {
-		pg.Go(func() error {
-			return retry.Do(func() error { return l.relayValset(ctx, latestEthValset) },
-				retry.Context(ctx),
-				retry.Attempts(l.maxAttempts),
-				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
-				}),
-			)
-		})
-	}
-
-	if l.batchRelayEnabled {
-		pg.Go(func() error {
-			return retry.Do(func() error { return l.relayBatch(ctx, latestEthValset) },
-				retry.Context(ctx),
-				retry.Attempts(l.maxAttempts),
-				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
-				}),
-			)
-		})
-	}
-
-	if pg.Initialized() {
-		if err := pg.Wait(); err != nil {
-			l.Logger().WithError(err).Errorln("got error, loop exits")
-			return err
-		}
-	}
-
-	return nil
+	})
 }
 
 func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytypes.Valset) error {
@@ -168,7 +164,7 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("new valset update")
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedValset.Height))
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedValset.Height))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
@@ -210,7 +206,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	)
 
 	for _, batch := range latestBatches {
-		sigs, err := l.inj.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
+		sigs, err := l.inj.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
 		} else if len(sigs) == 0 {
@@ -226,7 +222,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 		return nil
 	}
 
-	latestEthBatch, err := l.eth.GetTxBatchNonce(ctx, common.HexToAddress(oldestConfirmedInjBatch.TokenContract))
+	latestEthBatch, err := l.eth.GetTxBatchNonce(ctx, gethcommon.HexToAddress(oldestConfirmedInjBatch.TokenContract))
 	if err != nil {
 		return err
 	}
@@ -240,7 +236,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedInjBatch.BatchNonce, "eth_nonce": latestEthBatch.Uint64()}).Debugln("new batch update")
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockCreationTime(ctx, int64(oldestConfirmedInjBatch.Block))
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedInjBatch.Block))
 	if err != nil {
 		return errors.Wrap(err, "failed to parse timestamp from block")
 	}
@@ -314,7 +310,7 @@ func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Va
 		valset := &peggytypes.Valset{
 			Nonce:        event.NewValsetNonce.Uint64(),
 			Members:      make([]*peggytypes.BridgeValidator, 0, len(event.Powers)),
-			RewardAmount: sdk.NewIntFromBigInt(event.RewardAmount),
+			RewardAmount: cosmostypes.NewIntFromBigInt(event.RewardAmount),
 			RewardToken:  event.RewardToken.Hex(),
 		}
 

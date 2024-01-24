@@ -1,4 +1,4 @@
-package cosmos
+package peggy
 
 import (
 	"context"
@@ -6,50 +6,32 @@ import (
 	"sort"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
-	log "github.com/xlab/suplog"
-
 	"github.com/InjectiveLabs/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
+	log "github.com/xlab/suplog"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 )
 
-type PeggyBroadcastClient interface {
-	ValFromAddress() sdk.ValAddress
-	AccFromAddress() sdk.AccAddress
-
+type BroadcastClient interface {
 	/// Send a transaction updating the eth address for the sending
 	/// Cosmos address. The sending Cosmos address should be a validator
-	UpdatePeggyOrchestratorAddresses(
-		ctx context.Context,
-		ethFrom ethcmn.Address,
-		orchAddr sdk.AccAddress,
-	) error
+	UpdatePeggyOrchestratorAddresses(ctx context.Context, ethFrom gethcommon.Address, orchAddr cosmostypes.AccAddress) error
 
 	// SendValsetConfirm broadcasts in a confirmation for a specific validator set for a specific block height.
-	SendValsetConfirm(
-		ctx context.Context,
-		ethFrom ethcmn.Address,
-		peggyID ethcmn.Hash,
-		valset *peggytypes.Valset,
-	) error
+	SendValsetConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, valset *peggytypes.Valset) error
 
 	// SendBatchConfirm broadcasts in a confirmation for a specific transaction batch set for a specific block height
 	// since transaction batches also include validator sets this has all the arguments
-	SendBatchConfirm(
-		ctx context.Context,
-		ethFrom ethcmn.Address,
-		peggyID ethcmn.Hash,
-		batch *peggytypes.OutgoingTxBatch,
-	) error
+	SendBatchConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error
 
-	SendEthereumClaims(
-		ctx context.Context,
+	SendEthereumClaims(ctx context.Context,
 		lastClaimEvent uint64,
 		oldDeposits []*peggyevents.PeggySendToCosmosEvent,
 		deposits []*peggyevents.PeggySendToInjectiveEvent,
@@ -61,59 +43,30 @@ type PeggyBroadcastClient interface {
 	// SendToEth broadcasts a Tx that tokens from Cosmos to Ethereum.
 	// These tokens will not be sent immediately. Instead, they will require
 	// some time to be included in a batch.
-	SendToEth(
-		ctx context.Context,
-		destination ethcmn.Address,
-		amount, fee sdk.Coin,
-	) error
+	SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error
 
 	// SendRequestBatch broadcasts a requests a batch of withdrawal transactions to be generated on the chain.
-	SendRequestBatch(
-		ctx context.Context,
-		denom string,
-	) error
+	SendRequestBatch(ctx context.Context, denom string) error
 }
 
-func NewPeggyBroadcastClient(
-	queryClient peggytypes.QueryClient,
-	broadcastClient chainclient.ChainClient,
-	ethPersonalSignFn keystore.PersonalSignFn,
-) PeggyBroadcastClient {
-	return &peggyBroadcastClient{
-		daemonQueryClient: queryClient,
-		broadcastClient:   broadcastClient,
-		ethPersonalSignFn: ethPersonalSignFn,
+type broadcastClient struct {
+	chainclient.ChainClient
 
-		svcTags: metrics.Tags{
-			"svc": "peggy_broadcast",
-		},
+	ethSignFn keystore.PersonalSignFn
+	svcTags   metrics.Tags
+}
+
+func NewBroadcastClient(client chainclient.ChainClient, signFn keystore.PersonalSignFn) BroadcastClient {
+	return broadcastClient{
+		ChainClient: client,
+		ethSignFn:   signFn,
+		svcTags:     metrics.Tags{"svc": "peggy_broadcast"},
 	}
 }
 
-func (s *peggyBroadcastClient) ValFromAddress() sdk.ValAddress {
-	return sdk.ValAddress(s.broadcastClient.FromAddress().Bytes())
-}
-
-func (s *peggyBroadcastClient) AccFromAddress() sdk.AccAddress {
-	return s.broadcastClient.FromAddress()
-}
-
-type peggyBroadcastClient struct {
-	daemonQueryClient peggytypes.QueryClient
-	broadcastClient   chainclient.ChainClient
-	ethSignerFn       keystore.SignerFn
-	ethPersonalSignFn keystore.PersonalSignFn
-
-	svcTags metrics.Tags
-}
-
-func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
-	ctx context.Context,
-	ethFrom ethcmn.Address,
-	orchestratorAddr sdk.AccAddress,
-) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+func (c broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, ethFrom gethcommon.Address, orchAddr cosmostypes.AccAddress) error {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 	// SetOrchestratorAddresses
 
@@ -125,42 +78,35 @@ func (s *peggyBroadcastClient) UpdatePeggyOrchestratorAddresses(
 	// using the Ethereum address they have submitted. Like ValsetResponse this
 	// message can in theory be submitted by anyone, but only the current validator
 	// sets submissions carry any weight.
-
 	// -------------
 	msg := &peggytypes.MsgSetOrchestratorAddresses{
-		Sender:       s.AccFromAddress().String(),
+		Sender:       c.ChainClient.FromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
-		Orchestrator: orchestratorAddr.String(),
+		Orchestrator: orchAddr.String(),
 	}
 
-	res, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	res, err := c.ChainClient.SyncBroadcastMsg(msg)
 	fmt.Println("Response of set eth address", "res", res)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgSetOrchestratorAddresses failed")
-		return err
+		metrics.ReportFuncError(c.svcTags)
+		return errors.Wrap(err, "broadcasting MsgSetOrchestratorAddresses failed")
 	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendValsetConfirm(
-	ctx context.Context,
-	ethFrom ethcmn.Address,
-	peggyID ethcmn.Hash,
-	valset *peggytypes.Valset,
-) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, valset *peggytypes.Valset) error {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	confirmHash := peggy.EncodeValsetConfirm(peggyID, valset)
-	signature, err := s.ethPersonalSignFn(ethFrom, confirmHash.Bytes())
+	signature, err := c.ethSignFn(ethFrom, confirmHash.Bytes())
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.New("failed to sign validator address")
-		return err
+		metrics.ReportFuncError(c.svcTags)
+		return errors.New("failed to sign validator address")
 	}
+
 	// MsgValsetConfirm
 	// this is the message sent by the validators when they wish to submit their
 	// signatures over the validator set at a given block height. A validator must
@@ -177,36 +123,30 @@ func (s *peggyBroadcastClient) SendValsetConfirm(
 	// chain store and submit them to Ethereum to update the validator set
 	// -------------
 	msg := &peggytypes.MsgValsetConfirm{
-		Orchestrator: s.AccFromAddress().String(),
+		Orchestrator: c.FromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
 		Nonce:        valset.Nonce,
-		Signature:    ethcmn.Bytes2Hex(signature),
+		Signature:    gethcommon.Bytes2Hex(signature),
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgValsetConfirm failed")
-		return err
+
+	if err = c.ChainClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(c.svcTags)
+		return errors.Wrap(err, "broadcasting MsgValsetConfirm failed")
 	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendBatchConfirm(
-	ctx context.Context,
-	ethFrom ethcmn.Address,
-	peggyID ethcmn.Hash,
-	batch *peggytypes.OutgoingTxBatch,
-) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+func (c broadcastClient) SendBatchConfirm(_ context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	confirmHash := peggy.EncodeTxBatchConfirm(peggyID, batch)
-	signature, err := s.ethPersonalSignFn(ethFrom, confirmHash.Bytes())
+	signature, err := c.ethSignFn(ethFrom, confirmHash.Bytes())
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.New("failed to sign validator address")
-		return err
+		metrics.ReportFuncError(c.svcTags)
+		return errors.New("failed to sign validator address")
 	}
 
 	// MsgConfirmBatch
@@ -218,26 +158,26 @@ func (s *peggyBroadcastClient) SendBatchConfirm(
 	// as well as an Ethereum signature over this batch by the validator
 	// -------------
 	msg := &peggytypes.MsgConfirmBatch{
-		Orchestrator:  s.AccFromAddress().String(),
+		Orchestrator:  c.FromAddress().String(),
 		Nonce:         batch.BatchNonce,
-		Signature:     ethcmn.Bytes2Hex(signature),
+		Signature:     gethcommon.Bytes2Hex(signature),
 		EthSigner:     ethFrom.Hex(),
 		TokenContract: batch.TokenContract,
 	}
-	if err = s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgConfirmBatch failed")
-		return err
+
+	if err = c.ChainClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(c.svcTags)
+		return errors.Wrap(err, "broadcasting MsgConfirmBatch failed")
 	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendToEth(
-	ctx context.Context,
-	destination ethcmn.Address,
-	amount, fee sdk.Coin,
-) error {
+func (c broadcastClient) SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
+	defer doneFn()
+
 	// MsgSendToEth
 	// This is the message that a user calls when they want to bridge an asset
 	// it will later be removed when it is included in a batch and successfully
@@ -250,29 +190,27 @@ func (s *peggyBroadcastClient) SendToEth(
 	// the fee paid for the bridge, distinct from the fee paid to the chain to
 	// actually send this message in the first place. So a successful send has
 	// two layers of fees for the user
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
+	// -------------
 	msg := &peggytypes.MsgSendToEth{
-		Sender:    s.AccFromAddress().String(),
+		Sender:    c.FromAddress().String(),
 		EthDest:   destination.Hex(),
 		Amount:    amount,
 		BridgeFee: fee, // TODO: use exactly that fee for transaction
 	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgSendToEth failed")
-		return err
+
+	if err := c.ChainClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(c.svcTags)
+		return errors.Wrap(err, "broadcasting MsgSendToEth failed")
 	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendRequestBatch(
-	ctx context.Context,
-	denom string,
-) error {
+func (c broadcastClient) SendRequestBatch(ctx context.Context, denom string) error {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
+	defer doneFn()
+
 	// MsgRequestBatch
 	// this is a message anyone can send that requests a batch of transactions to
 	// send across the bridge be created for whatever block height this message is
@@ -282,34 +220,21 @@ func (s *peggyBroadcastClient) SendRequestBatch(
 	// batch, sign it, submit the signatures with a MsgConfirmBatch before a relayer
 	// can finally submit the batch
 	// -------------
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
 	msg := &peggytypes.MsgRequestBatch{
 		Denom:        denom,
-		Orchestrator: s.AccFromAddress().String(),
+		Orchestrator: c.FromAddress().String(),
 	}
-	if err := s.broadcastClient.QueueBroadcastMsg(msg); err != nil {
-		metrics.ReportFuncError(s.svcTags)
-		err = errors.Wrap(err, "broadcasting MsgRequestBatch failed")
-		return err
+	if err := c.ChainClient.QueueBroadcastMsg(msg); err != nil {
+		metrics.ReportFuncError(c.svcTags)
+		return errors.Wrap(err, "broadcasting MsgRequestBatch failed")
 	}
 
 	return nil
 }
 
-func (s *peggyBroadcastClient) SendEthereumClaims(
-	ctx context.Context,
-	lastClaimEventNonce uint64,
-	oldDeposits []*peggyevents.PeggySendToCosmosEvent,
-	deposits []*peggyevents.PeggySendToInjectiveEvent,
-	withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent,
-	erc20Deployed []*peggyevents.PeggyERC20DeployedEvent,
-	valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent,
-) (uint64, error) {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+func (c broadcastClient) SendEthereumClaims(ctx context.Context, lastClaimEventNonce uint64, oldDeposits []*peggyevents.PeggySendToCosmosEvent, deposits []*peggyevents.PeggySendToInjectiveEvent, withdraws []*peggyevents.PeggyTransactionBatchExecutedEvent, erc20Deployed []*peggyevents.PeggyERC20DeployedEvent, valsetUpdates []*peggyevents.PeggyValsetUpdatedEvent) (uint64, error) {
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	events := sortEventsByNonce(oldDeposits, deposits, withdraws, erc20Deployed, valsetUpdates)
@@ -320,7 +245,7 @@ func (s *peggyBroadcastClient) SendEthereumClaims(
 	}
 
 	for _, e := range events {
-		if err := s.sendEventClaim(ctx, e); err != nil {
+		if err := c.sendEventClaim(ctx, e); err != nil {
 			return 0, err
 		}
 
@@ -410,29 +335,29 @@ func sortEventsByNonce(
 	return events
 }
 
-func (s *peggyBroadcastClient) sendEventClaim(ctx context.Context, ev event) error {
+func (c broadcastClient) sendEventClaim(ctx context.Context, ev event) error {
 	switch ev := ev.(type) {
 	case *eventSendToCosmos:
 		e := peggyevents.PeggySendToCosmosEvent(*ev)
-		return s.sendOldDepositClaims(ctx, &e)
+		return c.sendOldDepositClaims(ctx, &e)
 	case *eventSendToInjective:
 		e := peggyevents.PeggySendToInjectiveEvent(*ev)
-		return s.sendDepositClaims(ctx, &e)
+		return c.sendDepositClaims(ctx, &e)
 	case *eventTransactionBatchExecuted:
 		e := peggyevents.PeggyTransactionBatchExecutedEvent(*ev)
-		return s.sendWithdrawClaims(ctx, &e)
+		return c.sendWithdrawClaims(ctx, &e)
 	case *eventERC20Deployed:
 		e := peggyevents.PeggyERC20DeployedEvent(*ev)
-		return s.sendErc20DeployedClaims(ctx, &e)
+		return c.sendErc20DeployedClaims(ctx, &e)
 	case *eventValsetUpdated:
 		e := peggyevents.PeggyValsetUpdatedEvent(*ev)
-		return s.sendValsetUpdateClaims(ctx, &e)
+		return c.sendValsetUpdateClaims(ctx, &e)
 	}
 
 	return errors.Errorf("unknown event type %T", ev)
 }
 
-func (s *peggyBroadcastClient) sendOldDepositClaims(
+func (c broadcastClient) sendOldDepositClaims(
 	ctx context.Context,
 	oldDeposit *peggyevents.PeggySendToCosmosEvent,
 ) error {
@@ -441,13 +366,13 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 	// claimed to have seen the deposit enter the ethereum blockchain coins are
 	// issued to the Cosmos address in question
 	// -------------
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	log.WithFields(log.Fields{
 		"sender":      oldDeposit.Sender.Hex(),
-		"destination": sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
+		"destination": cosmostypes.AccAddress(oldDeposit.Destination[12:32]).String(),
 		"amount":      oldDeposit.Amount.String(),
 		"event_nonce": oldDeposit.EventNonce.String(),
 	}).Debugln("observed SendToCosmosEvent")
@@ -456,16 +381,16 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 		EventNonce:     oldDeposit.EventNonce.Uint64(),
 		BlockHeight:    oldDeposit.Raw.BlockNumber,
 		TokenContract:  oldDeposit.TokenContract.Hex(),
-		Amount:         sdk.NewIntFromBigInt(oldDeposit.Amount),
+		Amount:         cosmostypes.NewIntFromBigInt(oldDeposit.Amount),
 		EthereumSender: oldDeposit.Sender.Hex(),
-		CosmosReceiver: sdk.AccAddress(oldDeposit.Destination[12:32]).String(),
-		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		CosmosReceiver: cosmostypes.AccAddress(oldDeposit.Destination[12:32]).String(),
+		Orchestrator:   c.ChainClient.FromAddress().String(),
 		Data:           "",
 	}
 
-	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
+		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgDepositClaim failed")
 	}
 
@@ -478,7 +403,7 @@ func (s *peggyBroadcastClient) sendOldDepositClaims(
 	return nil
 }
 
-func (s *peggyBroadcastClient) sendDepositClaims(
+func (c broadcastClient) sendDepositClaims(
 	ctx context.Context,
 	deposit *peggyevents.PeggySendToInjectiveEvent,
 ) error {
@@ -487,13 +412,13 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	// claimed to have seen the deposit enter the ethereum blockchain coins are
 	// issued to the Cosmos address in question
 	// -------------
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	log.WithFields(log.Fields{
 		"sender":         deposit.Sender.Hex(),
-		"destination":    sdk.AccAddress(deposit.Destination[12:32]).String(),
+		"destination":    cosmostypes.AccAddress(deposit.Destination[12:32]).String(),
 		"amount":         deposit.Amount.String(),
 		"data":           deposit.Data,
 		"token_contract": deposit.TokenContract.Hex(),
@@ -503,16 +428,16 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 		EventNonce:     deposit.EventNonce.Uint64(),
 		BlockHeight:    deposit.Raw.BlockNumber,
 		TokenContract:  deposit.TokenContract.Hex(),
-		Amount:         sdk.NewIntFromBigInt(deposit.Amount),
+		Amount:         cosmostypes.NewIntFromBigInt(deposit.Amount),
 		EthereumSender: deposit.Sender.Hex(),
-		CosmosReceiver: sdk.AccAddress(deposit.Destination[12:32]).String(),
-		Orchestrator:   s.broadcastClient.FromAddress().String(),
+		CosmosReceiver: cosmostypes.AccAddress(deposit.Destination[12:32]).String(),
+		Orchestrator:   c.ChainClient.FromAddress().String(),
 		Data:           deposit.Data,
 	}
 
-	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
+		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgDepositClaim failed")
 	}
 
@@ -525,12 +450,12 @@ func (s *peggyBroadcastClient) sendDepositClaims(
 	return nil
 }
 
-func (s *peggyBroadcastClient) sendWithdrawClaims(
+func (c broadcastClient) sendWithdrawClaims(
 	ctx context.Context,
 	withdraw *peggyevents.PeggyTransactionBatchExecutedEvent,
 ) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	log.WithFields(log.Fields{
@@ -545,12 +470,12 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 		BatchNonce:    withdraw.BatchNonce.Uint64(),
 		BlockHeight:   withdraw.Raw.BlockNumber,
 		TokenContract: withdraw.Token.Hex(),
-		Orchestrator:  s.AccFromAddress().String(),
+		Orchestrator:  c.FromAddress().String(),
 	}
 
-	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
+		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgWithdrawClaim failed")
 	}
 
@@ -563,12 +488,12 @@ func (s *peggyBroadcastClient) sendWithdrawClaims(
 	return nil
 }
 
-func (s *peggyBroadcastClient) sendValsetUpdateClaims(
+func (c broadcastClient) sendValsetUpdateClaims(
 	ctx context.Context,
 	valsetUpdate *peggyevents.PeggyValsetUpdatedEvent,
 ) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	log.WithFields(log.Fields{
@@ -591,15 +516,15 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 		EventNonce:   valsetUpdate.EventNonce.Uint64(),
 		ValsetNonce:  valsetUpdate.NewValsetNonce.Uint64(),
 		BlockHeight:  valsetUpdate.Raw.BlockNumber,
-		RewardAmount: sdk.NewIntFromBigInt(valsetUpdate.RewardAmount),
+		RewardAmount: cosmostypes.NewIntFromBigInt(valsetUpdate.RewardAmount),
 		RewardToken:  valsetUpdate.RewardToken.Hex(),
 		Members:      members,
-		Orchestrator: s.AccFromAddress().String(),
+		Orchestrator: c.FromAddress().String(),
 	}
 
-	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
+		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgValsetUpdatedClaim failed")
 	}
 
@@ -612,12 +537,12 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	return nil
 }
 
-func (s *peggyBroadcastClient) sendErc20DeployedClaims(
+func (c broadcastClient) sendErc20DeployedClaims(
 	ctx context.Context,
 	erc20Deployed *peggyevents.PeggyERC20DeployedEvent,
 ) error {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	metrics.ReportFuncCall(c.svcTags)
+	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
 	log.WithFields(log.Fields{
@@ -636,12 +561,12 @@ func (s *peggyBroadcastClient) sendErc20DeployedClaims(
 		Name:          erc20Deployed.Name,
 		Symbol:        erc20Deployed.Symbol,
 		Decimals:      uint64(erc20Deployed.Decimals),
-		Orchestrator:  s.AccFromAddress().String(),
+		Orchestrator:  c.FromAddress().String(),
 	}
 
-	resp, err := s.broadcastClient.SyncBroadcastMsg(msg)
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
 	if err != nil {
-		metrics.ReportFuncError(s.svcTags)
+		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgERC20DeployedClaim failed")
 	}
 

@@ -71,13 +71,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		var (
-			injectiveNet       orchestrator.InjectiveNetwork
-			customEndpointRPCs = *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""
-		)
-
-		if customEndpointRPCs {
-			injectiveNet, err = cosmos.NewCustomRPCNetwork(
+		var cosmosNetwork cosmos.Network
+		if customEndpointRPCs := *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""; customEndpointRPCs {
+			cosmosNetwork, err = cosmos.NewCustomRPCNetwork(
 				*cfg.cosmosChainID,
 				valAddress.String(),
 				*cfg.cosmosGRPC,
@@ -88,7 +84,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			)
 		} else {
 			// load balanced connection
-			injectiveNet, err = cosmos.NewLoadBalancedNetwork(
+			cosmosNetwork, err = cosmos.NewLoadBalancedNetwork(
 				*cfg.cosmosChainID,
 				valAddress.String(),
 				*cfg.cosmosGasPrices,
@@ -103,7 +99,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		closer.Bind(cancelFn)
 
 		// Construct erc20 token mapping
-		peggyParams, err := injectiveNet.PeggyParams(ctx)
+		peggyParams, err := cosmosNetwork.PeggyParams(ctx)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 		}
@@ -131,7 +127,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
-			injectiveNet,
+			valAddress,
+			cosmosNetwork,
 			ethereumNet,
 			coingeckoFeed,
 			erc20ContractMapping,

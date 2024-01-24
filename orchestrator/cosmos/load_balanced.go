@@ -2,28 +2,29 @@ package cosmos
 
 import (
 	"context"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"strconv"
 	"time"
 
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-	"github.com/InjectiveLabs/sdk-go/client/common"
-	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
+	"github.com/InjectiveLabs/sdk-go/client/chain"
+	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
+	explorer "github.com/InjectiveLabs/sdk-go/client/explorer"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 )
 
 type LoadBalancedNetwork struct {
-	PeggyQueryClient
-	PeggyBroadcastClient
-	explorerclient.ExplorerClient
+	peggy.QueryClient
+	peggy.BroadcastClient
+	explorer.ExplorerClient
 }
 
 // NewLoadBalancedNetwork creates a load balanced connection to the Injective network.
@@ -37,7 +38,7 @@ func NewLoadBalancedNetwork(
 	injectiveGasPrices string,
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
-) (*LoadBalancedNetwork, error) {
+) (Network, error) {
 	var networkName string
 	switch chainID {
 	case "injective-1":
@@ -49,14 +50,9 @@ func NewLoadBalancedNetwork(
 	default:
 		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
 	}
+	netCfg := clientcommon.LoadNetwork(networkName, "lb")
 
-	netCfg := common.LoadNetwork(networkName, "lb")
-	explorer, err := explorerclient.NewExplorerClient(netCfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize explorer client")
-	}
-
-	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	clientCtx, err := chain.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
@@ -68,7 +64,7 @@ func NewLoadBalancedNetwork(
 
 	clientCtx = clientCtx.WithNodeURI(netCfg.TmEndpoint).WithClient(tmClient)
 
-	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chain.NewChainClient(clientCtx, netCfg, clientcommon.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to intialize chain client (%s)", networkName)
 	}
@@ -80,12 +76,17 @@ func NewLoadBalancedNetwork(
 
 	grpcConn := daemonClient.QueryClient()
 	waitForService(daemonWaitCtx, grpcConn)
-	peggyQuerier := types.NewQueryClient(grpcConn)
+	peggyQuerier := peggytypes.NewQueryClient(grpcConn)
+
+	explorerCLient, err := explorer.NewExplorerClient(netCfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize explorer client")
+	}
 
 	n := &LoadBalancedNetwork{
-		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
-		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
-		ExplorerClient:       explorer,
+		QueryClient:     peggy.NewQueryClient(peggyQuerier),
+		BroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
+		ExplorerClient:  explorerCLient,
 	}
 
 	log.WithFields(log.Fields{
@@ -98,7 +99,7 @@ func NewLoadBalancedNetwork(
 	return n, nil
 }
 
-func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
+func (n *LoadBalancedNetwork) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
 	block, err := n.ExplorerClient.GetBlock(ctx, strconv.FormatInt(height, 10))
 	if err != nil {
 		return time.Time{}, err
@@ -110,18 +111,6 @@ func (n *LoadBalancedNetwork) GetBlockCreationTime(ctx context.Context, height i
 	}
 
 	return blockTime, nil
-}
-
-func (n *LoadBalancedNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.LastClaimEvent, error) {
-	return n.LastClaimEventByAddr(ctx, n.AccFromAddress())
-}
-
-func (n *LoadBalancedNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.AccFromAddress())
-}
-
-func (n *LoadBalancedNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.AccFromAddress())
 }
 
 // waitForService awaits an active ClientConn to a GRPC service.
