@@ -2,6 +2,7 @@ package cosmos
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggyclient"
 	"time"
 
 	"github.com/InjectiveLabs/sdk-go/client/common"
@@ -76,7 +77,7 @@ func NewCustomRPCNetwork(
 
 	n := &CustomRPCNetwork{
 		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
-		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
+		PeggyQueryClient:     peggyclient.NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
 	}
 

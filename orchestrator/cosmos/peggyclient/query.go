@@ -1,10 +1,10 @@
-package query
+package peggyclient
 
 import (
 	"context"
 
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/InjectiveLabs/metrics"
@@ -17,6 +17,13 @@ type PeggyQueryClient struct {
 	peggytypes.QueryClient
 
 	svcTags metrics.Tags
+}
+
+func NewPeggyQueryClient(client peggytypes.QueryClient) *PeggyQueryClient {
+	return &PeggyQueryClient{
+		QueryClient: client,
+		svcTags:     metrics.Tags{"svc": "peggy_query"},
+	}
 }
 
 func (c PeggyQueryClient) ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error) {
@@ -59,7 +66,7 @@ func (c PeggyQueryClient) CurrentValset(ctx context.Context) (*peggytypes.Valset
 	return resp.Valset, nil
 }
 
-func (c PeggyQueryClient) OldestUnsignedValsets(ctx context.Context, valAccountAddress sdktypes.AccAddress) ([]*peggytypes.Valset, error) {
+func (c PeggyQueryClient) OldestUnsignedValsets(ctx context.Context, valAccountAddress cosmostypes.AccAddress) ([]*peggytypes.Valset, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -120,7 +127,7 @@ func (c PeggyQueryClient) AllValsetConfirms(ctx context.Context, nonce uint64) (
 	return resp.Confirms, nil
 }
 
-func (c PeggyQueryClient) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress sdktypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
+func (c PeggyQueryClient) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -181,7 +188,7 @@ func (c PeggyQueryClient) UnbatchedTokensWithFees(ctx context.Context) ([]*peggy
 	return resp.BatchFees, nil
 }
 
-func (c PeggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract common.Address) ([]*peggytypes.MsgConfirmBatch, error) {
+func (c PeggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -205,7 +212,7 @@ func (c PeggyQueryClient) TransactionBatchSignatures(ctx context.Context, nonce 
 	return resp.Confirms, nil
 }
 
-func (c PeggyQueryClient) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress sdktypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
+func (c PeggyQueryClient) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -247,7 +254,7 @@ func (c PeggyQueryClient) PeggyParams(ctx context.Context) (*peggytypes.Params, 
 	return &resp.Params, nil
 }
 
-func (c PeggyQueryClient) GetValidatorAddress(ctx context.Context, addr common.Address) (sdktypes.AccAddress, error) {
+func (c PeggyQueryClient) GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -267,7 +274,7 @@ func (c PeggyQueryClient) GetValidatorAddress(ctx context.Context, addr common.A
 		return nil, ErrNotFound
 	}
 
-	valAddr, err := sdktypes.AccAddressFromBech32(resp.ValidatorAddress)
+	valAddr, err := cosmostypes.AccAddressFromBech32(resp.ValidatorAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to decode validator address: %v", resp.ValidatorAddress)
 	}

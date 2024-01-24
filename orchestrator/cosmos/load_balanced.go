@@ -2,6 +2,7 @@ package cosmos
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggyclient"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"strconv"
 	"time"
@@ -83,7 +84,7 @@ func NewLoadBalancedNetwork(
 	peggyQuerier := types.NewQueryClient(grpcConn)
 
 	n := &LoadBalancedNetwork{
-		PeggyQueryClient:     NewPeggyQueryClient(peggyQuerier),
+		PeggyQueryClient:     peggyclient.NewPeggyQueryClient(peggyQuerier),
 		PeggyBroadcastClient: NewPeggyBroadcastClient(peggyQuerier, daemonClient, personalSignerFn),
 		ExplorerClient:       explorer,
 	}
