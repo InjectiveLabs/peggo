@@ -31,12 +31,12 @@ func newCustomNetwork(
 ) (Network, error) {
 	netCfg := loadCustomNetworkConfig(cfg.ChainID, "inj", cfg.CosmosGRPC, cfg.TendermintRPC)
 
-	clientCtx, err := chain.NewClientContext(cfg.ChainID, cfg.ValidatorAddress, keyring)
+	clientCtx, err := chain.NewClientContext(netCfg.ChainId, cfg.ValidatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	tmRPC, err := comethttp.New(cfg.TendermintRPC, "/websocket")
+	tmRPC, err := comethttp.New(netCfg.TmEndpoint, "/websocket")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", netCfg.TmEndpoint)
 	}
