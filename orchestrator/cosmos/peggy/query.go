@@ -3,12 +3,11 @@ package peggy
 import (
 	"context"
 
+	"github.com/InjectiveLabs/metrics"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
-
-	"github.com/InjectiveLabs/metrics"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 var ErrNotFound = errors.New("not found")

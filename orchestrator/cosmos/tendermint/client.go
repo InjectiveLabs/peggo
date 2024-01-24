@@ -5,20 +5,17 @@ import (
 	"strings"
 
 	"github.com/InjectiveLabs/metrics"
-
-	log "github.com/xlab/suplog"
-
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
-	ctypes "github.com/cometbft/cometbft/rpc/core/types"
-	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
+	comettypes "github.com/cometbft/cometbft/rpc/core/types"
+	log "github.com/xlab/suplog"
 )
 
 type Client interface {
-	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
+	GetBlock(ctx context.Context, height int64) (*comettypes.ResultBlock, error)
 	GetLatestBlockHeight(ctx context.Context) (int64, error)
-	GetTxs(ctx context.Context, block *tmctypes.ResultBlock) ([]*ctypes.ResultTx, error)
-	GetValidatorSet(ctx context.Context, height int64) (*tmctypes.ResultValidators, error)
+	GetTxs(ctx context.Context, block *comettypes.ResultBlock) ([]*comettypes.ResultTx, error)
+	GetValidatorSet(ctx context.Context, height int64) (*comettypes.ResultValidators, error)
 }
 
 type tmClient struct {
@@ -41,7 +38,7 @@ func NewRPCClient(rpcNodeAddr string) Client {
 }
 
 // GetBlock queries for a block by height. An error is returned if the query fails.
-func (c *tmClient) GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error) {
+func (c *tmClient) GetBlock(ctx context.Context, height int64) (*comettypes.ResultBlock, error) {
 	return c.rpcClient.Block(ctx, &height)
 }
 
@@ -64,12 +61,12 @@ func (c *tmClient) GetLatestBlockHeight(ctx context.Context) (int64, error) {
 
 // GetTxs queries for all the transactions in a block height.
 // It uses `Tx` RPC method to query for the transaction.
-func (c *tmClient) GetTxs(ctx context.Context, block *tmctypes.ResultBlock) ([]*ctypes.ResultTx, error) {
+func (c *tmClient) GetTxs(ctx context.Context, block *comettypes.ResultBlock) ([]*comettypes.ResultTx, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
 
-	txs := make([]*ctypes.ResultTx, 0, len(block.Block.Txs))
+	txs := make([]*comettypes.ResultTx, 0, len(block.Block.Txs))
 	for _, tmTx := range block.Block.Txs {
 		tx, err := c.rpcClient.Tx(ctx, tmTx.Hash(), true)
 		if err != nil {
@@ -90,7 +87,7 @@ func (c *tmClient) GetTxs(ctx context.Context, block *tmctypes.ResultBlock) ([]*
 
 // GetValidatorSet returns all the known Tendermint validators for a given block
 // height. An error is returned if the query fails.
-func (c *tmClient) GetValidatorSet(ctx context.Context, height int64) (*tmctypes.ResultValidators, error) {
+func (c *tmClient) GetValidatorSet(ctx context.Context, height int64) (*comettypes.ResultValidators, error) {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()

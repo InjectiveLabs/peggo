@@ -3,31 +3,33 @@ package peggy
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
+
 	"github.com/InjectiveLabs/metrics"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/common"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
-	"sort"
-	"time"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 )
 
 type BroadcastClient interface {
 	/// Send a transaction updating the eth address for the sending
 	/// Cosmos address. The sending Cosmos address should be a validator
-	UpdatePeggyOrchestratorAddresses(ctx context.Context, ethFrom common.Address, orchAddr cosmostypes.AccAddress) error
+	UpdatePeggyOrchestratorAddresses(ctx context.Context, ethFrom gethcommon.Address, orchAddr cosmostypes.AccAddress) error
 
 	// SendValsetConfirm broadcasts in a confirmation for a specific validator set for a specific block height.
-	SendValsetConfirm(ctx context.Context, ethFrom common.Address, peggyID common.Hash, valset *peggytypes.Valset) error
+	SendValsetConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, valset *peggytypes.Valset) error
 
 	// SendBatchConfirm broadcasts in a confirmation for a specific transaction batch set for a specific block height
 	// since transaction batches also include validator sets this has all the arguments
-	SendBatchConfirm(ctx context.Context, ethFrom common.Address, peggyID common.Hash, batch *peggytypes.OutgoingTxBatch) error
+	SendBatchConfirm(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error
 
 	SendEthereumClaims(ctx context.Context,
 		lastClaimEvent uint64,
@@ -41,7 +43,7 @@ type BroadcastClient interface {
 	// SendToEth broadcasts a Tx that tokens from Cosmos to Ethereum.
 	// These tokens will not be sent immediately. Instead, they will require
 	// some time to be included in a batch.
-	SendToEth(ctx context.Context, destination common.Address, amount, fee cosmostypes.Coin) error
+	SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error
 
 	// SendRequestBatch broadcasts a requests a batch of withdrawal transactions to be generated on the chain.
 	SendRequestBatch(ctx context.Context, denom string) error
@@ -62,7 +64,7 @@ func NewBroadcastClient(client chainclient.ChainClient, signFn keystore.Personal
 	}
 }
 
-func (c broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, ethFrom common.Address, orchAddr cosmostypes.AccAddress) error {
+func (c broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, ethFrom gethcommon.Address, orchAddr cosmostypes.AccAddress) error {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -93,7 +95,7 @@ func (c broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, eth
 	return nil
 }
 
-func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom common.Address, peggyID common.Hash, valset *peggytypes.Valset) error {
+func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, valset *peggytypes.Valset) error {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -124,7 +126,7 @@ func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom common.Add
 		Orchestrator: c.FromAddress().String(),
 		EthAddress:   ethFrom.Hex(),
 		Nonce:        valset.Nonce,
-		Signature:    common.Bytes2Hex(signature),
+		Signature:    gethcommon.Bytes2Hex(signature),
 	}
 
 	if err = c.ChainClient.QueueBroadcastMsg(msg); err != nil {
@@ -135,7 +137,7 @@ func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom common.Add
 	return nil
 }
 
-func (c broadcastClient) SendBatchConfirm(_ context.Context, ethFrom common.Address, peggyID common.Hash, batch *peggytypes.OutgoingTxBatch) error {
+func (c broadcastClient) SendBatchConfirm(_ context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()
@@ -158,7 +160,7 @@ func (c broadcastClient) SendBatchConfirm(_ context.Context, ethFrom common.Addr
 	msg := &peggytypes.MsgConfirmBatch{
 		Orchestrator:  c.FromAddress().String(),
 		Nonce:         batch.BatchNonce,
-		Signature:     common.Bytes2Hex(signature),
+		Signature:     gethcommon.Bytes2Hex(signature),
 		EthSigner:     ethFrom.Hex(),
 		TokenContract: batch.TokenContract,
 	}
@@ -171,7 +173,7 @@ func (c broadcastClient) SendBatchConfirm(_ context.Context, ethFrom common.Addr
 	return nil
 }
 
-func (c broadcastClient) SendToEth(ctx context.Context, destination common.Address, amount, fee cosmostypes.Coin) error {
+func (c broadcastClient) SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error {
 	metrics.ReportFuncCall(c.svcTags)
 	doneFn := metrics.ReportFuncTiming(c.svcTags)
 	defer doneFn()

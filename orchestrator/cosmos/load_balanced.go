@@ -2,28 +2,29 @@ package cosmos
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"strconv"
 	"time"
 
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/client/chain"
+	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
+	explorer "github.com/InjectiveLabs/sdk-go/client/explorer"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-	"github.com/InjectiveLabs/sdk-go/client/common"
-	explorerclient "github.com/InjectiveLabs/sdk-go/client/explorer"
 )
 
 type LoadBalancedNetwork struct {
 	peggy.QueryClient
 	peggy.BroadcastClient
-	explorerclient.ExplorerClient
+	explorer.ExplorerClient
 }
 
 // NewLoadBalancedNetwork creates a load balanced connection to the Injective network.
@@ -49,9 +50,9 @@ func NewLoadBalancedNetwork(
 	default:
 		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
 	}
-	netCfg := common.LoadNetwork(networkName, "lb")
+	netCfg := clientcommon.LoadNetwork(networkName, "lb")
 
-	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	clientCtx, err := chain.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
@@ -63,7 +64,7 @@ func NewLoadBalancedNetwork(
 
 	clientCtx = clientCtx.WithNodeURI(netCfg.TmEndpoint).WithClient(tmClient)
 
-	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chain.NewChainClient(clientCtx, netCfg, clientcommon.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to intialize chain client (%s)", networkName)
 	}
@@ -75,9 +76,9 @@ func NewLoadBalancedNetwork(
 
 	grpcConn := daemonClient.QueryClient()
 	waitForService(daemonWaitCtx, grpcConn)
-	peggyQuerier := types.NewQueryClient(grpcConn)
+	peggyQuerier := peggytypes.NewQueryClient(grpcConn)
 
-	explorer, err := explorerclient.NewExplorerClient(netCfg)
+	explorerCLient, err := explorer.NewExplorerClient(netCfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize explorer client")
 	}
@@ -85,7 +86,7 @@ func NewLoadBalancedNetwork(
 	n := &LoadBalancedNetwork{
 		QueryClient:     peggy.NewQueryClient(peggyQuerier),
 		BroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
-		ExplorerClient:  explorer,
+		ExplorerClient:  explorerCLient,
 	}
 
 	log.WithFields(log.Fields{

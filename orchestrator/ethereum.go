@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
-	eth "github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -13,9 +13,9 @@ import (
 
 // EthereumNetwork is the orchestrator's reference endpoint to the Ethereum network
 type EthereumNetwork interface {
-	FromAddress() eth.Address
-	HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error)
-	GetPeggyID(ctx context.Context) (eth.Hash, error)
+	FromAddress() gethcommon.Address
+	HeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error)
+	GetPeggyID(ctx context.Context) (gethcommon.Hash, error)
 
 	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
 	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
@@ -28,12 +28,12 @@ type EthereumNetwork interface {
 		oldValset *peggytypes.Valset,
 		newValset *peggytypes.Valset,
 		confirms []*peggytypes.MsgValsetConfirm,
-	) (*eth.Hash, error)
+	) (*gethcommon.Hash, error)
 
-	GetTxBatchNonce(ctx context.Context, erc20ContractAddress eth.Address) (*big.Int, error)
+	GetTxBatchNonce(ctx context.Context, erc20ContractAddress gethcommon.Address) (*big.Int, error)
 	SendTransactionBatch(ctx context.Context,
 		currentValset *peggytypes.Valset,
 		batch *peggytypes.OutgoingTxBatch,
 		confirms []*peggytypes.MsgConfirmBatch,
-	) (*eth.Hash, error)
+	) (*gethcommon.Hash, error)
 }

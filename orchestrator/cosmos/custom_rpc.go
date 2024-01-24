@@ -2,19 +2,19 @@ package cosmos
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"time"
 
-	"github.com/InjectiveLabs/sdk-go/client/common"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/client/chain"
+	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
+	comethttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
 )
 
 type CustomRPCNetwork struct {
@@ -23,8 +23,8 @@ type CustomRPCNetwork struct {
 	tendermint.Client
 }
 
-func loadCustomNetworkConfig(chainID, feeDenom, cosmosGRPC, tendermintRPC string) common.Network {
-	cfg := common.LoadNetwork("devnet", "")
+func loadCustomNetworkConfig(chainID, feeDenom, cosmosGRPC, tendermintRPC string) clientcommon.Network {
+	cfg := clientcommon.LoadNetwork("devnet", "")
 	cfg.Name = "custom"
 	cfg.ChainId = chainID
 	cfg.Fee_denom = feeDenom
@@ -47,12 +47,12 @@ func NewCustomRPCNetwork(
 	keyring keyring.Keyring,
 	personalSignerFn keystore.PersonalSignFn,
 ) (Network, error) {
-	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
+	clientCtx, err := chain.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client context for Injective chain")
 	}
 
-	tmRPC, err := rpchttp.New(tendermintRPC, "/websocket")
+	tmRPC, err := comethttp.New(tendermintRPC, "/websocket")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Tendermint RPC %s", tendermintRPC)
 	}
@@ -61,7 +61,7 @@ func NewCustomRPCNetwork(
 	clientCtx = clientCtx.WithClient(tmRPC)
 
 	netCfg := loadCustomNetworkConfig(chainID, "inj", injectiveGRPC, tendermintRPC)
-	daemonClient, err := chainclient.NewChainClient(clientCtx, netCfg, common.OptionGasPrices(injectiveGasPrices))
+	daemonClient, err := chain.NewChainClient(clientCtx, netCfg, clientcommon.OptionGasPrices(injectiveGasPrices))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to Injective GRPC %s", injectiveGRPC)
 	}

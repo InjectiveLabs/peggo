@@ -2,19 +2,24 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/cosmos/cosmos-sdk/types"
 	"time"
 
-	eth "github.com/ethereum/go-ethereum/common"
+	"github.com/InjectiveLabs/metrics"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
 const defaultLoopDur = 60 * time.Second
+
+// PriceFeed provides token price for a given contract address
+type PriceFeed interface {
+	QueryUSDPrice(address gethcommon.Address) (float64, error)
+}
 
 type PeggyOrchestrator struct {
 	logger  log.Logger
@@ -26,7 +31,7 @@ type PeggyOrchestrator struct {
 	eth       EthereumNetwork
 	pricefeed PriceFeed
 
-	erc20ContractMapping map[eth.Address]string
+	erc20ContractMapping map[gethcommon.Address]string
 	relayValsetOffsetDur time.Duration
 	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
@@ -42,7 +47,7 @@ func NewPeggyOrchestrator(
 	injective cosmos.Network,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
-	erc20ContractMapping map[eth.Address]string,
+	erc20ContractMapping map[gethcommon.Address]string,
 	minBatchFeeUSD float64,
 	valsetRelayingEnabled,
 	batchRelayingEnabled bool,
@@ -114,7 +119,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 	log.Infoln("running orchestrator in validator mode")
 
-	// get eth block observed by this validator
+	// get gethcommon block observed by this validator
 	lastObservedEthBlock, _ := s.getLastClaimBlockHeight(ctx)
 	if lastObservedEthBlock == 0 {
 		peggyParams, err := s.inj.PeggyParams(ctx)

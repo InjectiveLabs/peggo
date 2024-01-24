@@ -49,52 +49,48 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting EthOracle loop...")
 
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		return l.observeEthEvents(ctx)
-	})
-}
-
-func (l *ethOracleLoop) observeEthEvents(ctx context.Context) error {
-	latestHeight, err := l.getLatestEthHeight(ctx)
-	if err != nil {
-		return err
-	}
-
-	// not enough blocks on ethereum yet
-	if latestHeight <= ethBlockConfirmationDelay {
-		return nil
-	}
-
-	// ensure that latest block has minimum confirmations
-	latestHeight = latestHeight - ethBlockConfirmationDelay
-	if latestHeight <= l.lastCheckedEthHeight {
-		return nil
-	}
-
-	if latestHeight > l.lastCheckedEthHeight+defaultBlocksToSearch {
-		latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
-	}
-
-	if err := l.relayEvents(ctx, latestHeight); err != nil {
-		return err
-
-	}
-
-	l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
-	l.lastCheckedEthHeight = latestHeight
-
-	/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
-		1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
-	   	we need to re-scan this block to ensure events are not missed due to indexing delay.
-		2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-		3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
-	*/
-	if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
-		if err := l.autoResync(ctx); err != nil {
+		latestHeight, err := l.getLatestEthHeight(ctx)
+		if err != nil {
 			return err
 		}
-	}
 
-	return nil
+		// not enough blocks on ethereum yet
+		if latestHeight <= ethBlockConfirmationDelay {
+			return nil
+		}
+
+		// ensure that latest block has minimum confirmations
+		latestHeight = latestHeight - ethBlockConfirmationDelay
+		if latestHeight <= l.lastCheckedEthHeight {
+			return nil
+		}
+
+		if latestHeight > l.lastCheckedEthHeight+defaultBlocksToSearch {
+			latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
+		}
+
+		if err := l.relayEvents(ctx, latestHeight); err != nil {
+			return err
+
+		}
+
+		l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
+		l.lastCheckedEthHeight = latestHeight
+
+		/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
+			1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
+		   	we need to re-scan this block to ensure events are not missed due to indexing delay.
+			2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+			3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
+		*/
+		if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
+			if err := l.autoResync(ctx); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (l *ethOracleLoop) relayEvents(ctx context.Context, latestHeight uint64) error {
