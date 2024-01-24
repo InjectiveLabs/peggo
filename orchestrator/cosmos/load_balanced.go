@@ -49,12 +49,7 @@ func NewLoadBalancedNetwork(
 	default:
 		return nil, errors.Errorf("provided chain id %v does not belong to any known Injective network", chainID)
 	}
-
 	netCfg := common.LoadNetwork(networkName, "lb")
-	explorer, err := explorerclient.NewExplorerClient(netCfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize explorer client")
-	}
 
 	clientCtx, err := chainclient.NewClientContext(chainID, validatorAddress, keyring)
 	if err != nil {
@@ -81,6 +76,11 @@ func NewLoadBalancedNetwork(
 	grpcConn := daemonClient.QueryClient()
 	waitForService(daemonWaitCtx, grpcConn)
 	peggyQuerier := types.NewQueryClient(grpcConn)
+
+	explorer, err := explorerclient.NewExplorerClient(netCfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize explorer client")
+	}
 
 	n := &LoadBalancedNetwork{
 		QueryClient:     peggy.NewQueryClient(peggyQuerier),
