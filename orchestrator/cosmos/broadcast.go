@@ -604,9 +604,9 @@ func (s *peggyBroadcastClient) sendValsetUpdateClaims(
 	}
 
 	log.WithFields(log.Fields{
-		"event_nonce":   msg.EventNonce,
-		"event__height": msg.BlockHeight,
-		"tx_hash":       resp.TxResponse.TxHash,
+		"event_nonce":  msg.EventNonce,
+		"event_height": msg.BlockHeight,
+		"tx_hash":      resp.TxResponse.TxHash,
 	}).Infoln("Oracle sent MsgValsetUpdatedClaim")
 
 	return nil
