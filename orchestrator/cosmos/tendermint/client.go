@@ -1,4 +1,4 @@
-package tmclient
+package tendermint
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	tmctypes "github.com/cometbft/cometbft/rpc/core/types"
 )
 
-type TendermintClient interface {
+type Client interface {
 	GetBlock(ctx context.Context, height int64) (*tmctypes.ResultBlock, error)
 	GetLatestBlockHeight(ctx context.Context) (int64, error)
 	GetTxs(ctx context.Context, block *tmctypes.ResultBlock) ([]*ctypes.ResultTx, error)
@@ -26,7 +26,7 @@ type tmClient struct {
 	svcTags   metrics.Tags
 }
 
-func NewRPCClient(rpcNodeAddr string) TendermintClient {
+func NewRPCClient(rpcNodeAddr string) Client {
 	rpcClient, err := rpchttp.NewWithTimeout(rpcNodeAddr, "/websocket", 10)
 	if err != nil {
 		log.WithError(err).Fatalln("failed to init rpcClient")
@@ -35,7 +35,7 @@ func NewRPCClient(rpcNodeAddr string) TendermintClient {
 	return &tmClient{
 		rpcClient: rpcClient,
 		svcTags: metrics.Tags{
-			"svc": string("tmclient"),
+			"svc": string("tendermint"),
 		},
 	}
 }

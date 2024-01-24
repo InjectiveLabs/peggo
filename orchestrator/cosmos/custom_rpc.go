@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
@@ -21,9 +21,9 @@ import (
 type CustomRPCNetwork struct {
 	addr sdk.AccAddress
 
-	tmclient.TendermintClient
-	PeggyQueryClient
-	PeggyBroadcastClient
+	tendermint.Client
+	peggy.QueryClient
+	peggy.BroadcastClient
 }
 
 func loadCustomNetworkConfig(chainID, feeDenom, cosmosGRPC, tendermintRPC string) common.Network {
@@ -84,10 +84,10 @@ func NewCustomRPCNetwork(
 	peggyQuerier := peggytypes.NewQueryClient(grpcConn)
 
 	n := &CustomRPCNetwork{
-		addr:                 addr,
-		TendermintClient:     tmclient.NewRPCClient(tendermintRPC),
-		PeggyQueryClient:     peggy.NewQueryClient(peggyQuerier),
-		PeggyBroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
+		addr:            addr,
+		Client:          tendermint.NewRPCClient(tendermintRPC),
+		QueryClient:     peggy.NewQueryClient(peggyQuerier),
+		BroadcastClient: peggy.NewBroadcastClient(daemonClient, personalSignerFn),
 	}
 
 	log.WithFields(log.Fields{
@@ -101,7 +101,7 @@ func NewCustomRPCNetwork(
 }
 
 func (n *CustomRPCNetwork) GetBlockCreationTime(ctx context.Context, height int64) (time.Time, error) {
-	block, err := n.TendermintClient.GetBlock(ctx, height)
+	block, err := n.Client.GetBlock(ctx, height)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -114,9 +114,9 @@ func (n *CustomRPCNetwork) LastClaimEvent(ctx context.Context) (*peggytypes.Last
 }
 
 func (n *CustomRPCNetwork) OldestUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	return n.PeggyQueryClient.OldestUnsignedValsets(ctx, n.addr)
+	return n.QueryClient.OldestUnsignedValsets(ctx, n.addr)
 }
 
 func (n *CustomRPCNetwork) OldestUnsignedTransactionBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
-	return n.PeggyQueryClient.OldestUnsignedTransactionBatch(ctx, n.addr)
+	return n.QueryClient.OldestUnsignedTransactionBatch(ctx, n.addr)
 }
