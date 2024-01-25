@@ -36,7 +36,7 @@ type KeyringConfig struct {
 }
 
 func (cfg KeyringConfig) withPrivateKey() bool {
-	return len(cfg.PrivateKey) > 9
+	return len(cfg.PrivateKey) > 0
 }
 
 type Keyring struct {
@@ -132,14 +132,14 @@ func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
 
 	var keyRecord *keyring.Record
 	if cosmosAddr, err := cosmtypes.AccAddressFromBech32(cfg.KeyFrom); err != nil {
-		r, err := kr.KeyByAddress(cosmosAddr)
+		r, err := kr.Key(cfg.KeyFrom)
 		if err != nil {
 			return Keyring{}, err
 		}
 
 		keyRecord = r
 	} else {
-		r, err := kr.Key(cfg.KeyFrom)
+		r, err := kr.KeyByAddress(cosmosAddr)
 		if err != nil {
 			return Keyring{}, err
 		}

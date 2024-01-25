@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
@@ -46,6 +47,15 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.Fatalln("cannot use Ledger for orchestrator, since signatures must be realtime")
 		}
 
+		println("# Previous cfg #")
+		fmt.Printf("cosmosKeyringDir: %v\n", *cfg.cosmosKeyringDir)
+		fmt.Printf("cosmosKeyringAppName: %v\n", *cfg.cosmosKeyringAppName)
+		fmt.Printf("cosmosKeyringBackend: %v\n", *cfg.cosmosKeyringBackend)
+		fmt.Printf("cosmosKeyFrom: %v\n", *cfg.cosmosKeyFrom)
+		fmt.Printf("cosmosKeyPassphrase: %v\n", *cfg.cosmosKeyPassphrase)
+		fmt.Printf("cosmosPrivKey: %v\n", *cfg.cosmosPrivKey)
+		fmt.Printf("cosmosUseLedger: %v\n", *cfg.cosmosUseLedger)
+
 		keyringCfg := cosmos.KeyringConfig{
 			KeyringDir:     *cfg.cosmosKeyringDir,
 			KeyringAppName: *cfg.cosmosKeyringAppName,
@@ -55,6 +65,15 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			PrivateKey:     *cfg.cosmosPrivKey,
 			UseLedger:      *cfg.cosmosUseLedger,
 		}
+
+		println("# new cfg ")
+		fmt.Printf("cosmosKeyringDir: %v\n", keyringCfg.KeyringDir)
+		fmt.Printf("cosmosKeyringAppName: %v\n", keyringCfg.KeyringAppName)
+		fmt.Printf("cosmosKeyringBackend: %v\n", keyringCfg.KeyringBackend)
+		fmt.Printf("cosmosKeyFrom: %v\n", keyringCfg.KeyFrom)
+		fmt.Printf("cosmosKeyPassphrase: %v\n", keyringCfg.KeyPassphrase)
+		fmt.Printf("cosmosPrivKey: %v\n", keyringCfg.PrivateKey)
+		fmt.Printf("cosmosUseLedger: %v\n", keyringCfg.UseLedger)
 
 		cosmosKeyring, err := cosmos.NewKeyring(keyringCfg)
 		orShutdown(err)
