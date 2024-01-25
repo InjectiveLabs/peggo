@@ -94,18 +94,18 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			log.Warningln("beware: you cannot really use Ledger for orchestrator, so make sure the Ethereum key is accessible outside of it")
 		}
 
-		valAddress, cosmosKeyring, err := initCosmosKeyring(
-			cosmosKeyringDir,
-			cosmosKeyringAppName,
-			cosmosKeyringBackend,
-			cosmosKeyFrom,
-			cosmosKeyPassphrase,
-			cosmosPrivKey,
-			cosmosUseLedger,
-		)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to init Cosmos keyring")
+		keyringCfg := cosmos.KeyringConfig{
+			KeyringDir:     *cosmosKeyringDir,
+			KeyringAppName: *cosmosKeyringAppName,
+			KeyringBackend: *cosmosKeyringBackend,
+			KeyFrom:        *cosmosKeyFrom,
+			KeyPassphrase:  *cosmosKeyPassphrase,
+			PrivateKey:     *cosmosPrivKey,
+			UseLedger:      *cosmosUseLedger,
 		}
+
+		keyring, err := cosmos.NewKeyring(keyringCfg)
+		orShutdown(err)
 
 		ethKeyFromAddress, _, personalSignFn, err := initEthereumAccountsManager(
 			0,
@@ -119,7 +119,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to init Ethereum account")
 		}
 
-		log.Infoln("Using Cosmos ValAddress", valAddress.String())
+		log.Infoln("Using Cosmos ValAddress", keyring.Addr.String())
 		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
 
 		actionConfirmed := *alwaysAutoConfirm || stdinConfirm("Confirm UpdatePeggyOrchestratorAddresses transaction? [y/N]: ")
@@ -127,9 +127,9 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		net, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
+		net, err := cosmos.NewCosmosNetwork(keyring, personalSignFn, cosmos.NetworkConfig{
 			ChainID:          *cosmosChainID,
-			ValidatorAddress: valAddress.String(),
+			ValidatorAddress: keyring.Addr.String(),
 			CosmosGRPC:       *cosmosGRPC,
 			TendermintRPC:    *cosmosGasPrices,
 			GasPrice:         *tendermintRPC,
@@ -142,13 +142,13 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 		broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFn()
 
-		if err = peggy.BroadcastClient(net).UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
+		if err = peggy.BroadcastClient(net).UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, keyring.Addr); err != nil {
 			log.WithError(err).Errorln("failed to broadcast Tx")
 			time.Sleep(time.Second)
 			return
 		}
 
 		log.Infof("Registered Ethereum address %s for validator address %s",
-			ethKeyFromAddress, valAddress.String())
+			ethKeyFromAddress, keyring.Addr.String())
 	}
 }
