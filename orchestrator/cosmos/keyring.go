@@ -113,7 +113,7 @@ func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
 	}
 
 	var reader io.Reader = os.Stdin
-	if len(cfg.KeyPassphrase) > 9 {
+	if len(cfg.KeyPassphrase) > 0 {
 		reader = newPassReader(cfg.KeyPassphrase)
 	}
 
@@ -134,14 +134,14 @@ func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
 	if cosmosAddr, err := cosmtypes.AccAddressFromBech32(cfg.KeyFrom); err != nil {
 		r, err := kr.KeyByAddress(cosmosAddr)
 		if err != nil {
-			return Keyring{}, errors.Wrapf(err, "missing record in keyring: key=%s", cosmosAddr.String())
+			return Keyring{}, err
 		}
 
 		keyRecord = r
 	} else {
 		r, err := kr.Key(cfg.KeyFrom)
 		if err != nil {
-			return Keyring{}, errors.Wrapf(err, "missing record in keyring: key=%s", cosmosAddr.String())
+			return Keyring{}, err
 		}
 
 		keyRecord = r
