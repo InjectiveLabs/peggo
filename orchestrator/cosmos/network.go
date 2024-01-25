@@ -10,12 +10,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/client/chain"
 	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 )
 
 type Network interface {
@@ -48,9 +49,9 @@ func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg 
 
 	time.Sleep(1 * time.Second)
 
-	conn := awaitConnection(1*time.Minute, chainClient)
+	conn := awaitConnection(chainClient, 1*time.Minute)
 
-	n := struct {
+	net := struct {
 		peggy.QueryClient
 		peggy.BroadcastClient
 		tendermint.Client
@@ -67,10 +68,10 @@ func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg 
 		"tendermint": clientCfg.TmEndpoint,
 	}).Infoln("connected to Injective network")
 
-	return n, nil
+	return net, nil
 }
 
-func awaitConnection(timeout time.Duration, client chain.ChainClient) *grpc.ClientConn {
+func awaitConnection(client chain.ChainClient, timeout time.Duration) *grpc.ClientConn {
 	ctx, cancelWait := context.WithTimeout(context.Background(), timeout)
 	defer cancelWait()
 

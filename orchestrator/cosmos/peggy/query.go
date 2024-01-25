@@ -13,18 +13,20 @@ import (
 var ErrNotFound = errors.New("not found")
 
 type QueryClient interface {
+	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
+	LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error)
+	GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error)
+
 	ValsetAt(ctx context.Context, nonce uint64) (*peggytypes.Valset, error)
 	CurrentValset(ctx context.Context) (*peggytypes.Valset, error)
 	OldestUnsignedValsets(ctx context.Context, valAccountAddress cosmostypes.AccAddress) ([]*peggytypes.Valset, error)
 	LatestValsets(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirms(ctx context.Context, nonce uint64) ([]*peggytypes.MsgValsetConfirm, error)
+
 	OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error)
 	LatestTransactionBatches(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	TransactionBatchSignatures(ctx context.Context, nonce uint64, tokenContract gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error)
-	LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error)
-	PeggyParams(ctx context.Context) (*peggytypes.Params, error)
-	GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error)
 }
 
 type queryClient struct {

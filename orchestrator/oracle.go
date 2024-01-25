@@ -12,13 +12,14 @@ import (
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
-// todo: this is outdated, need to update
-// Considering blocktime of up to 3 seconds approx on the Injective Chain and an oracle loop duration = 1 minute,
-// we broadcast only 20 events in each iteration.
-// So better to search only 20 blocks to ensure all the events are broadcast to Injective Chain without misses.
 const (
+	// Minimum number of confirmations for an Ethereum block to be considered valid
 	ethBlockConfirmationDelay uint64 = 12
-	defaultBlocksToSearch     uint64 = 2000
+
+	// Maximum block range for Ethereum event query. If the orchestrator has been offline for a long time,
+	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
+	// when there are more than ~50 events to claim in a single run.
+	defaultBlocksToSearch uint64 = 2000
 )
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -65,6 +66,7 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 			return nil
 		}
 
+		// ensure the block range is within defaultBlocksToSearch
 		if latestHeight > l.lastCheckedEthHeight+defaultBlocksToSearch {
 			latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
 		}
@@ -127,7 +129,7 @@ func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 	l.lastCheckedEthHeight = latestHeight
 	l.lastResyncWithInjective = time.Now()
 
-	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync last claimed event height with Injective")
+	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync with last claimed event on Injective")
 
 	return nil
 }

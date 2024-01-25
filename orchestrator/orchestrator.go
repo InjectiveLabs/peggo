@@ -2,14 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/cosmos/cosmos-sdk/types"
 	"time"
 
-	"github.com/InjectiveLabs/metrics"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
@@ -26,7 +26,7 @@ type PeggyOrchestrator struct {
 	svcTags metrics.Tags
 
 	inj              cosmos.Network
-	orchestratorAddr types.AccAddress
+	orchestratorAddr cosmostypes.AccAddress
 
 	eth       EthereumNetwork
 	pricefeed PriceFeed
@@ -43,7 +43,7 @@ type PeggyOrchestrator struct {
 }
 
 func NewPeggyOrchestrator(
-	orchestratorAddr types.AccAddress,
+	orchestratorAddr cosmostypes.AccAddress,
 	injective cosmos.Network,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
@@ -109,7 +109,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context) bool {
 		return false
 	}
 
-	s.logger.WithField("validator_addr", validator.String()).Debugln("found delegate validator address")
+	s.logger.WithField("addr", validator.String()).Debugln("found delegate validator")
 
 	return true
 }
