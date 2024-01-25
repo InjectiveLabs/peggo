@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -71,9 +72,13 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 			latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
 		}
 
-		if err := l.relayEvents(ctx, latestHeight); err != nil {
+		events, err := l.getEthEvents(ctx, l.lastCheckedEthHeight, latestHeight)
+		if err != nil {
 			return err
+		}
 
+		if err := l.sendNewEventClaims(ctx, events); err != nil {
+			return err
 		}
 
 		l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
@@ -93,45 +98,6 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 
 		return nil
 	})
-}
-
-func (l *ethOracleLoop) relayEvents(ctx context.Context, latestHeight uint64) error {
-	events, err := l.getEthEvents(ctx, l.lastCheckedEthHeight, latestHeight)
-	if err != nil {
-		return err
-	}
-
-	if err := l.sendNewEventClaims(ctx, events); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (l *ethOracleLoop) autoResync(ctx context.Context) error {
-	var latestHeight uint64
-	getLastClaimEventFn := func() (err error) {
-		latestHeight, err = l.getLastClaimBlockHeight(ctx)
-		return
-	}
-
-	if err := retry.Do(getLastClaimEventFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get last claimed event height, will retry (%d)", n)
-		}),
-	); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return err
-	}
-
-	l.lastCheckedEthHeight = latestHeight
-	l.lastResyncWithInjective = time.Now()
-
-	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync with last claimed event on Injective")
-
-	return nil
 }
 
 func (l *ethOracleLoop) getEthEvents(ctx context.Context, startBlock, endBlock uint64) (ethEvents, error) {
@@ -225,20 +191,18 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 			return nil
 		}
 
-		latestEventNonce, err := l.inj.SendEthereumClaims(ctx,
-			lastClaim.EthereumEventNonce,
-			newEvents.OldDeposits,
-			newEvents.Deposits,
-			newEvents.Withdrawals,
-			newEvents.ERC20Deployments,
-			newEvents.ValsetUpdates,
-		)
+		sortedEvents := newEvents.Sort()
+		for _, event := range sortedEvents {
+			if err := l.sendEthEventClaim(ctx, event); err != nil {
+				return err
+			}
 
-		if err != nil {
-			return err
+			// Considering blockTime=1s on Injective chain, adding Sleep to make sure new event is sent
+			// only after previous event is executed successfully. Otherwise it will through `non contiguous event nonce` failing CheckTx.
+			time.Sleep(1200 * time.Millisecond)
 		}
 
-		l.Logger().WithFields(log.Fields{"events": newEvents.Num(), "latest_event_nonce": latestEventNonce}).Infoln("sent new event claims to Injective")
+		l.Logger().WithField("claims", len(sortedEvents)).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
@@ -255,6 +219,49 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 	}
 
 	return nil
+}
+
+func (l *ethOracleLoop) autoResync(ctx context.Context) error {
+	var latestHeight uint64
+	getLastClaimEventFn := func() (err error) {
+		latestHeight, err = l.getLastClaimBlockHeight(ctx)
+		return
+	}
+
+	if err := retry.Do(getLastClaimEventFn,
+		retry.Context(ctx),
+		retry.Attempts(l.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			l.Logger().WithError(err).Warningf("failed to get last claimed event height, will retry (%d)", n)
+		}),
+	); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return err
+	}
+
+	l.lastCheckedEthHeight = latestHeight
+	l.lastResyncWithInjective = time.Now()
+
+	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync with last claimed event on Injective")
+
+	return nil
+}
+
+func (l *ethOracleLoop) sendEthEventClaim(ctx context.Context, event any) error {
+	switch e := event.(type) {
+	case *peggyevents.PeggySendToCosmosEvent:
+		return l.inj.SendOldDepositClaim(ctx, e)
+	case *peggyevents.PeggySendToInjectiveEvent:
+		return l.inj.SendDepositClaim(ctx, e)
+	case *peggyevents.PeggyValsetUpdatedEvent:
+		return l.inj.SendValsetClaim(ctx, e)
+	case *peggyevents.PeggyTransactionBatchExecutedEvent:
+		return l.inj.SendWithdrawalClaim(ctx, e)
+	case *peggyevents.PeggyERC20DeployedEvent:
+		return l.inj.SendERC20DeployedClaim(ctx, e)
+	default:
+		panic(errors.Errorf("unknown event type %T", e))
+	}
 }
 
 type ethEvents struct {
@@ -312,4 +319,52 @@ func (e ethEvents) Filter(nonce uint64) ethEvents {
 		ValsetUpdates:    valsetUpdates,
 		ERC20Deployments: erc20Deployments,
 	}
+}
+
+func (e ethEvents) Sort() []any {
+	events := make([]any, 0, e.Num())
+
+	for _, deposit := range e.OldDeposits {
+		events = append(events, deposit)
+	}
+
+	for _, deposit := range e.Deposits {
+		events = append(events, deposit)
+	}
+
+	for _, withdrawal := range e.Withdrawals {
+		events = append(events, withdrawal)
+	}
+
+	for _, deployment := range e.ERC20Deployments {
+		events = append(events, deployment)
+	}
+
+	for _, vs := range e.ValsetUpdates {
+		events = append(events, vs)
+	}
+
+	eventNonce := func(event any) uint64 {
+		switch e := event.(type) {
+		case *peggyevents.PeggySendToCosmosEvent:
+			return e.EventNonce.Uint64()
+		case *peggyevents.PeggySendToInjectiveEvent:
+			return e.EventNonce.Uint64()
+		case *peggyevents.PeggyValsetUpdatedEvent:
+			return e.EventNonce.Uint64()
+		case *peggyevents.PeggyTransactionBatchExecutedEvent:
+			return e.EventNonce.Uint64()
+		case *peggyevents.PeggyERC20DeployedEvent:
+			return e.EventNonce.Uint64()
+		default:
+			panic(errors.Errorf("unknown event type %T", e))
+		}
+	}
+
+	// sort by nonce
+	sort.Slice(events, func(i, j int) bool {
+		return eventNonce(events[i]) < eventNonce(events[j])
+	})
+
+	return events
 }
