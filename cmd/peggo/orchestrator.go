@@ -46,18 +46,31 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.Fatalln("cannot use Ledger for orchestrator, since signatures must be realtime")
 		}
 
-		valAddress, cosmosKeyring, err := initCosmosKeyring(
-			cfg.cosmosKeyringDir,
-			cfg.cosmosKeyringAppName,
-			cfg.cosmosKeyringBackend,
-			cfg.cosmosKeyFrom,
-			cfg.cosmosKeyPassphrase,
-			cfg.cosmosPrivKey,
-			cfg.cosmosUseLedger,
-		)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to initialize Injective keyring")
+		keyringCfg := cosmos.KeyringConfig{
+			KeyringDir:     *cfg.cosmosKeyringDir,
+			KeyringAppName: *cfg.cosmosKeyringAppName,
+			KeyringBackend: *cfg.cosmosKeyringBackend,
+			KeyFrom:        *cfg.cosmosKeyFrom,
+			KeyPassphrase:  *cfg.cosmosKeyPassphrase,
+			PrivateKey:     *cfg.cosmosPrivKey,
+			UseLedger:      *cfg.cosmosUseLedger,
 		}
+
+		cosmosKeyring, err := cosmos.NewKeyring(keyringCfg)
+		orShutdown(err)
+
+		//valAddress, cosmosKeyring, err := initCosmosKeyring(
+		//	cfg.cosmosKeyringDir,
+		//	cfg.cosmosKeyringAppName,
+		//	cfg.cosmosKeyringBackend,
+		//	cfg.cosmosKeyFrom,
+		//	cfg.cosmosKeyPassphrase,
+		//	cfg.cosmosPrivKey,
+		//	cfg.cosmosUseLedger,
+		//)
+		//if err != nil {
+		//	log.WithError(err).Fatalln("failed to initialize Injective keyring")
+		//}
 
 		ethKeyFromAddress, signerFn, personalSignFn, err := initEthereumAccountsManager(
 			uint64(*cfg.ethChainID),
@@ -73,7 +86,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		cosmosCfg := cosmos.NetworkConfig{
 			ChainID:          *cfg.cosmosChainID,
-			ValidatorAddress: valAddress.String(),
+			ValidatorAddress: cosmosKeyring.Addr.String(),
 			CosmosGRPC:       *cfg.cosmosGRPC,
 			TendermintRPC:    *cfg.tendermintRPC,
 			GasPrice:         *cfg.cosmosGasPrices,
@@ -114,7 +127,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
-			valAddress,
+			cosmosKeyring.Addr,
 			cosmosNetwork,
 			ethereumNet,
 			coingeckoFeed,
