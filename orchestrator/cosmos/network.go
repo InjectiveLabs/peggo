@@ -19,13 +19,6 @@ import (
 )
 
 type Network interface {
-	GetBlockTime(ctx context.Context, height int64) (time.Time, error)
-
-	peggy.QueryClient
-	peggy.BroadcastClient
-}
-
-type network struct {
 	peggy.QueryClient
 	peggy.BroadcastClient
 	tendermint.Client
@@ -57,10 +50,14 @@ func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg 
 
 	conn := awaitConnection(1*time.Minute, chainClient)
 
-	n := network{
-		QueryClient:     peggy.NewQueryClient(peggytypes.NewQueryClient(conn)),
-		BroadcastClient: peggy.NewBroadcastClient(chainClient, ethSignFn),
-		Client:          tendermint.NewRPCClient(clientCfg.TmEndpoint),
+	n := struct {
+		peggy.QueryClient
+		peggy.BroadcastClient
+		tendermint.Client
+	}{
+		peggy.NewQueryClient(peggytypes.NewQueryClient(conn)),
+		peggy.NewBroadcastClient(chainClient, ethSignFn),
+		tendermint.NewRPCClient(clientCfg.TmEndpoint),
 	}
 
 	log.WithFields(log.Fields{
@@ -71,15 +68,6 @@ func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg 
 	}).Infoln("connected to Injective network")
 
 	return n, nil
-}
-
-func (n network) GetBlockTime(ctx context.Context, height int64) (time.Time, error) {
-	block, err := n.Client.GetBlock(ctx, height)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return block.Block.Time, nil
 }
 
 func awaitConnection(timeout time.Duration, client chain.ChainClient) *grpc.ClientConn {

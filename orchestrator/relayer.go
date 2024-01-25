@@ -178,13 +178,13 @@ func (l *relayerLoop) shouldRelayValset(ctx context.Context, vs *peggytypes.Vals
 	}
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockTime(ctx, int64(vs.Height))
+	block, err := l.inj.GetBlock(ctx, int64(vs.Height))
 	if err != nil {
 		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
 		return false
 	}
 
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
+	if timeElapsed := time.Since(block.Block.Time); timeElapsed <= l.relayValsetOffsetDur {
 		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
 		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset not reached yet")
 		return false
@@ -256,13 +256,13 @@ func (l *relayerLoop) shouldRelayBatch(ctx context.Context, batch *peggytypes.Ou
 	}
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockTime(ctx, int64(batch.Block))
+	blockTime, err := l.inj.GetBlock(ctx, int64(batch.Block))
 	if err != nil {
 		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
 		return false
 	}
 
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayBatchOffsetDur {
+	if timeElapsed := time.Since(blockTime.Block.Time); timeElapsed <= l.relayBatchOffsetDur {
 		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
 		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset not reached yet")
 		return false
