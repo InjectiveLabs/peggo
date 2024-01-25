@@ -145,33 +145,7 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 		return nil
 	}
 
-	if oldestConfirmedValset.Nonce <= latestEthValset.Nonce {
-		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthValset.Nonce, "inj_nonce": oldestConfirmedValset.Nonce}).Debugln("valset already updated on Ethereum")
-		return nil
-	}
-
-	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to get latest valset nonce from Ethereum")
-	}
-
-	// Check if other validators already updated the valset
-	if oldestConfirmedValset.Nonce <= latestEthereumValsetNonce.Uint64() {
-		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthereumValsetNonce, "inj_nonce": latestEthValset.Nonce}).Debugln("valset already updated on Ethereum")
-		return nil
-	}
-
-	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedValset.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("new valset update")
-
-	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedValset.Height))
-	if err != nil {
-		return errors.Wrap(err, "failed to parse timestamp from block")
-	}
-
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
-		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
-		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset not reached yet")
+	if !l.shouldRelayValset(ctx, oldestConfirmedValset) {
 		return nil
 	}
 
@@ -188,6 +162,37 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset tx to Ethereum")
 
 	return nil
+}
+
+func (l *relayerLoop) shouldRelayValset(ctx context.Context, vs *peggytypes.Valset) bool {
+	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
+	if err != nil {
+		l.Logger().WithError(err).Warningln("failed to get latest valset nonce from Ethereum")
+		return false
+	}
+
+	// Check if other validators already updated the valset
+	if vs.Nonce <= latestEthereumValsetNonce.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthereumValsetNonce, "inj_nonce": vs.Nonce}).Debugln("valset already updated on Ethereum")
+		return false
+	}
+
+	// Check custom time delay offset
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(vs.Height))
+	if err != nil {
+		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
+		return false
+	}
+
+	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayValsetOffsetDur {
+		timeRemaining := time.Duration(int64(l.relayValsetOffsetDur) - int64(timeElapsed))
+		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("valset relay offset not reached yet")
+		return false
+	}
+
+	l.Logger().WithFields(log.Fields{"inj_nonce": vs.Nonce, "eth_nonce": latestEthereumValsetNonce.Uint64()}).Debugln("new valset update")
+
+	return true
 }
 
 func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytypes.Valset) error {
@@ -222,28 +227,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 		return nil
 	}
 
-	latestEthBatch, err := l.eth.GetTxBatchNonce(ctx, gethcommon.HexToAddress(oldestConfirmedInjBatch.TokenContract))
-	if err != nil {
-		return err
-	}
-
-	// Check if ethereum batch was updated by other validators
-	if oldestConfirmedInjBatch.BatchNonce <= latestEthBatch.Uint64() {
-		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthBatch.Uint64(), "inj_nonce": oldestConfirmedInjBatch.BatchNonce}).Debugln("batch already updated on Ethereum")
-		return nil
-	}
-
-	l.Logger().WithFields(log.Fields{"inj_nonce": oldestConfirmedInjBatch.BatchNonce, "eth_nonce": latestEthBatch.Uint64()}).Debugln("new batch update")
-
-	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlockTime(ctx, int64(oldestConfirmedInjBatch.Block))
-	if err != nil {
-		return errors.Wrap(err, "failed to parse timestamp from block")
-	}
-
-	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayBatchOffsetDur {
-		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
-		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset not reached yet")
+	if !l.shouldRelayBatch(ctx, oldestConfirmedInjBatch) {
 		return nil
 	}
 
@@ -256,6 +240,37 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
 
 	return nil
+}
+
+func (l *relayerLoop) shouldRelayBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) bool {
+	latestEthBatch, err := l.eth.GetTxBatchNonce(ctx, gethcommon.HexToAddress(batch.TokenContract))
+	if err != nil {
+		l.Logger().WithError(err).Warningf("unable to get latest batch nonce from Ethereum: token_contract=%s", gethcommon.HexToAddress(batch.TokenContract))
+		return false
+	}
+
+	// Check if ethereum batch was updated by other validators
+	if batch.BatchNonce <= latestEthBatch.Uint64() {
+		l.Logger().WithFields(log.Fields{"eth_nonce": latestEthBatch.Uint64(), "inj_nonce": batch.BatchNonce}).Debugln("batch already updated on Ethereum")
+		return false
+	}
+
+	// Check custom time delay offset
+	blockTime, err := l.inj.GetBlockTime(ctx, int64(batch.Block))
+	if err != nil {
+		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
+		return false
+	}
+
+	if timeElapsed := time.Since(blockTime); timeElapsed <= l.relayBatchOffsetDur {
+		timeRemaining := time.Duration(int64(l.relayBatchOffsetDur) - int64(timeElapsed))
+		l.Logger().WithField("time_remaining", timeRemaining.String()).Debugln("batch relay offset not reached yet")
+		return false
+	}
+
+	l.Logger().WithFields(log.Fields{"inj_nonce": batch.BatchNonce, "eth_nonce": latestEthBatch.Uint64()}).Debugln("new batch update")
+
+	return true
 }
 
 // FindLatestValset finds the latest valset on the Peggy contract by looking back through the event
