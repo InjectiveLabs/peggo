@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/InjectiveLabs/sdk-go/chain/crypto/ethsecp256k1"
-	"github.com/InjectiveLabs/sdk-go/chain/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/codec/types"
-	cosmcrypto "github.com/cosmos/cosmos-sdk/crypto"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
-	"github.com/pkg/errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	cosmoscodec "github.com/cosmos/cosmos-sdk/codec"
+	cosmoscdctypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cosmoscrypto "github.com/cosmos/cosmos-sdk/crypto"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	"github.com/pkg/errors"
+
 	"github.com/InjectiveLabs/sdk-go/chain/codec"
-	cosmoscdc "github.com/cosmos/cosmos-sdk/codec"
+	"github.com/InjectiveLabs/sdk-go/chain/crypto/ethsecp256k1"
+	"github.com/InjectiveLabs/sdk-go/chain/crypto/hd"
 )
 
 const (
@@ -42,7 +42,7 @@ func (cfg KeyringConfig) withPrivateKey() bool {
 type Keyring struct {
 	keyring.Keyring
 
-	Addr cosmtypes.AccAddress
+	Addr cosmostypes.AccAddress
 }
 
 func NewKeyring(cfg KeyringConfig) (Keyring, error) {
@@ -50,8 +50,7 @@ func NewKeyring(cfg KeyringConfig) (Keyring, error) {
 		return newInMemoryKeyring(cfg)
 	}
 
-	return newCosmosKeyring(cfg)
-
+	return newKeyringFromDir(cfg)
 }
 
 func newInMemoryKeyring(cfg KeyringConfig) (Keyring, error) {
@@ -71,11 +70,11 @@ func newInMemoryKeyring(cfg KeyringConfig) (Keyring, error) {
 
 	var (
 		cosmosPK   = &ethsecp256k1.PrivKey{Key: pkRaw}
-		cosmosAddr = cosmtypes.AccAddress(cosmosPK.PubKey().Address())
+		cosmosAddr = cosmostypes.AccAddress(cosmosPK.PubKey().Address())
 		keyName    = DefaultKeyName
 	)
 
-	from, err := cosmtypes.AccAddressFromBech32(cfg.KeyFrom)
+	from, err := cosmostypes.AccAddressFromBech32(cfg.KeyFrom)
 	if err != nil {
 		keyName = cfg.KeyFrom // use it as key name
 	}
@@ -84,20 +83,29 @@ func newInMemoryKeyring(cfg KeyringConfig) (Keyring, error) {
 		return Keyring{}, errors.Errorf("expected account address %s but got %s from the private key", from.String(), cosmosAddr.String())
 	}
 
-	k, err := KeyringForPrivKey(keyName, cosmosPK)
+	// Create a temporary in-mem keyring for cosmosPK.
+	// Allows to init Context when the key has been provided in plaintext and parsed.
+	tmpPhrase := randPhrase(64)
+	armored := cosmoscrypto.EncryptArmorPrivKey(cosmosPK, tmpPhrase, cosmosPK.Type())
+
+	kr := keyring.NewInMemory(Codec(), hd.EthSecp256k1Option())
+	if err := kr.ImportPrivKey(keyName, armored, tmpPhrase); err != nil {
+		return Keyring{}, errors.Wrap(err, "failed to import private key")
+	}
+
 	if err != nil {
 		return Keyring{}, errors.Wrap(err, "failed to initialize cosmos keyring")
 	}
 
-	kr := Keyring{
-		Keyring: k,
+	k := Keyring{
+		Keyring: kr,
 		Addr:    cosmosAddr,
 	}
 
-	return kr, nil
+	return k, nil
 }
 
-func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
+func newKeyringFromDir(cfg KeyringConfig) (Keyring, error) {
 	if len(cfg.KeyFrom) == 0 {
 		return Keyring{}, errors.New("insufficient cosmos details provided")
 	}
@@ -131,7 +139,7 @@ func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
 	}
 
 	var keyRecord *keyring.Record
-	if cosmosAddr, err := cosmtypes.AccAddressFromBech32(cfg.KeyFrom); err != nil {
+	if cosmosAddr, err := cosmostypes.AccAddressFromBech32(cfg.KeyFrom); err != nil {
 		r, err := kr.Key(cfg.KeyFrom)
 		if err != nil {
 			return Keyring{}, err
@@ -185,37 +193,28 @@ func newCosmosKeyring(cfg KeyringConfig) (Keyring, error) {
 	}
 }
 
-// KeyringForPrivKey creates a temporary in-mem keyring for a PrivKey.
-// Allows to init Context when the key has been provided in plaintext and parsed.
-func KeyringForPrivKey(name string, privKey cryptotypes.PrivKey) (keyring.Keyring, error) {
-	kb := keyring.NewInMemory(Codec(), hd.EthSecp256k1Option())
-	tmpPhrase := randPhrase(64)
-	armored := cosmcrypto.EncryptArmorPrivKey(privKey, tmpPhrase, privKey.Type())
-	err := kb.ImportPrivKey(name, armored, tmpPhrase)
-	if err != nil {
-		err = errors.Wrap(err, "failed to import privkey")
-		return nil, err
-	}
+func Codec() cosmoscodec.Codec {
+	iRegistry := cosmoscdctypes.NewInterfaceRegistry()
+	codec.RegisterInterfaces(iRegistry)
+	codec.RegisterLegacyAminoCodec(cosmoscodec.NewLegacyAmino())
 
-	return kb, nil
-}
-
-func Codec() cosmoscdc.Codec {
-	interfaceRegistry := types.NewInterfaceRegistry()
-	codec.RegisterInterfaces(interfaceRegistry)
-	codec.RegisterLegacyAminoCodec(cosmoscdc.NewLegacyAmino())
-
-	return cosmoscdc.NewProtoCodec(interfaceRegistry)
+	return cosmoscodec.NewProtoCodec(iRegistry)
 }
 
 func randPhrase(size int) string {
 	buf := make([]byte, size)
-	_, err := rand.Read(buf)
-	if err != nil {
+	if _, err := rand.Read(buf); err != nil {
 		panic("rand failed")
 	}
 
 	return string(buf)
+}
+
+var _ io.Reader = &passReader{}
+
+type passReader struct {
+	pass string
+	buf  *bytes.Buffer
 }
 
 func newPassReader(pass string) io.Reader {
@@ -224,13 +223,6 @@ func newPassReader(pass string) io.Reader {
 		buf:  new(bytes.Buffer),
 	}
 }
-
-type passReader struct {
-	pass string
-	buf  *bytes.Buffer
-}
-
-var _ io.Reader = &passReader{}
 
 func (r *passReader) Read(p []byte) (n int, err error) {
 	n, err = r.buf.Read(p)
