@@ -22,8 +22,6 @@ import (
 //
 // $ peggo orchestrator
 func orchestratorCmd(cmd *cli.Cmd) {
-	// orchestrator-specific CLI options
-
 	cmd.Before = func() {
 		initMetrics(cmd)
 	}
@@ -46,7 +44,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.Fatalln("cannot use Ledger for orchestrator, since signatures must be realtime")
 		}
 
-		keyringCfg := cosmos.KeyringConfig{
+		cosmosKeyring, err := cosmos.NewKeyring(cosmos.KeyringConfig{
 			KeyringDir:     *cfg.cosmosKeyringDir,
 			KeyringAppName: *cfg.cosmosKeyringAppName,
 			KeyringBackend: *cfg.cosmosKeyringBackend,
@@ -54,9 +52,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			KeyPassphrase:  *cfg.cosmosKeyPassphrase,
 			PrivateKey:     *cfg.cosmosPrivKey,
 			UseLedger:      *cfg.cosmosUseLedger,
-		}
-
-		cosmosKeyring, err := cosmos.NewKeyring(keyringCfg)
+		})
 		orShutdown(err)
 
 		ethKeyFromAddress, signerFn, personalSignFn, err := initEthereumAccountsManager(
@@ -71,15 +67,13 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		netCfg := cosmos.NetworkConfig{
+		cosmosNetwork, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
 			ChainID:          *cfg.cosmosChainID,
 			ValidatorAddress: cosmosKeyring.Addr.String(),
 			CosmosGRPC:       *cfg.cosmosGRPC,
 			TendermintRPC:    *cfg.tendermintRPC,
 			GasPrice:         *cfg.cosmosGasPrices,
-		}
-
-		cosmosNetwork, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, netCfg)
+		})
 		orShutdown(err)
 
 		ctx, cancelFn := context.WithCancel(context.Background())
@@ -91,11 +85,13 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 		}
 
-		peggyContractAddr := gethcommon.HexToAddress(peggyParams.BridgeEthereumAddress)
-		injTokenAddr := gethcommon.HexToAddress(peggyParams.CosmosCoinErc20Contract)
-
-		erc20ContractMapping := make(map[gethcommon.Address]string)
-		erc20ContractMapping[injTokenAddr] = chaintypes.InjectiveCoin
+		var (
+			peggyContractAddr    = gethcommon.HexToAddress(peggyParams.BridgeEthereumAddress)
+			injTokenAddr         = gethcommon.HexToAddress(peggyParams.CosmosCoinErc20Contract)
+			erc20ContractMapping = map[gethcommon.Address]string{
+				injTokenAddr: chaintypes.InjectiveCoin,
+			}
+		)
 
 		// Connect to ethereum network
 		ethereumNet, err := ethereum.NewNetwork(
