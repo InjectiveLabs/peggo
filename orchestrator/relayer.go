@@ -24,7 +24,7 @@ const (
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
-	if noRelay := !s.batchRelayEnabled && !s.valsetRelayEnabled; noRelay {
+	if noRelay := s.relayValsetOffsetDur == 0 && s.relayBatchOffsetDur == 0; noRelay {
 		return nil
 	}
 
@@ -48,8 +48,8 @@ func (l *relayerLoop) Logger() log.Logger {
 func (l *relayerLoop) Run(ctx context.Context) error {
 	l.Logger().WithFields(log.Fields{
 		"loop_duration": l.loopDuration.String(),
-		"relay_batches": l.batchRelayEnabled,
-		"relay_valsets": l.valsetRelayEnabled,
+		"relay_batches": l.relayBatchOffsetDur != 0,
+		"relay_valsets": l.relayValsetOffsetDur != 0,
 	}).Debugln("starting Relayer loop...")
 
 	return loops.RunLoop(ctx, l.loopDuration, func() error {
@@ -75,7 +75,7 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 
 		var pg loops.ParanoidGroup
 
-		if l.valsetRelayEnabled {
+		if l.relayValsetOffsetDur != 0 {
 			pg.Go(func() error {
 				return retry.Do(func() error { return l.relayValset(ctx, latestEthValset) },
 					retry.Context(ctx),
@@ -87,7 +87,7 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 			})
 		}
 
-		if l.batchRelayEnabled {
+		if l.relayBatchOffsetDur != 0 {
 			pg.Go(func() error {
 				return retry.Do(func() error { return l.relayBatch(ctx, latestEthValset) },
 					retry.Context(ctx),

@@ -21,25 +21,29 @@ type PriceFeed interface {
 	QueryUSDPrice(address gethcommon.Address) (float64, error)
 }
 
+type Config struct {
+	MinBatchFeeUSD       float64
+	ERC20ContractMapping map[gethcommon.Address]string
+	RelayValsetOffsetDur string
+	RelayBatchOffsetDur  string
+	RelayValsets         bool
+	RelayBatches         bool
+}
+
 type PeggyOrchestrator struct {
 	logger  log.Logger
 	svcTags metrics.Tags
 
-	inj              cosmos.Network
-	orchestratorAddr cosmostypes.AccAddress
-
+	inj       cosmos.Network
 	eth       EthereumNetwork
 	pricefeed PriceFeed
 
+	orchestratorAddr     cosmostypes.AccAddress
 	erc20ContractMapping map[gethcommon.Address]string
 	relayValsetOffsetDur time.Duration
 	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
 	maxAttempts          uint // max number of times a retry func will be called before exiting
-
-	valsetRelayEnabled      bool
-	batchRelayEnabled       bool
-	periodicBatchRequesting bool
 }
 
 func NewPeggyOrchestrator(
@@ -47,12 +51,7 @@ func NewPeggyOrchestrator(
 	injective cosmos.Network,
 	ethereum EthereumNetwork,
 	priceFeed PriceFeed,
-	erc20ContractMapping map[gethcommon.Address]string,
-	minBatchFeeUSD float64,
-	valsetRelayingEnabled,
-	batchRelayingEnabled bool,
-	valsetRelayingOffset,
-	batchRelayingOffset string,
+	cfg Config,
 ) (*PeggyOrchestrator, error) {
 	o := &PeggyOrchestrator{
 		logger:               log.DefaultLogger,
@@ -61,15 +60,13 @@ func NewPeggyOrchestrator(
 		orchestratorAddr:     orchestratorAddr,
 		eth:                  ethereum,
 		pricefeed:            priceFeed,
-		erc20ContractMapping: erc20ContractMapping,
-		minBatchFeeUSD:       minBatchFeeUSD,
-		valsetRelayEnabled:   valsetRelayingEnabled,
-		batchRelayEnabled:    batchRelayingEnabled,
-		maxAttempts:          10, // default is 10 for retry pkg
+		erc20ContractMapping: cfg.ERC20ContractMapping,
+		minBatchFeeUSD:       cfg.MinBatchFeeUSD,
+		maxAttempts:          10, // default for retry pkg
 	}
 
-	if valsetRelayingEnabled {
-		dur, err := time.ParseDuration(valsetRelayingOffset)
+	if cfg.RelayValsets {
+		dur, err := time.ParseDuration(cfg.RelayValsetOffsetDur)
 		if err != nil {
 			return nil, errors.Wrapf(err, "valset relaying enabled but offset duration is not properly set")
 		}
@@ -77,8 +74,8 @@ func NewPeggyOrchestrator(
 		o.relayValsetOffsetDur = dur
 	}
 
-	if batchRelayingEnabled {
-		dur, err := time.ParseDuration(batchRelayingOffset)
+	if cfg.RelayBatches {
+		dur, err := time.ParseDuration(cfg.RelayBatchOffsetDur)
 		if err != nil {
 			return nil, errors.Wrapf(err, "batch relaying enabled but offset duration is not properly set")
 		}

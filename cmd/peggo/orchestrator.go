@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
@@ -15,6 +14,7 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
+	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 )
 
 // startOrchestrator action runs an infinite loop,
@@ -118,12 +118,14 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			cosmosNetwork,
 			ethereumNet,
 			coingeckoFeed,
-			erc20ContractMapping,
-			*cfg.minBatchFeeUSD,
-			*cfg.relayValsets,
-			*cfg.relayBatches,
-			*cfg.relayValsetOffsetDur,
-			*cfg.relayBatchOffsetDur,
+			orchestrator.Config{
+				MinBatchFeeUSD:       *cfg.minBatchFeeUSD,
+				ERC20ContractMapping: erc20ContractMapping,
+				RelayValsetOffsetDur: *cfg.relayValsetOffsetDur,
+				RelayBatchOffsetDur:  *cfg.relayBatchOffsetDur,
+				RelayValsets:         *cfg.relayValsets,
+				RelayBatches:         *cfg.relayBatches,
+			},
 		)
 		orShutdown(err)
 
