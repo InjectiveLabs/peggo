@@ -74,13 +74,13 @@ func newInMemoryKeyring(cfg KeyringConfig) (Keyring, error) {
 		keyName    = DefaultKeyName
 	)
 
-	from, err := cosmostypes.AccAddressFromBech32(cfg.KeyFrom)
-	if err != nil {
-		keyName = cfg.KeyFrom // use it as key name
-	}
-
-	if err == nil && !bytes.Equal(from.Bytes(), cosmosAddr.Bytes()) {
-		return Keyring{}, errors.Errorf("expected account address %s but got %s from the private key", from.String(), cosmosAddr.String())
+	if len(cfg.KeyFrom) > 0 {
+		from, err := cosmostypes.AccAddressFromBech32(cfg.KeyFrom)
+		if err != nil {
+			keyName = cfg.KeyFrom // use it as key name
+		} else if !bytes.Equal(from.Bytes(), cosmosAddr.Bytes()) {
+			return Keyring{}, errors.Errorf("expected account address %s but got %s from the private key", from.String(), cosmosAddr.String())
+		}
 	}
 
 	// Create a temporary in-mem keyring for cosmosPK.
