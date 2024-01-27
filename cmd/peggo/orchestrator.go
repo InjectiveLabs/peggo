@@ -94,7 +94,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 
 		// Connect to ethereum network
-		ethereumNet, err := ethereum.NewNetwork(
+		ethereumNetwork, err := ethereum.NewNetwork(
 			*cfg.ethNodeRPC,
 			peggyContractAddr,
 			ethKeyFromAddress,
@@ -106,14 +106,11 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
-
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
 			cosmosKeyring.Addr,
-			cosmosNetwork,
-			ethereumNet,
-			coingeckoFeed,
+			ethKeyFromAddress,
+			coingecko.NewPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi}),
 			orchestrator.Config{
 				MinBatchFeeUSD:       *cfg.minBatchFeeUSD,
 				ERC20ContractMapping: erc20ContractMapping,
@@ -126,7 +123,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		orShutdown(err)
 
 		go func() {
-			if err := peggo.Run(ctx); err != nil {
+			if err := peggo.Run(ctx, cosmosNetwork, ethereumNetwork); err != nil {
 				log.Errorln(err)
 				os.Exit(1)
 			}

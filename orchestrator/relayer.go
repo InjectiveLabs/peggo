@@ -5,17 +5,18 @@ import (
 	"sort"
 	"time"
 
-	"github.com/InjectiveLabs/metrics"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 const (
@@ -23,53 +24,43 @@ const (
 	findValsetBlocksToSearch = 2000
 )
 
-func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context) (err error) {
+func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Network, eth EthereumNetwork) (err error) {
 	if noRelay := s.relayValsetOffsetDur == 0 && s.relayBatchOffsetDur == 0; noRelay {
 		return nil
 	}
 
-	loop := relayerLoop{
+	rel := relayer{
 		PeggyOrchestrator: s,
-		loopDuration:      defaultRelayerLoopDur,
+		Injective:         inj,
+		Ethereum:          eth,
+		LoopDuration:      defaultRelayerLoopDur,
 	}
 
-	return loop.Run(ctx)
+	s.logger.WithFields(log.Fields{
+		"loop_duration": rel.LoopDuration.String(),
+		"relay_batches": rel.relayBatchOffsetDur != 0,
+		"relay_valsets": rel.relayValsetOffsetDur != 0,
+	}).Debugln("starting Relayer...")
+
+	return loops.RunLoop(ctx, rel.LoopDuration, rel.RelayValsetsAndBatchesLoop(ctx))
 }
 
-type relayerLoop struct {
+type relayer struct {
 	*PeggyOrchestrator
-	loopDuration time.Duration
+	Injective    cosmos.Network
+	Ethereum     EthereumNetwork
+	LoopDuration time.Duration
 }
 
-func (l *relayerLoop) Logger() log.Logger {
+func (l *relayer) Logger() log.Logger {
 	return l.logger.WithField("loop", "Relayer")
 }
 
-func (l *relayerLoop) Run(ctx context.Context) error {
-	l.Logger().WithFields(log.Fields{
-		"loop_duration": l.loopDuration.String(),
-		"relay_batches": l.relayBatchOffsetDur != 0,
-		"relay_valsets": l.relayValsetOffsetDur != 0,
-	}).Debugln("starting Relayer loop...")
-
-	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		var latestEthValset *peggytypes.Valset
-		getLatestEthValsetFn := func() error {
-			vs, err := l.findLatestValsetOnEth(ctx)
-			if err != nil {
-				return err
-			}
-
-			latestEthValset = vs
-			return nil
-		}
-
-		if err := retry.Do(getLatestEthValsetFn,
-			retry.Context(ctx),
-			retry.Attempts(l.maxAttempts),
-			retry.OnRetry(func(n uint, err error) {
-				l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
-			})); err != nil {
+func (l *relayer) RelayValsetsAndBatchesLoop(ctx context.Context) func() error {
+	return func() error {
+		// we need the latest vs on Ethereum for sig verification
+		ethValset, err := l.GetLatestEthValset(ctx)
+		if err != nil {
 			return err
 		}
 
@@ -77,7 +68,7 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 
 		if l.relayValsetOffsetDur != 0 {
 			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayValset(ctx, latestEthValset) },
+				return retry.Do(func() error { return l.relayValset(ctx, ethValset) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -89,7 +80,7 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 
 		if l.relayBatchOffsetDur != 0 {
 			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayBatch(ctx, latestEthValset) },
+				return retry.Do(func() error { return l.relayBatch(ctx, ethValset) },
 					retry.Context(ctx),
 					retry.Attempts(l.maxAttempts),
 					retry.OnRetry(func(n uint, err error) {
@@ -107,17 +98,43 @@ func (l *relayerLoop) Run(ctx context.Context) error {
 		}
 
 		return nil
-	})
+	}
 }
 
-func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytypes.Valset) error {
+func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
+	var latestEthValset *peggytypes.Valset
+	getLatestEthValsetFn := func() error {
+		vs, err := l.findLatestValsetOnEth(ctx)
+		if err != nil {
+			return err
+		}
+
+		latestEthValset = vs
+		return nil
+	}
+
+	if err := retry.Do(getLatestEthValsetFn,
+		retry.Context(ctx),
+		retry.Attempts(l.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
+		}),
+	); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return nil, err
+	}
+
+	return latestEthValset, nil
+}
+
+func (l *relayer) relayValset(ctx context.Context, latestEthValset *peggytypes.Valset) error {
 	metrics.ReportFuncCall(l.svcTags)
 	doneFn := metrics.ReportFuncTiming(l.svcTags)
 	defer doneFn()
 
 	// we should determine if we need to relay one
 	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
-	latestValsets, err := l.inj.LatestValsets(ctx)
+	latestValsets, err := l.Injective.LatestValsets(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest valset updates from Injective")
 	}
@@ -128,7 +145,7 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 	)
 
 	for _, set := range latestValsets {
-		sigs, err := l.inj.AllValsetConfirms(ctx, set.Nonce)
+		sigs, err := l.Injective.AllValsetConfirms(ctx, set.Nonce)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
 		} else if len(sigs) == 0 {
@@ -149,7 +166,7 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 		return nil
 	}
 
-	txHash, err := l.eth.SendEthValsetUpdate(ctx,
+	txHash, err := l.Ethereum.SendEthValsetUpdate(ctx,
 		latestEthValset,
 		oldestConfirmedValset,
 		oldestConfirmedValsetSigs,
@@ -164,8 +181,8 @@ func (l *relayerLoop) relayValset(ctx context.Context, latestEthValset *peggytyp
 	return nil
 }
 
-func (l *relayerLoop) shouldRelayValset(ctx context.Context, vs *peggytypes.Valset) bool {
-	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
+func (l *relayer) shouldRelayValset(ctx context.Context, vs *peggytypes.Valset) bool {
+	latestEthereumValsetNonce, err := l.Ethereum.GetValsetNonce(ctx)
 	if err != nil {
 		l.Logger().WithError(err).Warningln("failed to get latest valset nonce from Ethereum")
 		return false
@@ -178,7 +195,7 @@ func (l *relayerLoop) shouldRelayValset(ctx context.Context, vs *peggytypes.Vals
 	}
 
 	// Check custom time delay offset
-	block, err := l.inj.GetBlock(ctx, int64(vs.Height))
+	block, err := l.Injective.GetBlock(ctx, int64(vs.Height))
 	if err != nil {
 		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
 		return false
@@ -195,12 +212,12 @@ func (l *relayerLoop) shouldRelayValset(ctx context.Context, vs *peggytypes.Vals
 	return true
 }
 
-func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytypes.Valset) error {
+func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Valset) error {
 	metrics.ReportFuncCall(l.svcTags)
 	doneFn := metrics.ReportFuncTiming(l.svcTags)
 	defer doneFn()
 
-	latestBatches, err := l.inj.LatestTransactionBatches(ctx)
+	latestBatches, err := l.Injective.LatestTransactionBatches(ctx)
 	if err != nil {
 		return err
 	}
@@ -211,7 +228,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	)
 
 	for _, batch := range latestBatches {
-		sigs, err := l.inj.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
+		sigs, err := l.Injective.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
 		} else if len(sigs) == 0 {
@@ -232,7 +249,7 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	}
 
 	// Send SendTransactionBatch to Ethereum
-	txHash, err := l.eth.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedInjBatch, oldestConfirmedInjBatchSigs)
+	txHash, err := l.Ethereum.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedInjBatch, oldestConfirmedInjBatchSigs)
 	if err != nil {
 		return err
 	}
@@ -242,8 +259,8 @@ func (l *relayerLoop) relayBatch(ctx context.Context, latestEthValset *peggytype
 	return nil
 }
 
-func (l *relayerLoop) shouldRelayBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) bool {
-	latestEthBatch, err := l.eth.GetTxBatchNonce(ctx, gethcommon.HexToAddress(batch.TokenContract))
+func (l *relayer) shouldRelayBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) bool {
+	latestEthBatch, err := l.Ethereum.GetTxBatchNonce(ctx, gethcommon.HexToAddress(batch.TokenContract))
 	if err != nil {
 		l.Logger().WithError(err).Warningf("unable to get latest batch nonce from Ethereum: token_contract=%s", gethcommon.HexToAddress(batch.TokenContract))
 		return false
@@ -256,7 +273,7 @@ func (l *relayerLoop) shouldRelayBatch(ctx context.Context, batch *peggytypes.Ou
 	}
 
 	// Check custom time delay offset
-	blockTime, err := l.inj.GetBlock(ctx, int64(batch.Block))
+	blockTime, err := l.Injective.GetBlock(ctx, int64(batch.Block))
 	if err != nil {
 		l.Logger().WithError(err).Warningln("unable to get latest block from Injective")
 		return false
@@ -278,18 +295,18 @@ func (l *relayerLoop) shouldRelayBatch(ctx context.Context, batch *peggytypes.Ou
 // as the latest update will be in recent blockchain history and the search moves from the present
 // backwards in time. In the case that the validator set has not been updated for a very long time
 // this will take longer.
-func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Valset, error) {
-	latestHeader, err := l.eth.HeaderByNumber(ctx, nil)
+func (l *relayer) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Valset, error) {
+	latestHeader, err := l.Ethereum.HeaderByNumber(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get latest eth header")
 	}
 
-	latestEthereumValsetNonce, err := l.eth.GetValsetNonce(ctx)
+	latestEthereumValsetNonce, err := l.Ethereum.GetValsetNonce(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get latest valset nonce on Ethereum")
 	}
 
-	cosmosValset, err := l.inj.ValsetAt(ctx, latestEthereumValsetNonce.Uint64())
+	cosmosValset, err := l.Injective.ValsetAt(ctx, latestEthereumValsetNonce.Uint64())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get Injective valset")
 	}
@@ -304,7 +321,7 @@ func (l *relayerLoop) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Va
 			startSearchBlock = currentBlock - findValsetBlocksToSearch
 		}
 
-		valsetUpdatedEvents, err := l.eth.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
+		valsetUpdatedEvents, err := l.Ethereum.GetValsetUpdatedEvents(startSearchBlock, currentBlock)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to filter past ValsetUpdated events from Ethereum")
 		}

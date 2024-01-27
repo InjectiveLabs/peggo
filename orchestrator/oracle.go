@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -25,32 +26,41 @@ const (
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
-func (s *PeggyOrchestrator) EthOracleMainLoop(ctx context.Context, lastObservedBlock uint64) error {
-	loop := ethOracleLoop{
+func (s *PeggyOrchestrator) EthOracleMainLoop(
+	ctx context.Context,
+	inj cosmos.Network,
+	eth EthereumNetwork,
+	lastObservedBlock uint64,
+) error {
+	oracle := ethOracle{
 		PeggyOrchestrator:       s,
-		loopDuration:            defaultLoopDur,
-		lastCheckedEthHeight:    lastObservedBlock,
-		lastResyncWithInjective: time.Now(),
+		Injective:               inj,
+		Ethereum:                eth,
+		LoopDuration:            defaultLoopDur,
+		LastObservedEthHeight:   lastObservedBlock,
+		LastResyncWithInjective: time.Now(),
 	}
 
-	return loop.Run(ctx)
+	s.logger.WithField("loop_duration", oracle.LoopDuration.String()).Debugln("starting EthOracle...")
+
+	return loops.RunLoop(ctx, oracle.LoopDuration, oracle.ObserveEthEventsLoop(ctx))
 }
 
-type ethOracleLoop struct {
+type ethOracle struct {
 	*PeggyOrchestrator
-	loopDuration            time.Duration
-	lastResyncWithInjective time.Time
-	lastCheckedEthHeight    uint64
+	Injective               cosmos.Network
+	Ethereum                EthereumNetwork
+	LoopDuration            time.Duration
+	LastResyncWithInjective time.Time
+	LastObservedEthHeight   uint64
 }
 
-func (l *ethOracleLoop) Logger() log.Logger {
+func (l *ethOracle) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthOracle")
 }
 
-func (l *ethOracleLoop) Run(ctx context.Context) error {
-	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting EthOracle loop...")
-
-	return loops.RunLoop(ctx, l.loopDuration, func() error {
+func (l *ethOracle) ObserveEthEventsLoop(ctx context.Context) func() error {
+	return func() error {
 		latestHeight, err := l.getLatestEthHeight(ctx)
 		if err != nil {
 			return err
@@ -63,16 +73,16 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 
 		// ensure that latest block has minimum confirmations
 		latestHeight = latestHeight - ethBlockConfirmationDelay
-		if latestHeight <= l.lastCheckedEthHeight {
+		if latestHeight <= l.LastObservedEthHeight {
 			return nil
 		}
 
 		// ensure the block range is within defaultBlocksToSearch
-		if latestHeight > l.lastCheckedEthHeight+defaultBlocksToSearch {
-			latestHeight = l.lastCheckedEthHeight + defaultBlocksToSearch
+		if latestHeight > l.LastObservedEthHeight+defaultBlocksToSearch {
+			latestHeight = l.LastObservedEthHeight + defaultBlocksToSearch
 		}
 
-		events, err := l.getEthEvents(ctx, l.lastCheckedEthHeight, latestHeight)
+		events, err := l.getEthEvents(ctx, l.LastObservedEthHeight, latestHeight)
 		if err != nil {
 			return err
 		}
@@ -81,8 +91,8 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 			return err
 		}
 
-		l.Logger().WithFields(log.Fields{"block_start": l.lastCheckedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
-		l.lastCheckedEthHeight = latestHeight
+		l.Logger().WithFields(log.Fields{"block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
+		l.LastObservedEthHeight = latestHeight
 
 		/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
 			1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
@@ -90,41 +100,41 @@ func (l *ethOracleLoop) Run(ctx context.Context) error {
 			2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
 			3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
 		*/
-		if time.Since(l.lastResyncWithInjective) >= 48*time.Hour {
+		if time.Since(l.LastResyncWithInjective) >= 48*time.Hour {
 			if err := l.autoResync(ctx); err != nil {
 				return err
 			}
 		}
 
 		return nil
-	})
+	}
 }
 
-func (l *ethOracleLoop) getEthEvents(ctx context.Context, startBlock, endBlock uint64) (ethEvents, error) {
+func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint64) (ethEvents, error) {
 	events := ethEvents{}
 
 	scanEthEventsFn := func() error {
-		legacyDeposits, err := l.eth.GetSendToCosmosEvents(startBlock, endBlock)
+		legacyDeposits, err := l.Ethereum.GetSendToCosmosEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToCosmos events")
 		}
 
-		deposits, err := l.eth.GetSendToInjectiveEvents(startBlock, endBlock)
+		deposits, err := l.Ethereum.GetSendToInjectiveEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToInjective events")
 		}
 
-		withdrawals, err := l.eth.GetTransactionBatchExecutedEvents(startBlock, endBlock)
+		withdrawals, err := l.Ethereum.GetTransactionBatchExecutedEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get TransactionBatchExecuted events")
 		}
 
-		erc20Deployments, err := l.eth.GetPeggyERC20DeployedEvents(startBlock, endBlock)
+		erc20Deployments, err := l.Ethereum.GetPeggyERC20DeployedEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ERC20Deployed events")
 		}
 
-		valsetUpdates, err := l.eth.GetValsetUpdatedEvents(startBlock, endBlock)
+		valsetUpdates, err := l.Ethereum.GetValsetUpdatedEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ValsetUpdated events")
 		}
@@ -152,10 +162,10 @@ func (l *ethOracleLoop) getEthEvents(ctx context.Context, startBlock, endBlock u
 	return events, nil
 }
 
-func (l *ethOracleLoop) getLatestEthHeight(ctx context.Context) (uint64, error) {
+func (l *ethOracle) getLatestEthHeight(ctx context.Context) (uint64, error) {
 	var latestHeight uint64
 	getLatestEthHeightFn := func() error {
-		latestHeader, err := l.eth.HeaderByNumber(ctx, nil)
+		latestHeader, err := l.Ethereum.HeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
@@ -178,9 +188,9 @@ func (l *ethOracleLoop) getLatestEthHeight(ctx context.Context) (uint64, error) 
 	return latestHeight, nil
 }
 
-func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents) error {
+func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) error {
 	sendEventsFn := func() error {
-		lastClaim, err := l.inj.LastClaimEventByAddr(ctx, l.orchestratorAddr)
+		lastClaim, err := l.Injective.LastClaimEventByAddr(ctx, l.injAddr)
 		if err != nil {
 			return err
 		}
@@ -221,10 +231,10 @@ func (l *ethOracleLoop) sendNewEventClaims(ctx context.Context, events ethEvents
 	return nil
 }
 
-func (l *ethOracleLoop) autoResync(ctx context.Context) error {
+func (l *ethOracle) autoResync(ctx context.Context) error {
 	var latestHeight uint64
 	getLastClaimEventFn := func() (err error) {
-		latestHeight, err = l.getLastClaimBlockHeight(ctx)
+		latestHeight, err = l.getLastClaimBlockHeight(ctx, l.Injective)
 		return
 	}
 
@@ -239,26 +249,26 @@ func (l *ethOracleLoop) autoResync(ctx context.Context) error {
 		return err
 	}
 
-	l.lastCheckedEthHeight = latestHeight
-	l.lastResyncWithInjective = time.Now()
+	l.LastObservedEthHeight = latestHeight
+	l.LastResyncWithInjective = time.Now()
 
-	l.Logger().WithFields(log.Fields{"last_resync_time": l.lastResyncWithInjective.String(), "last_claimed_eth_height": l.lastCheckedEthHeight}).Infoln("auto resync with last claimed event on Injective")
+	l.Logger().WithFields(log.Fields{"last_resync_time": l.LastResyncWithInjective.String(), "last_claimed_eth_height": l.LastObservedEthHeight}).Infoln("auto resync with last claimed event on Injective")
 
 	return nil
 }
 
-func (l *ethOracleLoop) sendEthEventClaim(ctx context.Context, event any) error {
+func (l *ethOracle) sendEthEventClaim(ctx context.Context, event any) error {
 	switch e := event.(type) {
 	case *peggyevents.PeggySendToCosmosEvent:
-		return l.inj.SendOldDepositClaim(ctx, e)
+		return l.Injective.SendOldDepositClaim(ctx, e)
 	case *peggyevents.PeggySendToInjectiveEvent:
-		return l.inj.SendDepositClaim(ctx, e)
+		return l.Injective.SendDepositClaim(ctx, e)
 	case *peggyevents.PeggyValsetUpdatedEvent:
-		return l.inj.SendValsetClaim(ctx, e)
+		return l.Injective.SendValsetClaim(ctx, e)
 	case *peggyevents.PeggyTransactionBatchExecutedEvent:
-		return l.inj.SendWithdrawalClaim(ctx, e)
+		return l.Injective.SendWithdrawalClaim(ctx, e)
 	case *peggyevents.PeggyERC20DeployedEvent:
-		return l.inj.SendERC20DeployedClaim(ctx, e)
+		return l.Injective.SendERC20DeployedClaim(ctx, e)
 	default:
 		panic(errors.Errorf("unknown event type %T", e))
 	}

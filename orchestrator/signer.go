@@ -4,43 +4,44 @@ import (
 	"context"
 	"time"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 // EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
 // since these are provided directly by a trusted Injective node they can simply be assumed to be
 // valid and signed off on.
-func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, peggyID gethcommon.Hash) error {
-	loop := ethSignerLoop{
+func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Network, peggyID gethcommon.Hash) error {
+	signer := ethSigner{
 		PeggyOrchestrator: s,
-		loopDuration:      defaultLoopDur,
-		peggyID:           peggyID,
-		ethFrom:           s.eth.FromAddress(),
+		Injective:         inj,
+		PeggyID:           peggyID,
+		LoopDuration:      defaultLoopDur,
 	}
 
-	return loop.Run(ctx)
+	s.logger.WithField("loop_duration", signer.LoopDuration.String()).Debugln("starting EthSigner...")
+
+	return loops.RunLoop(ctx, signer.LoopDuration, signer.SignValsetsAndBatchesLoop(ctx))
 }
 
-type ethSignerLoop struct {
+type ethSigner struct {
 	*PeggyOrchestrator
-	loopDuration time.Duration
-	peggyID      gethcommon.Hash
-	ethFrom      gethcommon.Address
+	Injective    cosmos.Network
+	LoopDuration time.Duration
+	PeggyID      gethcommon.Hash
 }
 
-func (l *ethSignerLoop) Logger() log.Logger {
+func (l *ethSigner) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthSigner")
 }
 
-func (l *ethSignerLoop) Run(ctx context.Context) error {
-	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting EthSigner loop...")
-
-	return loops.RunLoop(ctx, l.loopDuration, func() error {
+func (l *ethSigner) SignValsetsAndBatchesLoop(ctx context.Context) func() error {
+	return func() error {
 		if err := l.signNewValsetUpdates(ctx); err != nil {
 			return err
 		}
@@ -50,10 +51,10 @@ func (l *ethSignerLoop) Run(ctx context.Context) error {
 		}
 
 		return nil
-	})
+	}
 }
 
-func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
+func (l *ethSigner) signNewValsetUpdates(ctx context.Context) error {
 	oldestUnsignedValsets, err := l.getUnsignedValsets(ctx)
 	if err != nil {
 		return err
@@ -68,14 +69,12 @@ func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
 		if err := l.signValset(ctx, vs); err != nil {
 			return err
 		}
-
-		// todo: in case of multiple updates, we should sleep in between tx (non-continuous nonce)
 	}
 
 	return nil
 }
 
-func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
+func (l *ethSigner) signNewBatch(ctx context.Context) error {
 	oldestUnsignedTransactionBatch, err := l.getUnsignedBatch(ctx)
 	if err != nil {
 		return err
@@ -93,11 +92,11 @@ func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
 	return nil
 }
 
-func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
+func (l *ethSigner) getUnsignedBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
 	var oldestUnsignedBatch *peggytypes.OutgoingTxBatch
 	getOldestUnsignedBatchFn := func() (err error) {
 		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx, l.orchestratorAddr)
+		oldestUnsignedBatch, err = l.Injective.OldestUnsignedTransactionBatch(ctx, l.injAddr)
 		if oldestUnsignedBatch == nil {
 			return nil
 		}
@@ -119,9 +118,9 @@ func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*peggytypes.Outgo
 	return oldestUnsignedBatch, nil
 }
 
-func (l *ethSignerLoop) signBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) error {
+func (l *ethSigner) signBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) error {
 	signFn := func() error {
-		return l.inj.SendBatchConfirm(ctx, l.ethFrom, l.peggyID, batch)
+		return l.Injective.SendBatchConfirm(ctx, l.ethAddr, l.PeggyID, batch)
 	}
 
 	if err := retry.Do(signFn,
@@ -140,10 +139,10 @@ func (l *ethSignerLoop) signBatch(ctx context.Context, batch *peggytypes.Outgoin
 	return nil
 }
 
-func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
+func (l *ethSigner) getUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
 	var oldestUnsignedValsets []*peggytypes.Valset
 	getOldestUnsignedValsetsFn := func() (err error) {
-		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx, l.orchestratorAddr)
+		oldestUnsignedValsets, err = l.Injective.OldestUnsignedValsets(ctx, l.injAddr)
 		if oldestUnsignedValsets == nil {
 			return nil
 		}
@@ -165,9 +164,9 @@ func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*peggytypes.V
 	return oldestUnsignedValsets, nil
 }
 
-func (l *ethSignerLoop) signValset(ctx context.Context, vs *peggytypes.Valset) error {
+func (l *ethSigner) signValset(ctx context.Context, vs *peggytypes.Valset) error {
 	signFn := func() error {
-		return l.inj.SendValsetConfirm(ctx, l.ethFrom, l.peggyID, vs)
+		return l.Injective.SendValsetConfirm(ctx, l.ethAddr, l.PeggyID, vs)
 	}
 
 	if err := retry.Do(signFn,

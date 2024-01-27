@@ -4,38 +4,41 @@ import (
 	"context"
 	"time"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/avast/retry-go"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
-func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context) (err error) {
-	loop := batchRequestLoop{
+func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.Network) (err error) {
+	requester := batchRequester{
 		PeggyOrchestrator: s,
-		loopDuration:      defaultLoopDur,
+		Injective:         inj,
+		LoopDuration:      defaultLoopDur,
 	}
 
-	return loop.Run(ctx)
+	s.logger.WithField("loop_duration", requester.LoopDuration.String()).Debugln("starting BatchRequester...")
+
+	return loops.RunLoop(ctx, requester.LoopDuration, requester.RequestBatchesLoop(ctx))
 }
 
-type batchRequestLoop struct {
+type batchRequester struct {
 	*PeggyOrchestrator
-	loopDuration time.Duration
+	Injective    cosmos.Network
+	LoopDuration time.Duration
 }
 
-func (l *batchRequestLoop) Logger() log.Logger {
+func (l *batchRequester) Logger() log.Logger {
 	return l.logger.WithField("loop", "BatchRequest")
 }
 
-func (l *batchRequestLoop) Run(ctx context.Context) error {
-	l.logger.WithField("loop_duration", l.loopDuration.String()).Debugln("starting BatchRequester loop...")
-
-	return loops.RunLoop(ctx, l.loopDuration, func() error {
+func (l *batchRequester) RequestBatchesLoop(ctx context.Context) func() error {
+	return func() error {
 		fees, err := l.getUnbatchedTokenFees(ctx)
 		if err != nil {
 			// non-fatal, just alert
@@ -53,13 +56,13 @@ func (l *batchRequestLoop) Run(ctx context.Context) error {
 		}
 
 		return nil
-	})
+	}
 }
 
-func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	var unbatchedFees []*peggytypes.BatchFees
 	getUnbatchedTokenFeesFn := func() (err error) {
-		unbatchedFees, err = l.inj.UnbatchedTokensWithFees(ctx)
+		unbatchedFees, err = l.Injective.UnbatchedTokensWithFees(ctx)
 		return err
 	}
 
@@ -76,22 +79,19 @@ func (l *batchRequestLoop) getUnbatchedTokenFees(ctx context.Context) ([]*peggyt
 	return unbatchedFees, nil
 }
 
-func (l *batchRequestLoop) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
-	var (
-		tokenAddr  = gethcommon.HexToAddress(fee.Token)
-		tokenDenom = l.tokenDenom(tokenAddr)
-	)
-
+func (l *batchRequester) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
+	tokenAddr := gethcommon.HexToAddress(fee.Token)
 	if thresholdMet := l.checkFeeThreshold(tokenAddr, fee.TotalFees); !thresholdMet {
 		return
 	}
 
+	tokenDenom := l.tokenDenom(tokenAddr)
 	l.Logger().WithFields(log.Fields{"denom": tokenDenom, "token_contract": tokenAddr.String()}).Infoln("requesting batch on Injective")
 
-	_ = l.inj.SendRequestBatch(ctx, tokenDenom)
+	_ = l.Injective.SendRequestBatch(ctx, tokenDenom)
 }
 
-func (l *batchRequestLoop) tokenDenom(tokenAddr gethcommon.Address) string {
+func (l *batchRequester) tokenDenom(tokenAddr gethcommon.Address) string {
 	if cosmosDenom, ok := l.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
@@ -100,19 +100,21 @@ func (l *batchRequestLoop) tokenDenom(tokenAddr gethcommon.Address) string {
 	return peggytypes.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequestLoop) checkFeeThreshold(tokenAddr gethcommon.Address, fees cosmostypes.Int) bool {
+func (l *batchRequester) checkFeeThreshold(tokenAddr gethcommon.Address, fees cosmostypes.Int) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}
 
-	tokenPriceInUSD, err := l.pricefeed.QueryUSDPrice(tokenAddr)
+	tokenPriceInUSD, err := l.priceFeed.QueryUSDPrice(tokenAddr)
 	if err != nil {
 		return false
 	}
 
-	minFeeInUSDDec := decimal.NewFromFloat(l.minBatchFeeUSD)
-	tokenPriceInUSDDec := decimal.NewFromFloat(tokenPriceInUSD)
-	totalFeeInUSDDec := decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+	var (
+		minFeeInUSDDec     = decimal.NewFromFloat(l.minBatchFeeUSD)
+		tokenPriceInUSDDec = decimal.NewFromFloat(tokenPriceInUSD)
+		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+	)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
 		l.Logger().WithFields(log.Fields{"token_contract": tokenAddr.String(), "batch_fee": totalFeeInUSDDec.String(), "min_fee": minFeeInUSDDec.String()}).Debugln("insufficient token batch fee")

@@ -55,9 +55,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
 		assert.NoError(t, l.signNewValsetUpdates(context.TODO()))
@@ -94,9 +94,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
 		assert.Error(t, l.signNewValsetUpdates(context.TODO()))
@@ -118,9 +118,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
 		assert.NoError(t, l.signNewBatch(context.TODO()))
@@ -146,9 +146,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
 		assert.Error(t, l.signNewBatch(context.TODO()))
@@ -174,9 +174,9 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
 		assert.NoError(t, l.signNewBatch(context.TODO()))

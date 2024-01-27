@@ -27,7 +27,7 @@ const (
 
 var zeroPrice = float64(0)
 
-type CoingeckoPriceFeed struct {
+type PriceFeed struct {
 	client *http.Client
 	config *Config
 
@@ -51,7 +51,7 @@ func urlJoin(baseURL string, segments ...string) string {
 
 }
 
-func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
+func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
 	metrics.ReportFuncCall(cp.svcTags)
 	doneFn := metrics.ReportFuncTiming(cp.svcTags)
 	defer doneFn()
@@ -123,10 +123,10 @@ func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float
 	return tokenPriceInUSD, nil
 }
 
-// NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
+// NewPriceFeed returns price puller for given symbol. The price will be pulled
 // from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
-func NewCoingeckoPriceFeed(interval time.Duration, endpointConfig *Config) *CoingeckoPriceFeed {
-	return &CoingeckoPriceFeed{
+func NewPriceFeed(interval time.Duration, endpointConfig *Config) *PriceFeed {
+	return &PriceFeed{
 		client: &http.Client{
 			Transport: &http.Transport{
 				ResponseHeaderTimeout: maxRespHeadersTime,
@@ -159,7 +159,7 @@ func checkCoingeckoConfig(cfg *Config) *Config {
 	return cfg
 }
 
-func (cp *CoingeckoPriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+func (cp *PriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
 	metrics.ReportFuncCall(cp.svcTags)
 	doneFn := metrics.ReportFuncTiming(cp.svcTags)
 	defer doneFn()
