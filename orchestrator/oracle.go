@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
@@ -148,13 +147,7 @@ func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint6
 		return nil
 	}
 
-	if err := retry.Do(scanEthEventsFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("error during Ethereum event checking, will retry (%d)", n)
-		}),
-	); err != nil {
+	if err := retryOnErr(ctx, l.Logger(), scanEthEventsFn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return ethEvents{}, err
 	}
@@ -164,7 +157,7 @@ func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint6
 
 func (l *ethOracle) getLatestEthHeight(ctx context.Context) (uint64, error) {
 	var latestHeight uint64
-	getLatestEthHeightFn := func() error {
+	if err := retryOnErr(ctx, l.Logger(), func() error {
 		latestHeader, err := l.Ethereum.HeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
@@ -172,15 +165,7 @@ func (l *ethOracle) getLatestEthHeight(ctx context.Context) (uint64, error) {
 
 		latestHeight = latestHeader.Number.Uint64()
 		return nil
-	}
-
-	if err := retry.Do(getLatestEthHeightFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get latest eth header, will retry (%d)", n)
-		}),
-	); err != nil {
+	}); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return 0, err
 	}
@@ -217,13 +202,7 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) er
 		return nil
 	}
 
-	if err := retry.Do(sendEventsFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to send events to Injective, will retry (%d)", n)
-		}),
-	); err != nil {
+	if err := retryOnErr(ctx, l.Logger(), sendEventsFn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}
@@ -233,18 +212,10 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) er
 
 func (l *ethOracle) autoResync(ctx context.Context) error {
 	var latestHeight uint64
-	getLastClaimEventFn := func() (err error) {
+	if err := retryOnErr(ctx, l.Logger(), func() (err error) {
 		latestHeight, err = l.getLastClaimBlockHeight(ctx, l.Injective)
 		return
-	}
-
-	if err := retry.Do(getLastClaimEventFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get last claimed event height, will retry (%d)", n)
-		}),
-	); err != nil {
+	}); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}

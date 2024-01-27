@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/avast/retry-go"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -14,7 +15,10 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-const defaultLoopDur = 60 * time.Second
+const (
+	defaultLoopDur   = 60 * time.Second
+	maxRetryAttempts = 10
+)
 
 // PriceFeed provides token price for a given contract address
 type PriceFeed interface {
@@ -165,4 +169,14 @@ func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context, inj cos
 	}
 
 	return claim.EthereumEventHeight, nil
+}
+
+func retryOnErr(ctx context.Context, log log.Logger, fn func() error) error {
+	return retry.Do(fn,
+		retry.Context(ctx),
+		retry.Attempts(maxRetryAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			log.WithError(err).Warningf("encountered error, retrying (%d)", n)
+		}),
+	)
 }

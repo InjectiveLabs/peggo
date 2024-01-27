@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/avast/retry-go"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -61,18 +60,10 @@ func (l *batchRequester) RequestBatches(ctx context.Context) error {
 
 func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	var unbatchedFees []*peggytypes.BatchFees
-	getUnbatchedTokenFeesFn := func() (err error) {
+	if err := retryOnErr(ctx, l.Logger(), func() (err error) {
 		unbatchedFees, err = l.Injective.UnbatchedTokensWithFees(ctx)
 		return err
-	}
-
-	if err := retry.Do(getUnbatchedTokenFeesFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Errorf("failed to get withdrawal fees, will retry (%d)", n)
-		}),
-	); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 

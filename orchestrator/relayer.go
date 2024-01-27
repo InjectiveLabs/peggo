@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/avast/retry-go"
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -69,25 +68,17 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 	if l.relayValsetOffsetDur != 0 {
 		pg.Go(func() error {
-			return retry.Do(func() error { return l.relayValset(ctx, ethValset) },
-				retry.Context(ctx),
-				retry.Attempts(l.maxAttempts),
-				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
-				}),
-			)
+			return retryOnErr(ctx, l.Logger(), func() error {
+				return l.relayValset(ctx, ethValset)
+			})
 		})
 	}
 
 	if l.relayBatchOffsetDur != 0 {
 		pg.Go(func() error {
-			return retry.Do(func() error { return l.relayBatch(ctx, ethValset) },
-				retry.Context(ctx),
-				retry.Attempts(l.maxAttempts),
-				retry.OnRetry(func(n uint, err error) {
-					l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
-				}),
-			)
+			return retryOnErr(ctx, l.Logger(), func() error {
+				return l.relayBatch(ctx, ethValset)
+			})
 		})
 	}
 
@@ -104,7 +95,7 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
 	var latestEthValset *peggytypes.Valset
-	getLatestEthValsetFn := func() error {
+	if err := retryOnErr(ctx, l.Logger(), func() error {
 		vs, err := l.findLatestValsetOnEth(ctx)
 		if err != nil {
 			return err
@@ -112,15 +103,7 @@ func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, e
 
 		latestEthValset = vs
 		return nil
-	}
-
-	if err := retry.Do(getLatestEthValsetFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to find latest valset on Ethereum, will retry (%d)", n)
-		}),
-	); err != nil {
+	}); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return nil, err
 	}
