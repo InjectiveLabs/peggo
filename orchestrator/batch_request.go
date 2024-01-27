@@ -24,7 +24,9 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.N
 
 	s.logger.WithField("loop_duration", requester.LoopDuration.String()).Debugln("starting BatchRequester...")
 
-	return loops.RunLoop(ctx, requester.LoopDuration, requester.RequestBatchesLoop(ctx))
+	return loops.RunLoop(ctx, requester.LoopDuration, func() error {
+		return requester.RequestBatches(ctx)
+	})
 }
 
 type batchRequester struct {
@@ -37,26 +39,24 @@ func (l *batchRequester) Logger() log.Logger {
 	return l.logger.WithField("loop", "BatchRequest")
 }
 
-func (l *batchRequester) RequestBatchesLoop(ctx context.Context) func() error {
-	return func() error {
-		fees, err := l.getUnbatchedTokenFees(ctx)
-		if err != nil {
-			// non-fatal, just alert
-			l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
-			return nil
-		}
-
-		if len(fees) == 0 {
-			l.Logger().Infoln("no withdrawals to batch")
-			return nil
-		}
-
-		for _, fee := range fees {
-			l.requestBatch(ctx, fee)
-		}
-
+func (l *batchRequester) RequestBatches(ctx context.Context) error {
+	fees, err := l.getUnbatchedTokenFees(ctx)
+	if err != nil {
+		// non-fatal, just alert
+		l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
 		return nil
 	}
+
+	if len(fees) == 0 {
+		l.Logger().Infoln("no withdrawals to batch")
+		return nil
+	}
+
+	for _, fee := range fees {
+		l.requestBatch(ctx, fee)
+	}
+
+	return nil
 }
 
 func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
@@ -70,7 +70,7 @@ func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytyp
 		retry.Context(ctx),
 		retry.Attempts(l.maxAttempts),
 		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Errorf("failed to get outgoing withdrawal fees, will retry (%d)", n)
+			l.Logger().WithError(err).Errorf("failed to get withdrawal fees, will retry (%d)", n)
 		}),
 	); err != nil {
 		return nil, err

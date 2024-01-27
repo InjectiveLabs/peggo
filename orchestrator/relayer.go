@@ -42,7 +42,9 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Netw
 		"relay_valsets": rel.relayValsetOffsetDur != 0,
 	}).Debugln("starting Relayer...")
 
-	return loops.RunLoop(ctx, rel.LoopDuration, rel.RelayValsetsAndBatchesLoop(ctx))
+	return loops.RunLoop(ctx, rel.LoopDuration, func() error {
+		return rel.RelayValsetsAndBatches(ctx)
+	})
 }
 
 type relayer struct {
@@ -56,49 +58,48 @@ func (l *relayer) Logger() log.Logger {
 	return l.logger.WithField("loop", "Relayer")
 }
 
-func (l *relayer) RelayValsetsAndBatchesLoop(ctx context.Context) func() error {
-	return func() error {
-		// we need the latest vs on Ethereum for sig verification
-		ethValset, err := l.GetLatestEthValset(ctx)
-		if err != nil {
+func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
+	// we need the latest vs on Ethereum for sig verification
+	ethValset, err := l.GetLatestEthValset(ctx)
+	if err != nil {
+		return err
+	}
+
+	var pg loops.ParanoidGroup
+
+	if l.relayValsetOffsetDur != 0 {
+		pg.Go(func() error {
+			return retry.Do(func() error { return l.relayValset(ctx, ethValset) },
+				retry.Context(ctx),
+				retry.Attempts(l.maxAttempts),
+				retry.OnRetry(func(n uint, err error) {
+					l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
+				}),
+			)
+		})
+	}
+
+	if l.relayBatchOffsetDur != 0 {
+		pg.Go(func() error {
+			return retry.Do(func() error { return l.relayBatch(ctx, ethValset) },
+				retry.Context(ctx),
+				retry.Attempts(l.maxAttempts),
+				retry.OnRetry(func(n uint, err error) {
+					l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
+				}),
+			)
+		})
+	}
+
+	if pg.Initialized() {
+		if err := pg.Wait(); err != nil {
+			l.Logger().WithError(err).Errorln("got error, loop exits")
 			return err
 		}
-
-		var pg loops.ParanoidGroup
-
-		if l.relayValsetOffsetDur != 0 {
-			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayValset(ctx, ethValset) },
-					retry.Context(ctx),
-					retry.Attempts(l.maxAttempts),
-					retry.OnRetry(func(n uint, err error) {
-						l.Logger().WithError(err).Warningf("failed to relay valset, will retry (%d)", n)
-					}),
-				)
-			})
-		}
-
-		if l.relayBatchOffsetDur != 0 {
-			pg.Go(func() error {
-				return retry.Do(func() error { return l.relayBatch(ctx, ethValset) },
-					retry.Context(ctx),
-					retry.Attempts(l.maxAttempts),
-					retry.OnRetry(func(n uint, err error) {
-						l.Logger().WithError(err).Warningf("failed to relay batch, will retry (%d)", n)
-					}),
-				)
-			})
-		}
-
-		if pg.Initialized() {
-			if err := pg.Wait(); err != nil {
-				l.Logger().WithError(err).Errorln("got error, loop exits")
-				return err
-			}
-		}
-
-		return nil
 	}
+
+	return nil
+
 }
 
 func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {

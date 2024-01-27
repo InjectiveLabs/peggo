@@ -43,7 +43,9 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(
 
 	s.logger.WithField("loop_duration", oracle.LoopDuration.String()).Debugln("starting EthOracle...")
 
-	return loops.RunLoop(ctx, oracle.LoopDuration, oracle.ObserveEthEventsLoop(ctx))
+	return loops.RunLoop(ctx, oracle.LoopDuration, func() error {
+		return oracle.ObserveEthEvents(ctx)
+	})
 }
 
 type ethOracle struct {
@@ -59,55 +61,53 @@ func (l *ethOracle) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthOracle")
 }
 
-func (l *ethOracle) ObserveEthEventsLoop(ctx context.Context) func() error {
-	return func() error {
-		latestHeight, err := l.getLatestEthHeight(ctx)
-		if err != nil {
-			return err
-		}
+func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
+	latestHeight, err := l.getLatestEthHeight(ctx)
+	if err != nil {
+		return err
+	}
 
-		// not enough blocks on ethereum yet
-		if latestHeight <= ethBlockConfirmationDelay {
-			return nil
-		}
-
-		// ensure that latest block has minimum confirmations
-		latestHeight = latestHeight - ethBlockConfirmationDelay
-		if latestHeight <= l.LastObservedEthHeight {
-			return nil
-		}
-
-		// ensure the block range is within defaultBlocksToSearch
-		if latestHeight > l.LastObservedEthHeight+defaultBlocksToSearch {
-			latestHeight = l.LastObservedEthHeight + defaultBlocksToSearch
-		}
-
-		events, err := l.getEthEvents(ctx, l.LastObservedEthHeight, latestHeight)
-		if err != nil {
-			return err
-		}
-
-		if err := l.sendNewEventClaims(ctx, events); err != nil {
-			return err
-		}
-
-		l.Logger().WithFields(log.Fields{"block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
-		l.LastObservedEthHeight = latestHeight
-
-		/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
-			1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
-		   	we need to re-scan this block to ensure events are not missed due to indexing delay.
-			2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-			3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
-		*/
-		if time.Since(l.LastResyncWithInjective) >= 48*time.Hour {
-			if err := l.autoResync(ctx); err != nil {
-				return err
-			}
-		}
-
+	// not enough blocks on ethereum yet
+	if latestHeight <= ethBlockConfirmationDelay {
 		return nil
 	}
+
+	// ensure that latest block has minimum confirmations
+	latestHeight = latestHeight - ethBlockConfirmationDelay
+	if latestHeight <= l.LastObservedEthHeight {
+		return nil
+	}
+
+	// ensure the block range is within defaultBlocksToSearch
+	if latestHeight > l.LastObservedEthHeight+defaultBlocksToSearch {
+		latestHeight = l.LastObservedEthHeight + defaultBlocksToSearch
+	}
+
+	events, err := l.getEthEvents(ctx, l.LastObservedEthHeight, latestHeight)
+	if err != nil {
+		return err
+	}
+
+	if err := l.sendNewEventClaims(ctx, events); err != nil {
+		return err
+	}
+
+	l.Logger().WithFields(log.Fields{"block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
+	l.LastObservedEthHeight = latestHeight
+
+	/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
+		1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
+	   	we need to re-scan this block to ensure events are not missed due to indexing delay.
+		2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+		3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
+	*/
+	if time.Since(l.LastResyncWithInjective) >= 48*time.Hour {
+		if err := l.autoResync(ctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint64) (ethEvents, error) {

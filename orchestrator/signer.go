@@ -26,7 +26,9 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Ne
 
 	s.logger.WithField("loop_duration", signer.LoopDuration.String()).Debugln("starting EthSigner...")
 
-	return loops.RunLoop(ctx, signer.LoopDuration, signer.SignValsetsAndBatchesLoop(ctx))
+	return loops.RunLoop(ctx, signer.LoopDuration, func() error {
+		return signer.SignValsetsAndBatches(ctx)
+	})
 }
 
 type ethSigner struct {
@@ -40,18 +42,16 @@ func (l *ethSigner) Logger() log.Logger {
 	return l.logger.WithField("loop", "EthSigner")
 }
 
-func (l *ethSigner) SignValsetsAndBatchesLoop(ctx context.Context) func() error {
-	return func() error {
-		if err := l.signNewValsetUpdates(ctx); err != nil {
-			return err
-		}
-
-		if err := l.signNewBatch(ctx); err != nil {
-			return err
-		}
-
-		return nil
+func (l *ethSigner) SignValsetsAndBatches(ctx context.Context) error {
+	if err := l.signNewValsetUpdates(ctx); err != nil {
+		return err
 	}
+
+	if err := l.signNewBatch(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (l *ethSigner) signNewValsetUpdates(ctx context.Context) error {
