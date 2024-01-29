@@ -4,16 +4,6 @@ set -e
 
 cd "${0%/*}" # cd in the script dir
 
-#
-#killall injectived 2> /dev/null
-#killall geth 2> /dev/null
-
-
-#
-#killall "injectived" &> /dev/null
-#killall "geth" &> /dev/null
-
-
 cwd=$(pwd)
 cosmos_dir="$cwd/cosmos"
 eth_dir="$cwd/ethereum"
@@ -31,5 +21,5 @@ rm -rf "$peggo_dir/build"
 # Start the Cosmos chain
 "$cosmos_dir"/multinode.sh injectived
 
-# Deploy Peggy contract suite and start peggo relayers
+# Deploy Peggy contract suite and start Peggo orchestrators
 "$peggo_dir"/deploy_bridge.sh

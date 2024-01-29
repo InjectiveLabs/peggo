@@ -23,7 +23,7 @@
         "cosmos_coin_denom": "inj",
         "cosmos_coin_erc20_contract": "0x7E5C521F8515017487750c13C3bF3B15f3f5f654",
         "claim_slashing_enabled": false,
-        "bridge_contract_start_height": "25",
+        "bridge_contract_start_height": "20",
         "valset_reward": {
           "denom": "inj",
           "amount": "0"
