@@ -12,6 +12,7 @@ import (
 
 	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
@@ -23,7 +24,7 @@ const (
 	findValsetBlocksToSearch = 2000
 )
 
-func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Network, eth EthereumNetwork) (err error) {
+func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
 	if noRelay := s.relayValsetOffsetDur == 0 && s.relayBatchOffsetDur == 0; noRelay {
 		return nil
 	}
@@ -49,7 +50,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Netw
 type relayer struct {
 	*PeggyOrchestrator
 	Injective    cosmos.Network
-	Ethereum     EthereumNetwork
+	Ethereum     ethereum.Network
 	LoopDuration time.Duration
 }
 
@@ -58,7 +59,7 @@ func (l *relayer) Logger() log.Logger {
 }
 
 func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
-	// we need the latest vs on Ethereum for sig verification
+	// need latest vs on Ethereum for sig verification
 	ethValset, err := l.GetLatestEthValset(ctx)
 	if err != nil {
 		return err
@@ -280,7 +281,7 @@ func (l *relayer) shouldRelayBatch(ctx context.Context, batch *peggytypes.Outgoi
 // backwards in time. In the case that the validator set has not been updated for a very long time
 // this will take longer.
 func (l *relayer) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Valset, error) {
-	latestHeader, err := l.Ethereum.HeaderByNumber(ctx, nil)
+	latestHeader, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get latest eth header")
 	}

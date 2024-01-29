@@ -160,7 +160,7 @@ func (e mockEthereum) FromAddress() eth.Address {
 	return e.fromAddressFn()
 }
 
-func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
+func (e mockEthereum) GetHeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
 	return e.headerByNumberFn(ctx, number)
 }
 

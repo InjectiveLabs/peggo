@@ -12,6 +12,7 @@ import (
 
 	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
@@ -87,7 +88,7 @@ func NewPeggyOrchestrator(
 
 // Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
-func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth EthereumNetwork) error {
+func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	if !s.hasDelegateValidator(ctx, inj) {
 		return s.startRelayerMode(ctx, inj, eth)
 	}
@@ -112,7 +113,7 @@ func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context, inj cosmos
 
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
-func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth EthereumNetwork) error {
+func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	log.Infoln("running orchestrator in validator mode")
 
 	// get gethcommon block observed by this validator
@@ -145,7 +146,7 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 // startRelayerMode runs orchestrator processes that only relay specific
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
-func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth EthereumNetwork) error {
+func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	log.Infoln("running orchestrator in relayer mode")
 
 	var pg loops.ParanoidGroup

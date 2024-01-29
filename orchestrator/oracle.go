@@ -9,6 +9,7 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
@@ -28,7 +29,7 @@ const (
 func (s *PeggyOrchestrator) EthOracleMainLoop(
 	ctx context.Context,
 	inj cosmos.Network,
-	eth EthereumNetwork,
+	eth ethereum.Network,
 	lastObservedBlock uint64,
 ) error {
 	oracle := ethOracle{
@@ -50,7 +51,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(
 type ethOracle struct {
 	*PeggyOrchestrator
 	Injective               cosmos.Network
-	Ethereum                EthereumNetwork
+	Ethereum                ethereum.Network
 	LoopDuration            time.Duration
 	LastResyncWithInjective time.Time
 	LastObservedEthHeight   uint64
@@ -158,7 +159,7 @@ func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint6
 func (l *ethOracle) getLatestEthHeight(ctx context.Context) (uint64, error) {
 	var latestHeight uint64
 	if err := retryOnErr(ctx, l.Logger(), func() error {
-		latestHeader, err := l.Ethereum.HeaderByNumber(ctx, nil)
+		latestHeader, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
