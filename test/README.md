@@ -8,6 +8,9 @@ By using the same lang for module, orchestrator and test we can achieve the full
 To set up the testing env, just run `test/run.sh` The script initializes 3 Injective validator nodes and 1 geth instance to simulate Injective and Ethereum networks respectively. After the networks are started 3 Peggo orchestrators are run for each of the validator nodes.
 For simplicity, the script runs with hardcoded values for most of the configurations. Tweaking parameters is not yet supported.
 
+The script `test/run.sh` can be run multiple times. On each run it removes all previously written files with new ones.
+Before running the script again, make sure you've killed all the injectived/geth processes (e.g. `killall injectived`).
+
 ## Prerequisites
 
 - `injective-core`: run `make install` on the `fix/peggy-contract-redeployment` branch
