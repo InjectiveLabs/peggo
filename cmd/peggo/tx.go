@@ -127,7 +127,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		net, err := cosmos.NewCosmosNetwork(keyring, personalSignFn, cosmos.NetworkConfig{
+		net, err := cosmos.NewNetwork(keyring, personalSignFn, cosmos.NetworkConfig{
 			ChainID:          *cosmosChainID,
 			ValidatorAddress: keyring.Addr.String(),
 			CosmosGRPC:       *cosmosGRPC,

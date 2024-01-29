@@ -67,7 +67,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		cosmosNetwork, err := cosmos.NewCosmosNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
+		cosmosNetwork, err := cosmos.NewNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
 			ChainID:          *cfg.cosmosChainID,
 			ValidatorAddress: cosmosKeyring.Addr.String(),
 			CosmosGRPC:       *cfg.cosmosGRPC,
@@ -95,14 +95,16 @@ func orchestratorCmd(cmd *cli.Cmd) {
 
 		// Connect to ethereum network
 		ethereumNetwork, err := ethereum.NewNetwork(
-			*cfg.ethNodeRPC,
 			peggyContractAddr,
 			ethKeyFromAddress,
 			signerFn,
-			*cfg.ethGasPriceAdjustment,
-			*cfg.ethMaxGasPrice,
-			*cfg.pendingTxWaitDuration,
-			*cfg.ethNodeAlchemyWS,
+			ethereum.NetworkConfig{
+				EthNodeRPC:            *cfg.ethNodeRPC,
+				GasPriceAdjustment:    *cfg.ethGasPriceAdjustment,
+				MaxGasPrice:           *cfg.ethMaxGasPrice,
+				PendingTxWaitDuration: *cfg.pendingTxWaitDuration,
+				EthNodeAlchemyWS:      *cfg.ethNodeAlchemyWS,
+			},
 		)
 		orShutdown(err)
 

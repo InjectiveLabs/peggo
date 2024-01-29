@@ -11,13 +11,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	"github.com/InjectiveLabs/sdk-go/client/chain"
-	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/client/chain"
+	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
 )
 
 type NetworkConfig struct {
@@ -34,7 +33,7 @@ type Network interface {
 	tendermint.Client
 }
 
-func NewCosmosNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg NetworkConfig) (Network, error) {
+func NewNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg NetworkConfig) (Network, error) {
 	clientCfg := cfg.loadClientConfig()
 
 	clientCtx, err := chain.NewClientContext(clientCfg.ChainId, cfg.ValidatorAddress, k)

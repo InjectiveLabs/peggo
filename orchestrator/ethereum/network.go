@@ -20,6 +20,14 @@ import (
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
+type NetworkConfig struct {
+	EthNodeRPC            string
+	GasPriceAdjustment    float64
+	MaxGasPrice           string
+	PendingTxWaitDuration string
+	EthNodeAlchemyWS      string
+}
+
 // Network is the orchestrator's reference endpoint to the Ethereum network
 type Network interface {
 	GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error)
@@ -53,24 +61,20 @@ type network struct {
 }
 
 func NewNetwork(
-	ethNodeRPC string,
 	peggyContractAddr,
 	fromAddr gethcommon.Address,
 	signerFn bind.SignerFn,
-	gasPriceAdjustment float64,
-	maxGasPrice string,
-	pendingTxWaitDuration string,
-	ethNodeAlchemyWS string,
+	cfg NetworkConfig,
 ) (Network, error) {
-	evmRPC, err := rpc.Dial(ethNodeRPC)
+	evmRPC, err := rpc.Dial(cfg.EthNodeRPC)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", ethNodeRPC)
+		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", cfg.EthNodeRPC)
 	}
 
 	ethCommitter, err := committer.NewEthCommitter(
 		fromAddr,
-		gasPriceAdjustment,
-		maxGasPrice,
+		cfg.GasPriceAdjustment,
+		cfg.MaxGasPrice,
 		signerFn,
 		provider.NewEVMProvider(evmRPC),
 	)
@@ -78,7 +82,7 @@ func NewNetwork(
 		return nil, err
 	}
 
-	pendingTxDuration, err := time.ParseDuration(pendingTxWaitDuration)
+	pendingTxDuration, err := time.ParseDuration(cfg.PendingTxWaitDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +93,17 @@ func NewNetwork(
 	}
 
 	log.WithFields(log.Fields{
-		"rpc":            ethNodeRPC,
+		"rpc":            cfg.EthNodeRPC,
 		"addr":           fromAddr.String(),
 		"peggy_contract": peggyContractAddr,
 	}).Infoln("connected to Ethereum network")
 
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
-	if ethNodeAlchemyWS != "" {
+	if cfg.EthNodeAlchemyWS != "" {
 		log.WithFields(log.Fields{
-			"url": ethNodeAlchemyWS,
+			"url": cfg.EthNodeAlchemyWS,
 		}).Infoln("subscribing to Alchemy websocket")
-		go peggyContract.SubscribeToPendingTxs(ethNodeAlchemyWS)
+		go peggyContract.SubscribeToPendingTxs(cfg.EthNodeAlchemyWS)
 	}
 
 	n := &network{
