@@ -10,12 +10,11 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/client/chain"
-
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 )
 
 type BroadcastClient interface {

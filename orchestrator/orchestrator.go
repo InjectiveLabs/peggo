@@ -46,7 +46,6 @@ type PeggyOrchestrator struct {
 	relayValsetOffsetDur time.Duration
 	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
-	maxAttempts          uint // max number of times a retry func will be called before exiting
 }
 
 func NewPeggyOrchestrator(
@@ -63,7 +62,6 @@ func NewPeggyOrchestrator(
 		priceFeed:            priceFeed,
 		erc20ContractMapping: cfg.ERC20ContractMapping,
 		minBatchFeeUSD:       cfg.MinBatchFeeUSD,
-		maxAttempts:          10, // default for retry pkg
 	}
 
 	if cfg.RelayValsets {
