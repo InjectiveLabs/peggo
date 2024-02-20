@@ -15,50 +15,49 @@ inj_coin_contract_address=0x7E5C521F8515017487750c13C3bF3B15f3f5f654
 # Set up 11 txs with amount 1000000000000000000inj
 # Threshold is:             10000000000000000000inj
 # The last tx will be add to pending queue
-
+etherman --name CosmosERC20 --source "$cosmos_token_contract" -P "$deployer_pk" call "$inj_coin_contract_address" balanceOf "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e"
 # Send INJ tokens
-# Send INJ tokens
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
-yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
+yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 10inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
 
 sleep 5
 
@@ -70,7 +69,7 @@ etherman --name CosmosERC20 --source "$cosmos_token_contract" -P "$deployer_pk" 
 injectived query ratelimit pending-tx 11 --chain-id=injective-333 --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0
 
 # Waiting for a minute
-sleep 60
+sleep 120
 
 # Tx 11 should be processed
 injectived query ratelimit pending-tx 11 --chain-id=injective-333 --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0

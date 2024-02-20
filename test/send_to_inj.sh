@@ -14,8 +14,8 @@ inj_coin_contract_address=0x7E5C521F8515017487750c13C3bF3B15f3f5f654
 etherman --name CosmosERC20 --source "$cosmos_token_contract" -P "$deployer_pk" tx "$inj_coin_contract_address" approve "$peggy_contract_address" 100
 etherman --name Peggy --source "$peggy_contract" -P "$deployer_pk" tx "$peggy_contract_address" sendToInjective "$inj_coin_contract_address" 727aee334987c52fa7b567b2662bdbb68614e48c 10 ""
 
-# Waiting for 15s
-sleep 15
+# Waiting for 45s
+sleep 45s
 
 # Check balance of receiver 
 injectived query bank balances inj1vc4ahd5xznjgcqqqqqqqqqqqqqqqqqqqy80gzf --home /Users/hieuvu/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0
