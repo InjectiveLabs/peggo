@@ -15,8 +15,6 @@ cosmos_token_contract="../solidity/contracts/CosmosToken.sol"
 # The last tx will be add to pending queue
 
 # Send INJ tokens
-# Send INJ tokens
-
 echo "--------Sending to eth 1st tx--------"
 
 yes $passphrase | injectived tx peggy send-to-eth "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e" 1000000000000000000inj 3000000000000000000inj --chain-id=injective-333 --gas-prices 500000000inj --keyring-backend test --broadcast-mode=sync --yes --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0 --from user
