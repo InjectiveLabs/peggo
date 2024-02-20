@@ -21,5 +21,5 @@ sleep 15
 injectived query bank balances inj1vc4ahd5xznjgcqqqqqqqqqqqqqqqqqqqy80gzf --home /Users/hieuvu/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333/n0
 
 # Check current outflow after send to inj
-injectived query ratelimit list-peggy-rate-limits --chain-id=injective-333 --home /Users/hieuvu/Documents/Decentrio/peggo/test/cosmos/data/injective-333/n0
+injectived query ratelimit list-peggy-rate-limits --chain-id=injective-333 --home /Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333/n0
 
