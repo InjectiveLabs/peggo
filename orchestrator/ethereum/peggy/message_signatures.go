@@ -14,9 +14,9 @@ import (
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
-// / EncodeValsetConfirm takes the required input data and produces the required signature to confirm a validator
-// / set update on the Peggy Ethereum contract. This value will then be signed before being
-// / submitted to Cosmos, verified, and then relayed to Ethereum
+// EncodeValsetConfirm takes the required input data and produces the required signature to confirm a validator
+// set update on the Peggy Ethereum contract. This value will then be signed before being
+// submitted to Cosmos, verified, and then relayed to Ethereum
 func EncodeValsetConfirm(peggyID common.Hash, valset *types.Valset) common.Hash {
 	// error case here should not occur outside of testing since the above is a constant
 	contractAbi, abiErr := abi.JSON(strings.NewReader(ValsetCheckpointABIJSON))
