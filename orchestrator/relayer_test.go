@@ -2,16 +2,18 @@ package orchestrator
 
 import (
 	"context"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	"math/big"
+	"testing"
+	"time"
+
 	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ctypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/xlab/suplog"
-	"math/big"
-	"testing"
-	"time"
+
+	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 
 	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )

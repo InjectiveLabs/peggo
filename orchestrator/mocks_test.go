@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	"math/big"
+	"time"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"math/big"
-	"time"
+
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )

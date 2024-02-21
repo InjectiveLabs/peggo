@@ -11,12 +11,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 	"github.com/InjectiveLabs/sdk-go/client/chain"
 	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
 )
 
 type NetworkConfig struct {
