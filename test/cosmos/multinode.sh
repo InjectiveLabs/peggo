@@ -190,9 +190,9 @@ if [[ ! -d "$hdir" ]]; then
 
 	# Set up ratelimit
   	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
-	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow"]["current_outflow"]="0"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
-	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow"]["outflow_threshold"]="10000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
-	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow"]["outflow_threshold_per_tx"]="1000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["current_outflow"]="0"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow_threshold"]="10000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow_threshold_per_tx"]="1000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 
 	# Set up window size to 2 minutes
 	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["params"]["window_size"]="120s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
