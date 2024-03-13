@@ -184,7 +184,16 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 		oldestConfirmedBatchSigs []*types.MsgConfirmBatch
 	)
 
+	latestEthHeight, err := l.eth.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest ethereum header")
+	}
+
 	for _, batch := range latestBatches {
+		if batch.BatchTimeout <= latestEthHeight.Number.Uint64() {
+			continue // skip batches whose timeout has passed
+		}
+
 		sigs, err := l.inj.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
