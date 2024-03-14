@@ -9,12 +9,13 @@ import (
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
+	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
+
 	"github.com/InjectiveLabs/peggo/orchestrator"
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
-	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 )
 
 // startOrchestrator action runs an infinite loop,

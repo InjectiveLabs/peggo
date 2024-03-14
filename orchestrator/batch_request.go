@@ -9,9 +9,10 @@ import (
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
 
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.Network) (err error) {
