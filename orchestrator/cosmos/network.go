@@ -3,6 +3,7 @@ package cosmos
 import (
 	"context"
 	"fmt"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"time"
 
 	comethttp "github.com/cometbft/cometbft/rpc/client/http"
@@ -142,4 +143,22 @@ func loadBalancedEndpoints(cfg NetworkConfig) clientcommon.Network {
 	log.Infoln("using load balanced endpoints for Injective")
 
 	return clientcommon.LoadNetwork(networkName, "lb")
+}
+
+func IsBondedValidator(n Network, ethAddr gethcommon.Address) bool {
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	vs, err := n.CurrentValset(ctx)
+	if err != nil {
+		log.Fatalln("failed to query current validator set on Injective")
+	}
+
+	for _, validator := range vs.Members {
+		if validator.EthereumAddress == ethAddr.Hex() {
+			return true
+		}
+	}
+
+	return false
 }
