@@ -213,7 +213,17 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 		oldestConfirmedInjBatchSigs []*peggytypes.MsgConfirmBatch
 	)
 
+	latestEthHeight, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest Ethereum header")
+	}
+
 	for _, batch := range latestBatches {
+		if batch.BatchTimeout <= latestEthHeight.Number.Uint64() {
+			println("skipping timed out batch", "nonce=", batch.BatchNonce)
+			continue // skip timed out batches
+		}
+
 		sigs, err := l.Injective.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
@@ -234,7 +244,6 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 		return nil
 	}
 
-	// Send SendTransactionBatch to Ethereum
 	txHash, err := l.Ethereum.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedInjBatch, oldestConfirmedInjBatchSigs)
 	if err != nil {
 		return err
