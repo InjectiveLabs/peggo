@@ -134,9 +134,9 @@ func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Ad
 		return 0, errors.New("empty decimals() result")
 	}
 
-	println("res=", res, "len=", len(res))
+	decimals := big.NewInt(0).SetBytes(res).Uint64()
 
-	return res[0], nil
+	return uint8(decimals), nil
 }
 
 func (n *network) GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error) {
