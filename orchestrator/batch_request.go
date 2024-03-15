@@ -49,6 +49,8 @@ func (l *batchRequester) RequestBatches(ctx context.Context) error {
 		injAddr = address
 	}
 
+	println("inj token contract", injAddr.Hex())
+
 	decimals, err := l.Ethereum.TokenDecimals(ctx, injAddr)
 	if err != nil {
 		println(err.Error())
