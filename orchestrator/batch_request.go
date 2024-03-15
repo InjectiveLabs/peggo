@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"time"
 
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
@@ -15,10 +16,11 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.Network) (err error) {
+func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
 	requester := batchRequester{
 		PeggyOrchestrator: s,
 		Injective:         inj,
+		Ethereum:          eth,
 		LoopDuration:      defaultLoopDur,
 	}
 
@@ -32,6 +34,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.N
 type batchRequester struct {
 	*PeggyOrchestrator
 	Injective    cosmos.Network
+	Ethereum     ethereum.Network
 	LoopDuration time.Duration
 }
 
@@ -40,6 +43,19 @@ func (l *batchRequester) Logger() log.Logger {
 }
 
 func (l *batchRequester) RequestBatches(ctx context.Context) error {
+	// get inj token decimals
+	var injAddr gethcommon.Address
+	for address := range l.erc20ContractMapping {
+		injAddr = address
+	}
+
+	decimals, err := l.Ethereum.TokenDecimals(ctx, injAddr)
+	if err != nil {
+		println(err.Error())
+	} else {
+		println("inj token decimals", decimals)
+	}
+
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
 		// non-fatal, just alert

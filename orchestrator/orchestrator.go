@@ -140,7 +140,7 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error { return s.EthOracleMainLoop(ctx, inj, eth, lastObservedEthBlock) })
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj) })
+	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.EthSignerMainLoop(ctx, inj, peggyContractID) })
 	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
 
@@ -161,7 +161,7 @@ func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context, inj cosmos.Net
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj) })
+	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.EthSignerMainLoop(ctx, inj, peggyContractID) })
 
