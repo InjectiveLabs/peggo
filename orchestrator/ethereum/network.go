@@ -2,7 +2,6 @@ package ethereum
 
 import (
 	"context"
-	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
@@ -135,7 +134,7 @@ func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Ad
 		return 0, errors.New("empty decimals() result")
 	}
 
-	fmt.Printf("res=%#v\n", res)
+	println("res=", res, "len=", len(res))
 
 	return res[0], nil
 }
