@@ -43,21 +43,6 @@ func (l *batchRequester) Logger() log.Logger {
 }
 
 func (l *batchRequester) RequestBatches(ctx context.Context) error {
-	// get inj token decimals
-	var injAddr gethcommon.Address
-	for address := range l.erc20ContractMapping {
-		injAddr = address
-	}
-
-	println("inj token contract", injAddr.Hex())
-
-	decimals, err := l.Ethereum.TokenDecimals(ctx, injAddr)
-	if err != nil {
-		println(err.Error())
-	} else {
-		println("inj token decimals", decimals)
-	}
-
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
 		// non-fatal, just alert
@@ -79,10 +64,18 @@ func (l *batchRequester) RequestBatches(ctx context.Context) error {
 
 func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	var unbatchedFees []*peggytypes.BatchFees
-	if err := retryOnErr(ctx, l.Logger(), func() (err error) {
-		unbatchedFees, err = l.Injective.UnbatchedTokensWithFees(ctx)
-		return err
-	}); err != nil {
+	fn := func() error {
+		fees, err := l.Injective.UnbatchedTokensWithFees(ctx)
+		if err != nil {
+			return err
+		}
+
+		unbatchedFees = fees
+
+		return nil
+	}
+
+	if err := retryOnErr(ctx, l.Logger(), fn); err != nil {
 		return nil, err
 	}
 
@@ -91,7 +84,13 @@ func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytyp
 
 func (l *batchRequester) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
 	tokenAddr := gethcommon.HexToAddress(fee.Token)
-	if thresholdMet := l.checkFeeThreshold(tokenAddr, fee.TotalFees); !thresholdMet {
+	tokenDecimals, err := l.Ethereum.TokenDecimals(ctx, tokenAddr)
+	if err != nil {
+		l.Logger().WithError(err).Warningln("failed to get token decimals")
+		return
+	}
+
+	if thresholdMet := l.checkFeeThreshold(fee.TotalFees, tokenAddr, tokenDecimals); !thresholdMet {
 		return
 	}
 
@@ -110,7 +109,7 @@ func (l *batchRequester) tokenDenom(tokenAddr gethcommon.Address) string {
 	return peggytypes.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequester) checkFeeThreshold(tokenAddr gethcommon.Address, fees cosmostypes.Int) bool {
+func (l *batchRequester) checkFeeThreshold(fees cosmostypes.Int, tokenAddr gethcommon.Address, tokenDecimals uint8) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}
@@ -123,7 +122,7 @@ func (l *batchRequester) checkFeeThreshold(tokenAddr gethcommon.Address, fees co
 	var (
 		minFeeInUSDDec     = decimal.NewFromFloat(l.minBatchFeeUSD)
 		tokenPriceInUSDDec = decimal.NewFromFloat(tokenPriceInUSD)
-		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec)
+		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -1*int32(tokenDecimals)).Mul(tokenPriceInUSDDec)
 	)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {

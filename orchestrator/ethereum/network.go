@@ -131,12 +131,10 @@ func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Ad
 	}
 
 	if len(res) == 0 {
-		return 0, errors.New("empty decimals() result")
+		return 0, errors.Errorf("no decimals found for token contract %s", tokenContract.Hex())
 	}
 
-	decimals := big.NewInt(0).SetBytes(res).Uint64()
-
-	return uint8(decimals), nil
+	return uint8(big.NewInt(0).SetBytes(res).Uint64()), nil
 }
 
 func (n *network) GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error) {
