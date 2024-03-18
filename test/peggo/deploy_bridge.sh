@@ -76,7 +76,7 @@ PASSPHRASE="12345678"
 TX_OPTS="--chain-id injective-333 --keyring-backend test --broadcast-mode sync --yes"
 
 peggy_params_json="./peggy_params.json"
-chain_dir="/Users/hieuvu/Documents/Decentrio/peggo-decentrio/test/cosmos/data/injective-333"
+chain_dir="/Users/dbrajovic/Desktop/dev/Injective/peggo/test/cosmos/data/injective-333"
 n0_home_dir=$chain_dir/n0
 n1_home_dir=$chain_dir/n1
 n2_home_dir=$chain_dir/n2
