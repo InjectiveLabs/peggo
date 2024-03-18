@@ -152,14 +152,14 @@ if [[ ! -d "$hdir" ]]; then
   # Mint Watever tokens for each validator
   jq '.app_state.bank.supply += [
     {
-      "denom": "wut",
+      "denom": "peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8",
       "amount": "16000000000000000000000000"
     }
   ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
 
   jq '.app_state.bank.balances |= map(.coins += [
     {
-      "denom": "wut",
+      "denom": "peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8",
       "amount": "4000000000000000000000000"
     }
   ])' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
@@ -169,7 +169,7 @@ if [[ ! -d "$hdir" ]]; then
       "description": "Some token I made for testing the bridge",
       "denom_units": [
         {
-          "denom": "wut",
+          "denom": "peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8",
           "exponent": 0,
           "aliases": []
         },
@@ -179,7 +179,7 @@ if [[ ! -d "$hdir" ]]; then
           "aliases": []
         }
       ],
-      "base": "wut",
+      "base": "peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8",
       "display": "wat",
       "name": "Watever",
       "symbol": "wat",
@@ -188,6 +188,22 @@ if [[ ! -d "$hdir" ]]; then
     }
   ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
 
+	# Set up ratelimit
+  	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["current_outflow"]="0"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow_threshold"]="10000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][0]["outflow_threshold_per_tx"]="1000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][1]["denom"]="peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][1]["current_outflow"]="0"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][1]["outflow_threshold"]="10000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["rate_limits"][1]["outflow_threshold_per_tx"]="1000000000000000000"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+
+	cat $n0cfgDir/genesis.json | jq '.app_state["peggy"]["erc20_to_denoms"][0]["erc20"]="0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["peggy"]["erc20_to_denoms"][0]["denom"]="peggy0x1ccec198630f2024c64c0afc5ae2427bc8e2dce8"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+
+	# Set up window size to 2 minutes
+	cat $n0cfgDir/genesis.json | jq '.app_state["ratelimit"]["params"]["window_size"]="120s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 
 	# Copy genesis around to sign
 	cp $n0cfgDir/genesis.json $n1cfgDir/genesis.json
