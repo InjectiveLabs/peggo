@@ -69,12 +69,14 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 
 	// not enough blocks on ethereum yet
 	if latestHeight <= ethBlockConfirmationDelay {
+		l.Logger().Debugln("not enough blocks on Ethereum")
 		return nil
 	}
 
 	// ensure that latest block has minimum confirmations
 	latestHeight = latestHeight - ethBlockConfirmationDelay
 	if latestHeight <= l.LastObservedEthHeight {
+		l.Logger().WithFields(log.Fields{"latest": latestHeight, "observed": l.LastObservedEthHeight}).Debugln("latest Ethereum height already observed")
 		return nil
 	}
 
