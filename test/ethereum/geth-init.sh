@@ -2,24 +2,26 @@
 
 set -e
 
+cd "${0%/*}" # cd to current script dir
+
 CWD=$(pwd)
 
 # These options can be overridden by env
 GETH_NETWORK_ID="${GETH_NETWORK_ID:-50}"
-GETH_ALGO="${GETH_ALGO:-ethash}"
+GETH_ALGO="${GETH_ALGO:-clique}"
 CHAIN_DIR="${CHAIN_DIR:-$CWD/data}"
 
-hdir="$CHAIN_DIR/$GETH_NETWORK_ID"
-ddir="--datadir $hdir"
-
-cd "${0%/*}" # cd to current script dir
-
-if [[ $GETH_ALGO == "ethash" ]]; then
-	geth init $ddir ./geth/genesis.json
-elif [[ $GETH_ALGO == "clique" ]]; then
-	geth init $ddir ./geth/clique_genesis.json
-	geth account import $ddir --lightkdf --password ./geth/clique_password.txt ./geth/clique_signer.key
-else
-	echo "Unsupported Geth algo: $GETH_ALGO, use ethash or clique"
-	exit 1
+if [[ $GETH_ALGO != "clique" ]]; then
+  echo "Unsupported geth algo: $GETH_ALGO. Must use clique"
+  exit 1
 fi
+
+DATA_DIR="$CHAIN_DIR/$GETH_NETWORK_ID"
+
+# Initialize geth dir and setup account
+geth init --datadir "$DATA_DIR" ./geth/clique_genesis.json
+geth account import --datadir "$DATA_DIR" --lightkdf --password ./geth/clique_password.txt ./geth/clique_signer.key
+
+# Create PID and log file
+touch "$CHAIN_DIR/$GETH_NETWORK_ID.geth.pid"
+touch "$CHAIN_DIR/$GETH_NETWORK_ID.geth.log"

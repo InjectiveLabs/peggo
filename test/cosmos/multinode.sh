@@ -7,27 +7,32 @@
 
 set -e
 
+cd "${0%/*}" # cd to current script dir
+
 CWD=$(pwd)
 
 # These options can be overridden by env
-CHAIN_ID="${CHAIN_ID:-888}"
+CHAIN_ID="${CHAIN_ID:-"injective-333"}"
 CHAIN_DIR="${CHAIN_DIR:-$CWD/data}"
-DENOM="${DENOM:-uatom}"
+DENOM="${DENOM:-inj}"
 STAKE_DENOM="${STAKE_DENOM:-$DENOM}"
 CLEANUP="${CLEANUP:-0}"
 LOG_LEVEL="${LOG_LEVEL:-main:info,state:info,statesync:info,*:error}"
 SCALE_FACTOR="${SCALE_FACTOR:-000000000000000000}"
+NEWLINE=$'\n'
 
 # Default 3 account keys + 1 user key with no special grants
 VAL0_KEY="val"
 VAL0_MNEMONIC="copper push brief egg scan entry inform record adjust fossil boss egg comic alien upon aspect dry avoid interest fury window hint race symptom"
+
 VAL1_KEY="val"
 VAL1_MNEMONIC="maximum display century economy unlock van census kite error heart snow filter midnight usage egg venture cash kick motor survey drastic edge muffin visual"
+
 VAL2_KEY="val"
 VAL2_MNEMONIC="keep liar demand upon shed essence tip undo eagle run people strong sense another salute double peasant egg royal hair report winner student diamond"
+
 USER_KEY="user"
 USER_MNEMONIC="pony glide frown crisp unfold lawn cup loan trial govern usual matrix theory wash fresh address pioneer between meadow visa buffalo keep gallery swear"
-NEWLINE=$'\n'
 
 hdir="$CHAIN_DIR/$CHAIN_ID"
 
@@ -44,22 +49,12 @@ then
     exit 1
 fi
 
-# Expect Chain ID to be provided
-if [[ -z "$CHAIN_ID" ]]; then
-  echo "Please provide Cosmos CHAIN_ID env"
-  exit 1
-fi
-
-# Expect data prefix to be provided
-if [[ -z "$CHAIN_DIR" ]]; then
-  echo "Please provide CHAIN_DIR data prefix"
-  exit 1
-fi
-
 NODE_BIN="$1"
 
 echo "Using $CHAIN_ID as Chain ID and $CHAIN_DIR as data prefix."
 echo "Using $DENOM as Cosmos Coin Denom."
+echo "Using $STAKE_DENOM as Cosmos Stake Denom."
+
 if [[ "$CLEANUP" == 1 || "$CLEANUP" == "1" ]]; then
 	echo "Will remove $CHAIN_DIR"
 fi
@@ -135,10 +130,10 @@ if [[ ! -d "$hdir" ]]; then
 	yes "$USER_MNEMONIC$NEWLINE" | $NODE_BIN $home2 keys add $USER_KEY $kbt --recover &>/dev/null
 
 	# Add addresses to genesis
-	$NODE_BIN $home0 add-genesis-account $($NODE_BIN $home0 keys show $VAL0_KEY -a $kbt) $coins &>/dev/null
-	$NODE_BIN $home0 add-genesis-account $($NODE_BIN $home1 keys show $VAL1_KEY -a $kbt) $coins &>/dev/null
-	$NODE_BIN $home0 add-genesis-account $($NODE_BIN $home2 keys show $VAL2_KEY -a $kbt) $coins &>/dev/null
-	$NODE_BIN $home0 add-genesis-account $($NODE_BIN $home0 keys show $USER_KEY -a $kbt) $coins_user &>/dev/null
+	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home0 keys show $VAL0_KEY -a $kbt)  $coins
+	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home1 keys show $VAL1_KEY -a $kbt) $coins &>/dev/null
+	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home2 keys show $VAL2_KEY -a $kbt) $coins &>/dev/null
+	$NODE_BIN $home0 $cid add-genesis-account $($NODE_BIN $home0 keys show $USER_KEY -a $kbt) $coins_user &>/dev/null
 
 	# Patch genesis.json to better configure stuff for testing purposes
 	if [[ "$STAKE_DENOM" == "$DENOM" ]]; then
@@ -146,19 +141,62 @@ if [[ ! -d "$hdir" ]]; then
 		cat $n0cfgDir/genesis.json | jq '.app_state["crisis"]["constant_fee"]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 		cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["deposit_params"]["min_deposit"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 		cat $n0cfgDir/genesis.json | jq '.app_state["mint"]["params"]["mint_denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+		cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["min_deposit"][0]["denom"]="'$DENOM'"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 	fi
 
 	echo "NOTE: Setting Governance Voting Period to 10 seconds for rapid testing"
 	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["voting_params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+
+
+  # Mint Watever tokens for each validator
+  jq '.app_state.bank.supply += [
+    {
+      "denom": "wut",
+      "amount": "16000000000000000000000000"
+    }
+  ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
+  jq '.app_state.bank.balances |= map(.coins += [
+    {
+      "denom": "wut",
+      "amount": "4000000000000000000000000"
+    }
+  ])' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
+  jq '.app_state.bank.denom_metadata += [
+    {
+      "description": "Some token I made for testing the bridge",
+      "denom_units": [
+        {
+          "denom": "wut",
+          "exponent": 0,
+          "aliases": []
+        },
+        {
+          "denom": "wat",
+          "exponent": 18,
+          "aliases": []
+        }
+      ],
+      "base": "wut",
+      "display": "wat",
+      "name": "Watever",
+      "symbol": "wat",
+      "uri": "",
+      "uri_hash": ""
+    }
+  ]' $n0cfgDir/genesis.json > tmp_file && mv tmp_file $n0cfgDir/genesis.json
+
 
 	# Copy genesis around to sign
 	cp $n0cfgDir/genesis.json $n1cfgDir/genesis.json
 	cp $n0cfgDir/genesis.json $n2cfgDir/genesis.json
 
 	# Create gentxs and collect them in n0
-	$NODE_BIN $home0 gentx $VAL0_KEY --amount=1000$SCALE_FACTOR$STAKE_DENOM $kbt $cid &>/dev/null
-	$NODE_BIN $home1 gentx $VAL1_KEY --amount=1000$SCALE_FACTOR$STAKE_DENOM $kbt $cid &>/dev/null
-	$NODE_BIN $home2 gentx $VAL2_KEY --amount=1000$SCALE_FACTOR$STAKE_DENOM $kbt $cid &>/dev/null
+	$NODE_BIN $home0 gentx $VAL0_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid
+	$NODE_BIN $home1 gentx $VAL1_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
+	$NODE_BIN $home2 gentx $VAL2_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 
 	cp $n1cfgDir/gentx/*.json $n0cfgDir/gentx/
 	cp $n2cfgDir/gentx/*.json $n0cfgDir/gentx/
@@ -177,7 +215,7 @@ if [[ ! -d "$hdir" ]]; then
 	# Example usage: $REGEX_REPLACE 's/^param = ".*?"/param = "100"/' config.toml
 	REGEX_REPLACE="perl -i -pe"
 
-	echo "regex replacing config variables"
+	echo "Regex replacing config variables"
 
 	$REGEX_REPLACE 's|addr_book_strict = true|addr_book_strict = false|g' $n0cfg
 	$REGEX_REPLACE 's|external_address = ""|external_address = "tcp://127.0.0.1:26657"|g' $n0cfg
@@ -217,20 +255,26 @@ if [[ ! -d "$hdir" ]]; then
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer1','$peer2'"|g' $n0cfg
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer2'"|g' $n1cfg
 	$REGEX_REPLACE 's|persistent_peers = ""|persistent_peers = "'$peer0','$peer1'"|g' $n2cfg
+
 fi # data dir check
 
 # Start the instances
-echo "Starting nodes..."
+echo "Starting injectived nodes..."
 
-echo $NODE_BIN $home0 start --grpc.address="0.0.0.0:9090"
+echo $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080"
+$NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080" > $hdir.n0.log 2>&1 &
 
-$NODE_BIN $home0 start --grpc.address="0.0.0.0:9090" > $hdir.n0.log 2>&1 &
-$NODE_BIN $home1 start --grpc.address="0.0.0.0:9091" > $hdir.n1.log 2>&1 &
-$NODE_BIN $home2 start --grpc.address="0.0.0.0:9092" > $hdir.n2.log 2>&1 &
+echo $NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" --grpc-web.address "0.0.0.0:9081"
+$NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" --grpc-web.address "0.0.0.0:9081" > $hdir.n1.log 2>&1 &
+
+echo $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" --grpc-web.address "0.0.0.0:9082"
+$NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" --grpc-web.address "0.0.0.0:9082" > $hdir.n2.log 2>&1 &
+
+
 
 # Wait for chains to start
-echo "Waiting for chains to start..."
-sleep 8
+echo "Waiting for chain to start..."
+sleep 5
 
 echo
 echo "Logs:"
