@@ -13,14 +13,14 @@ func NewDummyCoingeckoFeed() DummyCoingeckoFeed {
 	return DummyCoingeckoFeed{
 		tokens: map[string]string{
 			"0x7E5C521F8515017487750c13C3bF3B15f3f5f654": "inj",
-			"0x1ccec198630F2024c64C0aFC5aE2427bc8e2dce8": "wut",
+			"0x1ccec198630F2024c64C0aFC5aE2427bc8e2dce8": "peggy0x1ccec198630F2024c64C0aFC5aE2427bc8e2dce8",
 		},
 	}
 }
 
 func (f DummyCoingeckoFeed) QueryUSDPrice(address common.Address) (float64, error) {
 	switch f.tokens[address.Hex()] {
-	case "inj", "wut":
+	case "inj", "peggy0x1ccec198630F2024c64C0aFC5aE2427bc8e2dce8":
 		return 10, nil
 	default:
 		return 0, errors.New("unknown token")
