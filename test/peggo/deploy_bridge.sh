@@ -35,7 +35,7 @@ peggy_init_data=$(etherman --name Peggy \
                 --source $peggy_contract_path \
                 -P "$deployer_pk" \
                 tx --bytecode "$peggy_impl_address" \
-                initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+                initialize)
 echo "Initialized Peggy implementation contract. Init data:"
 echo "$peggy_init_data"
 
