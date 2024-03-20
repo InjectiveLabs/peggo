@@ -208,26 +208,27 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 		return err
 	}
 
-	var (
-		oldestConfirmedInjBatch     *peggytypes.OutgoingTxBatch
-		oldestConfirmedInjBatchSigs []*peggytypes.MsgConfirmBatch
-	)
-
 	latestEthHeight, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest Ethereum header")
 	}
 
-	for _, batch := range latestBatches {
-		if batch.BatchTimeout <= latestEthHeight.Number.Uint64() {
-			println("skipping timed out batch", "nonce=", batch.BatchNonce)
-			continue // skip timed out batches
-		}
+	var (
+		oldestConfirmedInjBatch     *peggytypes.OutgoingTxBatch
+		oldestConfirmedInjBatchSigs []*peggytypes.MsgConfirmBatch
+	)
 
+	for _, batch := range latestBatches {
 		sigs, err := l.Injective.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
-		} else if len(sigs) == 0 {
+		}
+
+		if len(sigs) == 0 {
+			continue
+		}
+
+		if batch.BatchTimeout <= latestEthHeight.Number.Uint64() {
 			continue
 		}
 

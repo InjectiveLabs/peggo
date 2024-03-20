@@ -45,7 +45,6 @@ func (l *batchRequester) Logger() log.Logger {
 func (l *batchRequester) RequestBatches(ctx context.Context) error {
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
-		// non-fatal, just alert
 		l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
 		return nil
 	}
