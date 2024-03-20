@@ -2,61 +2,59 @@
 'https://plantuml.com/sequence-diagram
 
 participant PeggyOrchestrator as peggo
-participant InjectiveNetwork as injective
 participant ethOracleLoop
+participant InjectiveNetwork as injective
 participant EthereumNetwork as ethereum
 
 peggo -> peggo ++: EthOracleMainLoop
-peggo -> peggo ++ : getLastConfirmedEthHeightOnInjective
-peggo -> peggo ++ : getLastClaimBlockHeight
-peggo -> injective ++ : PeggyParams
-return params
+    peggo -> peggo ++ : getLastConfirmedEthHeightOnInjective
+        peggo -> peggo ++ : getLastClaimBlockHeight
+            peggo -> injective ++ : PeggyParams
+            return params
+           return
+    return
+    peggo -> ethOracleLoop **
+    peggo -> ethOracleLoop ++ : Run
+        ethOracleLoop -> ethOracleLoop ++ : observeEthEvents
+            ethOracleLoop -> ethOracleLoop ++ : relayEvents
+                ethOracleLoop -> ethereum : HeaderByNumber
+                ethOracleLoop <-- ethereum : header
+                ethOracleLoop -> ethereum : GetSendToCosmosEvents
+                ethOracleLoop <-- ethereum : events
+                ethOracleLoop -> ethereum : GetSendToInjectiveEvents
+                ethOracleLoop <-- ethereum : events
+                ethOracleLoop -> ethereum : GetTransactionBatchExecutedEvents
+                ethOracleLoop <-- ethereum : events
+                ethOracleLoop -> ethereum : GetPeggyERC20DeployedEvents
+                ethOracleLoop <-- ethereum : events
+                ethOracleLoop -> ethereum : GetValsetUpdatedEvents
+                ethOracleLoop <-- ethereum : events
+
+                ethOracleLoop -> injective : LastClaimEvent
+                ethOracleLoop <-- injective : event
+
+                note left ethOracleLoop: Filter events\nby nonce
+
+                ethOracleLoop -> injective ++ : SendEthereumClaims
+                    loop
+                        injective -> injective : sendOldDepositClaims
+                    end
+                    loop
+                        injective -> injective : sendDepositClaims
+                    end
+                    loop
+                        injective -> injective : sendWithdrawClaims
+                    end
+                    loop
+                        injective -> injective : sendValsetUpdateClaims
+                    end
+                    loop
+                        injective -> injective : sendErc20DeployedClaims
+                    end
+                return
+            return
+        return
+    return
 return
-return
-peggo -> ethOracleLoop ** : Run
-ethOracleLoop -> ethOracleLoop ++ : observeEthEvents
-ethOracleLoop -> ethOracleLoop ++ : relayEvents
-
-ethOracleLoop -> ethereum : HeaderByNumber
-ethOracleLoop <-- ethereum : header
-ethOracleLoop -> ethereum : GetSendToCosmosEvents
-ethOracleLoop <-- ethereum : events
-ethOracleLoop -> ethereum : GetSendToInjectiveEvents
-ethOracleLoop <-- ethereum : events
-ethOracleLoop -> ethereum : GetTransactionBatchExecutedEvents
-ethOracleLoop <-- ethereum : events
-ethOracleLoop -> ethereum : GetPeggyERC20DeployedEvents
-ethOracleLoop <-- ethereum : events
-ethOracleLoop -> ethereum : GetValsetUpdatedEvents
-ethOracleLoop <-- ethereum : events
-
-ethOracleLoop -> injective : LastClaimEvent
-ethOracleLoop <-- injective : event
-
-note left ethOracleLoop: Filter events\nby nonce
-
-ethOracleLoop -> injective : SendEthereumClaims
-loop
-    injective -> injective : sendOldDepositClaims
-end
-loop
-    injective -> injective : sendDepositClaims
-end
-loop
-    injective -> injective : sendWithdrawClaims
-end
-loop
-    injective -> injective : sendValsetUpdateClaims
-end
-loop
-    injective -> injective : sendErc20DeployedClaims
-end
-ethOracleLoop <-- injective
-
-return
-
-peggo <-- ethOracleLoop
-deactivate peggo
-
 
 @enduml
