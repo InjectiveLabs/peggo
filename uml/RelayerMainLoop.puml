@@ -1,0 +1,52 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+participant PeggyOrchestrator as peggo
+participant relayerLoop
+participant InjectiveNetwork as injective
+participant EthereumNetwork as ethereum
+entity PeggyChainModule as peggyModule
+entity InjectiveNode as chainNode
+
+peggo -> peggo ++ : RelayerMainLoop
+    peggo -> relayerLoop **
+    peggo -> relayerLoop ++ : Run
+        relayerLoop -> relayerLoop ++ : relayValsetsAndBatches
+            relayerLoop -> relayerLoop ++ : relayValset
+                relayerLoop -> injective ++ : LatestValsets
+                    injective -> peggyModule : LastValsetRequests
+                    injective <-- peggyModule : valsets
+                return valsets
+                loop valsets
+                    relayerLoop -> injective ++ : AllValsetConfirms
+                        injective -> peggyModule : ValsetConfirmsByNonce
+                        injective <-- peggyModule : confirms
+                    return confirms
+                end
+                relayerLoop -> relayerLoop ++ : findLatestValsetOnEth
+                    relayerLoop -> ethereum : HeaderByNumber
+                    relayerLoop -> ethereum : GetValsetNonce
+                    relayerLoop <-- ethereum : latest Ethereum valset nonce
+                    relayerLoop -> injective ++ : ValsetAt
+                        injective -> peggyModule : ValsetRequest
+                        injective <-- peggyModule : valset
+                    return valset
+                    loop blocks to search
+                        relayerLoop -> ethereum : GetValsetUpdatedEvents
+                    end
+                return valset
+                relayerLoop -> ethereum : GetValsetNonce
+                relayerLoop -> injective ++ : GetBlockCreationTime
+                    injective -> chainNode : GetBlock
+                    injective <-- chainNode : block
+                return block time
+                relayerLoop -> ethereum : SendEthValsetUpdate
+            return
+            relayerLoop -> relayerLoop ++ : relayBatch
+
+            return
+        return
+    return
+
+return
+@enduml
