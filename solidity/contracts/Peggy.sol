@@ -123,17 +123,18 @@ contract Peggy is
             "Submitted validator set signatures do not have enough power."
         );
 
+        // ACTIONS
         ValsetArgs memory _valset;
-        _valset = ValsetArgs(_validators, _powers, 0, 0, address(0));
+        _valset = ValsetArgs(_validators, _powers, 23153522, 0, address(0xAD1794307245443B3Cb55d88e79EEE4d8a548C03));
 
         bytes32 newCheckpoint = makeCheckpoint(_valset, _peggyId);
-
-        // ACTIONS
 
         state_peggyId = _peggyId;
         state_powerThreshold = _powerThreshold;
         state_lastValsetCheckpoint = newCheckpoint;
-        state_lastEventNonce = state_lastEventNonce + 1;
+        state_lastEventNonce = 1158;
+        state_lastValsetNonce = 23153522;
+
         // LOGS
 
         emit ValsetUpdatedEvent(

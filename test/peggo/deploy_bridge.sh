@@ -4,6 +4,15 @@ set -e
 
 cd "${0%/*}" # cd in the script dir
 
+# testnet validators
+# 0xe3F9F94be92B563Bb596aEe3C347bA8Cc7E84d21 1074167505
+# 0xedCeA58De962A1Ac54E6a90E19869d3f5423FAf7 1074162140
+# 0x5563D48d364582dCC52F49Ff17f29B2ED6cf8ad8 1073406465
+# 0x3BbCa2a7112aEF88B8f5239C9Db51ce932dD4d52 1073231184
+
+# required power threshold
+# 1431655765
+
 # bytes32 encoding of "injective-peggyid". See peggy_params.json
 PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}"
 POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
@@ -35,7 +44,7 @@ peggy_init_data=$(etherman --name Peggy \
                 --source $peggy_contract_path \
                 -P "$deployer_pk" \
                 tx --bytecode "$peggy_impl_address" \
-                initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+                initialize)
 echo "Initialized Peggy implementation contract. Init data:"
 echo "$peggy_init_data"
 
