@@ -185,6 +185,12 @@ func (l *relayerLoop) relayBatch(ctx context.Context) error {
 	)
 
 	for _, batch := range latestBatches {
+		// todo: fix
+		if batch.TokenContract == "0xAD1794307245443B3Cb55d88e79EEE4d8a548C03" {
+			// Sepolia migration: ignore batches built with GoerliINJ (batch 2300)
+			continue
+		}
+
 		sigs, err := l.inj.TransactionBatchSignatures(ctx, batch.BatchNonce, common.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
