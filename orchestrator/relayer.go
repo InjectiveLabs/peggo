@@ -125,7 +125,7 @@ func (l *relayerLoop) relayValset(ctx context.Context) error {
 		return errors.Wrap(err, "failed to find latest confirmed valset update on Ethereum")
 	}
 
-	fmt.Printf("latest eth valset= %#v\n", currentEthValset)
+	fmt.Printf("latest eth valset=\n%s\n", currentEthValset.String())
 
 	if oldestConfirmedValset.Nonce <= currentEthValset.Nonce {
 		l.Logger().WithFields(log.Fields{"eth_nonce": currentEthValset.Nonce, "inj_nonce": currentEthValset.Nonce}).Debugln("valset already updated on Ethereum")
