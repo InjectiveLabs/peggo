@@ -2,6 +2,7 @@ package peggy
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,6 +63,12 @@ func (s *peggyContract) SendEthValsetUpdate(
 		err = errors.Wrap(err, "confirmations check failed")
 		return nil, err
 	}
+
+	fmt.Printf("Packing old valset\n")
+	for _, validator := range currentValidators {
+		fmt.Printf("validator: %s\n", validator.String())
+	}
+
 	currentValsetNonce := new(big.Int).SetUint64(oldValset.Nonce)
 	currentValsetArgs := ValsetArgs{
 		Validators:   currentValidators,
