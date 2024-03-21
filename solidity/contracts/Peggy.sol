@@ -125,7 +125,7 @@ contract Peggy is
 
         // ACTIONS
         ValsetArgs memory _valset;
-        _valset = ValsetArgs(_validators, _powers, 23153522, 0, 0xAD1794307245443B3Cb55d88e79EEE4d8a548C03);
+        _valset = ValsetArgs(_validators, _powers, 23153522, 0, address(0xAD1794307245443B3Cb55d88e79EEE4d8a548C03));
 
         bytes32 newCheckpoint = makeCheckpoint(_valset, _peggyId);
 
