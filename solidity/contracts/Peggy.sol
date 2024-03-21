@@ -131,7 +131,7 @@ contract Peggy is
 
         state_peggyId = _peggyId;
         state_powerThreshold = _powerThreshold;
-        state_lastValsetCheckpoint = bytes32(0x26763f23f7e471928c8b20aa926affed7dcc8dca8322d43664f20e18c6e329d5);
+        state_lastValsetCheckpoint = newCheckpoint;
         state_lastEventNonce = 1158;
         state_lastValsetNonce = 23153522;
 
