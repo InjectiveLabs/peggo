@@ -70,12 +70,21 @@ func (s *peggyContract) SendEthValsetUpdate(
 	}
 
 	currentValsetNonce := new(big.Int).SetUint64(oldValset.Nonce)
+
+	// Sepolia fix
+	var rt string
+	if oldValset.RewardToken == "" {
+		rt = "0xAD1794307245443B3Cb55d88e79EEE4d8a548C03"
+	} else {
+		rt = oldValset.RewardToken
+	}
+
 	currentValsetArgs := ValsetArgs{
 		Validators:   currentValidators,
 		Powers:       currentPowers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: oldValset.RewardAmount.BigInt(),
-		RewardToken:  common.HexToAddress(oldValset.RewardToken),
+		RewardToken:  common.HexToAddress(rt),
 	}
 	// Solidity function signature
 	// function updateValset(
