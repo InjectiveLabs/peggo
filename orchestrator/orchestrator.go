@@ -34,7 +34,7 @@ type Config struct {
 	RelayBatchOffsetDur  string
 	RelayValsets         bool
 	RelayBatches         bool
-	IsBonded             bool
+	RelayerMode          bool
 }
 
 type PeggyOrchestrator struct {
@@ -49,7 +49,7 @@ type PeggyOrchestrator struct {
 	relayValsetOffsetDur time.Duration
 	relayBatchOffsetDur  time.Duration
 	minBatchFeeUSD       float64
-	isBonded             bool
+	isRelayer            bool
 }
 
 func NewPeggyOrchestrator(
@@ -66,7 +66,7 @@ func NewPeggyOrchestrator(
 		priceFeed:            priceFeed,
 		erc20ContractMapping: cfg.ERC20ContractMapping,
 		minBatchFeeUSD:       cfg.MinBatchFeeUSD,
-		isBonded:             cfg.IsBonded,
+		isRelayer:            cfg.RelayerMode,
 	}
 
 	if cfg.RelayValsets {
@@ -93,7 +93,7 @@ func NewPeggyOrchestrator(
 // Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
 func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
-	if !s.isBonded {
+	if s.isRelayer {
 		return s.startRelayerMode(ctx, inj, eth)
 	}
 
@@ -140,8 +140,8 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error { return s.EthOracleMainLoop(ctx, inj, eth, lastObservedEthBlock) })
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.EthSignerMainLoop(ctx, inj, peggyContractID) })
+	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
 
 	return pg.Wait()
@@ -153,17 +153,10 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	log.Infoln("running orchestrator in relayer mode")
 
-	// get peggy ID from contract
-	peggyContractID, err := eth.GetPeggyID(ctx)
-	if err != nil {
-		s.logger.WithError(err).Fatalln("unable to query peggy ID from contract")
-	}
-
 	var pg loops.ParanoidGroup
 
 	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
 	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
-	pg.Go(func() error { return s.EthSignerMainLoop(ctx, inj, peggyContractID) })
 
 	return pg.Wait()
 }

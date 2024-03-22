@@ -109,7 +109,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		isValidatorBonded := cosmos.IsBondedValidator(cosmosNetwork, ethKeyFromAddress)
+		isValidator := cosmos.HasRegisteredOrchestrator(cosmosNetwork, ethKeyFromAddress)
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
@@ -123,7 +123,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 				RelayBatchOffsetDur:  *cfg.relayBatchOffsetDur,
 				RelayValsets:         *cfg.relayValsets,
 				RelayBatches:         *cfg.relayBatches,
-				IsBonded:             isValidatorBonded,
+				RelayerMode:          !isValidator,
 			},
 		)
 		orShutdown(err)
