@@ -2,6 +2,7 @@ package peggy
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,13 +63,28 @@ func (s *peggyContract) SendEthValsetUpdate(
 		err = errors.Wrap(err, "confirmations check failed")
 		return nil, err
 	}
+
+	fmt.Printf("Packing old valset\n")
+	for _, validator := range currentValidators {
+		fmt.Printf("validator: %s\n", validator.String())
+	}
+
 	currentValsetNonce := new(big.Int).SetUint64(oldValset.Nonce)
+
+	// Sepolia fix
+	var rt string
+	if oldValset.RewardToken == "" || oldValset.RewardToken == common.HexToAddress("0x0000000000000000000000000000000000000000").String() {
+		rt = "0xAD1794307245443B3Cb55d88e79EEE4d8a548C03"
+	} else {
+		rt = oldValset.RewardToken
+	}
+
 	currentValsetArgs := ValsetArgs{
 		Validators:   currentValidators,
 		Powers:       currentPowers,
 		ValsetNonce:  currentValsetNonce,
 		RewardAmount: oldValset.RewardAmount.BigInt(),
-		RewardToken:  common.HexToAddress(oldValset.RewardToken),
+		RewardToken:  common.HexToAddress(rt),
 	}
 	// Solidity function signature
 	// function updateValset(
