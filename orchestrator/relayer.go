@@ -69,7 +69,7 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 	if l.relayValsetOffsetDur != 0 {
 		pg.Go(func() error {
-			return retryOnErr(ctx, l.Logger(), func() error {
+			return retryFnOnErr(ctx, l.Logger(), func() error {
 				return l.relayValset(ctx, ethValset)
 			})
 		})
@@ -77,7 +77,7 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 	if l.relayBatchOffsetDur != 0 {
 		pg.Go(func() error {
-			return retryOnErr(ctx, l.Logger(), func() error {
+			return retryFnOnErr(ctx, l.Logger(), func() error {
 				return l.relayBatch(ctx, ethValset)
 			})
 		})
@@ -96,7 +96,7 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
 	var latestEthValset *peggytypes.Valset
-	if err := retryOnErr(ctx, l.Logger(), func() error {
+	if err := retryFnOnErr(ctx, l.Logger(), func() error {
 		vs, err := l.findLatestValsetOnEth(ctx)
 		if err != nil {
 			return err

@@ -22,6 +22,14 @@ const (
 	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
 	// when there are more than ~50 events to claim in a single run.
 	defaultBlocksToSearch uint64 = 2000
+
+	// Auto re-sync to catch up the validator's last observed event nonce. Reasons why event nonce fall behind:
+	// 1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
+	//  We need to re-scan this block to ensure events are not missed due to indexing delay.
+	// 2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
+	// 3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
+	// 4. if an event was sent to Injective successfully but didn't end up in a block, subsequently claimed events will be ignored until a manual restart or auto re-sync occur
+	resyncInterval = 3 * time.Hour
 )
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -97,13 +105,7 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 	l.Logger().WithFields(log.Fields{"block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
 	l.LastObservedEthHeight = latestHeight
 
-	/** Auto re-sync to catch up the nonce. Reasons why event nonce fall behind.
-		1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
-	   	we need to re-scan this block to ensure events are not missed due to indexing delay.
-		2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-		3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
-	*/
-	if time.Since(l.LastResyncWithInjective) >= 48*time.Hour {
+	if time.Since(l.LastResyncWithInjective) >= resyncInterval {
 		if err := l.autoResync(ctx); err != nil {
 			return err
 		}
@@ -114,7 +116,6 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 
 func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint64) (ethEvents, error) {
 	events := ethEvents{}
-
 	scanEthEventsFn := func() error {
 		legacyDeposits, err := l.Ethereum.GetSendToCosmosEvents(startBlock, endBlock)
 		if err != nil {
@@ -150,7 +151,7 @@ func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint6
 		return nil
 	}
 
-	if err := retryOnErr(ctx, l.Logger(), scanEthEventsFn); err != nil {
+	if err := retryFnOnErr(ctx, l.Logger(), scanEthEventsFn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return ethEvents{}, err
 	}
@@ -159,16 +160,18 @@ func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint6
 }
 
 func (l *ethOracle) getLatestEthHeight(ctx context.Context) (uint64, error) {
-	var latestHeight uint64
-	if err := retryOnErr(ctx, l.Logger(), func() error {
-		latestHeader, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
+	latestHeight := uint64(0)
+	fn := func() error {
+		h, err := l.Ethereum.GetHeaderByNumber(ctx, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to get latest ethereum header")
 		}
 
-		latestHeight = latestHeader.Number.Uint64()
+		latestHeight = h.Number.Uint64()
 		return nil
-	}); err != nil {
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return 0, err
 	}
@@ -183,14 +186,23 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) er
 			return err
 		}
 
-		newEvents := events.Filter(lastClaim.EthereumEventNonce)
-		if newEvents.Num() == 0 {
+		newEvents := events.Filter(lastClaim.EthereumEventNonce).Sort()
+		if len(newEvents) == 0 {
 			l.Logger().WithField("last_claimed_event_nonce", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
 			return nil
 		}
 
-		sortedEvents := newEvents.Sort()
-		for _, event := range sortedEvents {
+		if expected, actual := lastClaim.EthereumEventNonce+1, newEvents[0].Nonce(); expected != actual {
+			l.Logger().WithFields(log.Fields{
+				"expected_nonce":    expected,
+				"actual_nonce":      newEvents[0].Nonce(),
+				"time_until_resync": time.Until(l.LastResyncWithInjective.Add(resyncInterval)).String(),
+			}).Infoln("orchestrator missed an event claim. Restart your peggo or wait until resync")
+
+			return nil
+		}
+
+		for _, event := range newEvents {
 			if err := l.sendEthEventClaim(ctx, event); err != nil {
 				return err
 			}
@@ -200,12 +212,12 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) er
 			time.Sleep(1200 * time.Millisecond)
 		}
 
-		l.Logger().WithField("claims", len(sortedEvents)).Infoln("sent new event claims to Injective")
+		l.Logger().WithField("claims", len(newEvents)).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
 
-	if err := retryOnErr(ctx, l.Logger(), sendEventsFn); err != nil {
+	if err := retryFnOnErr(ctx, l.Logger(), sendEventsFn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}
@@ -214,11 +226,18 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events ethEvents) er
 }
 
 func (l *ethOracle) autoResync(ctx context.Context) error {
-	var latestHeight uint64
-	if err := retryOnErr(ctx, l.Logger(), func() (err error) {
-		latestHeight, err = l.getLastClaimBlockHeight(ctx, l.Injective)
-		return
-	}); err != nil {
+	latestHeight := uint64(0)
+	fn := func() error {
+		h, err := l.getLastClaimBlockHeight(ctx, l.Injective)
+		if err != nil {
+			return err
+		}
+
+		latestHeight = h
+		return nil
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}
@@ -231,20 +250,25 @@ func (l *ethOracle) autoResync(ctx context.Context) error {
 	return nil
 }
 
-func (l *ethOracle) sendEthEventClaim(ctx context.Context, event any) error {
-	switch e := event.(type) {
-	case *peggyevents.PeggySendToCosmosEvent:
-		return l.Injective.SendOldDepositClaim(ctx, e)
-	case *peggyevents.PeggySendToInjectiveEvent:
-		return l.Injective.SendDepositClaim(ctx, e)
-	case *peggyevents.PeggyValsetUpdatedEvent:
-		return l.Injective.SendValsetClaim(ctx, e)
-	case *peggyevents.PeggyTransactionBatchExecutedEvent:
-		return l.Injective.SendWithdrawalClaim(ctx, e)
-	case *peggyevents.PeggyERC20DeployedEvent:
-		return l.Injective.SendERC20DeployedClaim(ctx, e)
+func (l *ethOracle) sendEthEventClaim(ctx context.Context, ev event) error {
+	switch e := ev.(type) {
+	case *oldDeposit:
+		ev := peggyevents.PeggySendToCosmosEvent(*e)
+		return l.Injective.SendOldDepositClaim(ctx, &ev)
+	case *deposit:
+		ev := peggyevents.PeggySendToInjectiveEvent(*e)
+		return l.Injective.SendDepositClaim(ctx, &ev)
+	case *valsetUpdate:
+		ev := peggyevents.PeggyValsetUpdatedEvent(*e)
+		return l.Injective.SendValsetClaim(ctx, &ev)
+	case *withdrawal:
+		ev := peggyevents.PeggyTransactionBatchExecutedEvent(*e)
+		return l.Injective.SendWithdrawalClaim(ctx, &ev)
+	case *erc20Deployment:
+		ev := peggyevents.PeggyERC20DeployedEvent(*e)
+		return l.Injective.SendERC20DeployedClaim(ctx, &ev)
 	default:
-		panic(errors.Errorf("unknown event type %T", e))
+		panic(errors.Errorf("unknown ev type %T", e))
 	}
 }
 
@@ -305,50 +329,70 @@ func (e ethEvents) Filter(nonce uint64) ethEvents {
 	}
 }
 
-func (e ethEvents) Sort() []any {
-	events := make([]any, 0, e.Num())
+func (e ethEvents) Sort() []event {
+	events := make([]event, 0, e.Num())
 
-	for _, deposit := range e.OldDeposits {
-		events = append(events, deposit)
+	for _, d := range e.OldDeposits {
+		ev := oldDeposit(*d)
+		events = append(events, &ev)
 	}
 
-	for _, deposit := range e.Deposits {
-		events = append(events, deposit)
+	for _, d := range e.Deposits {
+		ev := deposit(*d)
+		events = append(events, &ev)
 	}
 
-	for _, withdrawal := range e.Withdrawals {
-		events = append(events, withdrawal)
+	for _, w := range e.Withdrawals {
+		ev := withdrawal(*w)
+		events = append(events, &ev)
 	}
 
 	for _, deployment := range e.ERC20Deployments {
-		events = append(events, deployment)
+		ev := erc20Deployment(*deployment)
+		events = append(events, &ev)
 	}
 
 	for _, vs := range e.ValsetUpdates {
-		events = append(events, vs)
-	}
-
-	eventNonce := func(event any) uint64 {
-		switch e := event.(type) {
-		case *peggyevents.PeggySendToCosmosEvent:
-			return e.EventNonce.Uint64()
-		case *peggyevents.PeggySendToInjectiveEvent:
-			return e.EventNonce.Uint64()
-		case *peggyevents.PeggyValsetUpdatedEvent:
-			return e.EventNonce.Uint64()
-		case *peggyevents.PeggyTransactionBatchExecutedEvent:
-			return e.EventNonce.Uint64()
-		case *peggyevents.PeggyERC20DeployedEvent:
-			return e.EventNonce.Uint64()
-		default:
-			panic(errors.Errorf("unknown event type %T", e))
-		}
+		ev := valsetUpdate(*vs)
+		events = append(events, &ev)
 	}
 
 	// sort by nonce
 	sort.Slice(events, func(i, j int) bool {
-		return eventNonce(events[i]) < eventNonce(events[j])
+		return events[i].Nonce() < events[j].Nonce()
 	})
 
 	return events
+}
+
+type (
+	oldDeposit      peggyevents.PeggySendToCosmosEvent
+	deposit         peggyevents.PeggySendToInjectiveEvent
+	valsetUpdate    peggyevents.PeggyValsetUpdatedEvent
+	withdrawal      peggyevents.PeggyTransactionBatchExecutedEvent
+	erc20Deployment peggyevents.PeggyERC20DeployedEvent
+
+	event interface {
+		Nonce() uint64
+	}
+)
+
+func (o *oldDeposit) Nonce() uint64 {
+	return o.EventNonce.Uint64()
+}
+
+func (o *deposit) Nonce() uint64 {
+	return o.EventNonce.Uint64()
+}
+
+func (o *valsetUpdate) Nonce() uint64 {
+	return o.EventNonce.Uint64()
+}
+
+func (o *withdrawal) Nonce() uint64 {
+	return o.EventNonce.Uint64()
+}
+
+func (o *erc20Deployment) Nonce() uint64 {
+	return o.EventNonce.Uint64()
 }

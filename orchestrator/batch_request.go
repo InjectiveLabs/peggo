@@ -74,7 +74,7 @@ func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytyp
 		return nil
 	}
 
-	if err := retryOnErr(ctx, l.Logger(), fn); err != nil {
+	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
 		return nil, err
 	}
 

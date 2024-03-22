@@ -181,7 +181,7 @@ func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context, inj cos
 	return claim.EthereumEventHeight, nil
 }
 
-func retryOnErr(ctx context.Context, log log.Logger, fn func() error) error {
+func retryFnOnErr(ctx context.Context, log log.Logger, fn func() error) error {
 	return retry.Do(fn,
 		retry.Context(ctx),
 		retry.Attempts(maxRetryAttempts),
