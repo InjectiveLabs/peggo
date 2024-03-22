@@ -34,25 +34,23 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Netw
 		PeggyOrchestrator: s,
 		Injective:         inj,
 		Ethereum:          eth,
-		LoopDuration:      defaultRelayerLoopDur,
 	}
 
 	s.logger.WithFields(log.Fields{
-		"loop_duration": rel.LoopDuration.String(),
+		"loop_duration": defaultRelayerLoopDur.String(),
 		"relay_batches": rel.relayBatchOffsetDur != 0,
 		"relay_valsets": rel.relayValsetOffsetDur != 0,
 	}).Debugln("starting Relayer...")
 
-	return loops.RunLoop(ctx, rel.LoopDuration, func() error {
+	return loops.RunLoop(ctx, defaultRelayerLoopDur, func() error {
 		return rel.RelayValsetsAndBatches(ctx)
 	})
 }
 
 type relayer struct {
 	*PeggyOrchestrator
-	Injective    cosmos.Network
-	Ethereum     ethereum.Network
-	LoopDuration time.Duration
+	Injective cosmos.Network
+	Ethereum  ethereum.Network
 }
 
 func (l *relayer) Logger() log.Logger {

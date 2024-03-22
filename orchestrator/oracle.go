@@ -44,14 +44,13 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(
 		PeggyOrchestrator:       s,
 		Injective:               inj,
 		Ethereum:                eth,
-		LoopDuration:            defaultLoopDur,
 		LastObservedEthHeight:   lastObservedBlock,
 		LastResyncWithInjective: time.Now(),
 	}
 
-	s.logger.WithField("loop_duration", oracle.LoopDuration.String()).Debugln("starting EthOracle...")
+	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting EthOracle...")
 
-	return loops.RunLoop(ctx, oracle.LoopDuration, func() error {
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		return oracle.ObserveEthEvents(ctx)
 	})
 }
@@ -60,7 +59,6 @@ type ethOracle struct {
 	*PeggyOrchestrator
 	Injective               cosmos.Network
 	Ethereum                ethereum.Network
-	LoopDuration            time.Duration
 	LastResyncWithInjective time.Time
 	LastObservedEthHeight   uint64
 }
@@ -70,6 +68,28 @@ func (l *ethOracle) Logger() log.Logger {
 }
 
 func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
+	// check if validator is in the active set since claims will fail otherwise
+	vs, err := l.Injective.CurrentValset(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get current valset on Injective")
+	}
+
+	bonded := false
+	for _, v := range vs.Members {
+		if l.ethAddr.Hex() == v.EthereumAddress {
+			bonded = true
+		}
+	}
+
+	if !bonded {
+		l.Logger().WithFields(log.Fields{
+			"orchestrator_addr": l.injAddr.String(),
+			"eth_addr":          l.ethAddr.String(),
+			"latest_inj_block":  vs.Height,
+		}).Debugln("validator not in active set, returning...")
+		return nil
+	}
+
 	latestHeight, err := l.getLatestEthHeight(ctx)
 	if err != nil {
 		return err

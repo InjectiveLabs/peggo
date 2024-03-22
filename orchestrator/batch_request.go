@@ -3,8 +3,6 @@ package orchestrator
 import (
 	"context"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
-	"time"
-
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -21,21 +19,19 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.N
 		PeggyOrchestrator: s,
 		Injective:         inj,
 		Ethereum:          eth,
-		LoopDuration:      defaultLoopDur,
 	}
 
-	s.logger.WithField("loop_duration", requester.LoopDuration.String()).Debugln("starting BatchRequester...")
+	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting BatchRequester...")
 
-	return loops.RunLoop(ctx, requester.LoopDuration, func() error {
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		return requester.RequestBatches(ctx)
 	})
 }
 
 type batchRequester struct {
 	*PeggyOrchestrator
-	Injective    cosmos.Network
-	Ethereum     ethereum.Network
-	LoopDuration time.Duration
+	Injective cosmos.Network
+	Ethereum  ethereum.Network
 }
 
 func (l *batchRequester) Logger() log.Logger {

@@ -2,8 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"time"
-
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
@@ -21,21 +19,19 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Ne
 		PeggyOrchestrator: s,
 		Injective:         inj,
 		PeggyID:           peggyID,
-		LoopDuration:      defaultLoopDur,
 	}
 
-	s.logger.WithField("loop_duration", signer.LoopDuration.String()).Debugln("starting EthSigner...")
+	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting EthSigner...")
 
-	return loops.RunLoop(ctx, signer.LoopDuration, func() error {
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		return signer.SignValsetsAndBatches(ctx)
 	})
 }
 
 type ethSigner struct {
 	*PeggyOrchestrator
-	Injective    cosmos.Network
-	LoopDuration time.Duration
-	PeggyID      gethcommon.Hash
+	Injective cosmos.Network
+	PeggyID   gethcommon.Hash
 }
 
 func (l *ethSigner) Logger() log.Logger {
