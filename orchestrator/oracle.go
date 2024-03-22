@@ -83,9 +83,9 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 
 	if !bonded {
 		l.Logger().WithFields(log.Fields{
-			"orchestrator_addr": l.injAddr.String(),
-			"eth_addr":          l.ethAddr.String(),
-			"latest_inj_block":  vs.Height,
+			"orchestrator_addr":   l.injAddr.String(),
+			"eth_addr":            l.ethAddr.String(),
+			"latest_valset_block": vs.Height,
 		}).Debugln("validator not in active set, returning...")
 		return nil
 	}
