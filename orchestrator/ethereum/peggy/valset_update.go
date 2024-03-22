@@ -73,7 +73,7 @@ func (s *peggyContract) SendEthValsetUpdate(
 
 	// Sepolia fix
 	var rt string
-	if oldValset.RewardToken == "" {
+	if oldValset.RewardToken == "" || oldValset.RewardToken == common.HexToAddress("0x0000000000000000000000000000000000000000").String() {
 		rt = "0xAD1794307245443B3Cb55d88e79EEE4d8a548C03"
 	} else {
 		rt = oldValset.RewardToken
