@@ -83,13 +83,7 @@ func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytyp
 
 func (l *batchRequester) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
 	tokenAddr := gethcommon.HexToAddress(fee.Token)
-	tokenDecimals, err := l.Ethereum.TokenDecimals(ctx, tokenAddr)
-	if err != nil {
-		l.Logger().WithError(err).Warningln("failed to get token decimals")
-		return
-	}
-
-	if thresholdMet := l.checkFeeThreshold(fee.TotalFees, tokenAddr, tokenDecimals); !thresholdMet {
+	if thresholdMet := l.checkFeeThreshold(fee.TotalFees, tokenAddr); !thresholdMet {
 		return
 	}
 
@@ -104,11 +98,10 @@ func (l *batchRequester) tokenDenom(tokenAddr gethcommon.Address) string {
 		return cosmosDenom
 	}
 
-	// todo: revisit peggy denom addresses
 	return peggytypes.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequester) checkFeeThreshold(fees cosmostypes.Int, tokenAddr gethcommon.Address, tokenDecimals uint8) bool {
+func (l *batchRequester) checkFeeThreshold(fees cosmostypes.Int, tokenAddr gethcommon.Address) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
 	}
@@ -121,7 +114,7 @@ func (l *batchRequester) checkFeeThreshold(fees cosmostypes.Int, tokenAddr gethc
 	var (
 		minFeeInUSDDec     = decimal.NewFromFloat(l.minBatchFeeUSD)
 		tokenPriceInUSDDec = decimal.NewFromFloat(tokenPriceInUSD)
-		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -1*int32(tokenDecimals)).Mul(tokenPriceInUSDDec)
+		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec) // todo: fix decimals
 	)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
