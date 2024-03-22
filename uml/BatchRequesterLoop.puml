@@ -1,0 +1,32 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+participant PeggyOrchestrator as peggo
+participant batchRequestLoop
+participant InjectiveNetwork as injective
+entity PeggyChainModule as peggyModule
+
+peggo -> peggo ++ : BatchRequesterLoop
+    peggo -> batchRequestLoop **
+    peggo -> batchRequestLoop ++ : Run
+        batchRequestLoop -> batchRequestLoop ++ : requestBatches
+            batchRequestLoop -> batchRequestLoop ++ : getUnbatchedTokenFees
+                batchRequestLoop -> injective ++ : UnbatchedTokensWithFees
+                    injective -> peggyModule : BatchFees
+                return unbatched tokens with fees
+            return unbatched token with fees
+            loop fees
+                batchRequestLoop -> batchRequestLoop ++ : requestBatch
+                    batchRequestLoop -> batchRequestLoop : tokenDenom
+                    batchRequestLoop -> batchRequestLoop : checkFeeThreshold
+                    batchRequestLoop -> injective : SendRequestBatch
+                return
+            end
+
+        return
+
+    return
+
+return
+
+@enduml
