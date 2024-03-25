@@ -125,14 +125,14 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 	})
 
 	if len(newEvents) == 0 {
-		l.Logger().WithFields(log.Fields{"last_claimed_event_nonce": lastClaim.EthereumEventNonce, "block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("no new events on Ethereum")
+		l.Logger().WithFields(log.Fields{"last_claimed_event_nonce": lastClaim.EthereumEventNonce, "eth_block_start": l.LastObservedEthHeight, "eth_block_end": latestHeight}).Infoln("no new events on Ethereum")
 		l.LastObservedEthHeight = latestHeight
 
 		return nil
 	}
 
 	if expected, actual := lastClaim.EthereumEventNonce+1, newEvents[0].Nonce(); expected != actual {
-		l.Logger().WithFields(log.Fields{"expected_nonce": expected, "actual_nonce": actual, "last_claimed_event_nonce": lastClaim.EthereumEventNonce}).Infoln("orchestrator missed an Ethereum event. Resyncing event nonce with last claimed event...")
+		l.Logger().WithFields(log.Fields{"expected_nonce": expected, "actual_nonce": actual, "last_claimed_event_nonce": lastClaim.EthereumEventNonce}).Debugln("orchestrator missed an Ethereum event. Resyncing event nonce with last claimed event...")
 		l.LastObservedEthHeight = lastClaim.EthereumEventHeight
 
 		return nil
@@ -142,7 +142,7 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"claims": len(newEvents), "block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Infoln("sent new event claims to Injective")
+	l.Logger().WithFields(log.Fields{"claims": len(newEvents), "eth_block_start": l.LastObservedEthHeight, "eth_block_end": latestHeight}).Infoln("sent new event claims to Injective")
 	l.LastObservedEthHeight = latestHeight
 
 	if time.Since(l.LastResyncWithInjective) >= resyncInterval {
@@ -260,7 +260,7 @@ func (l *ethOracle) getLastClaimEvent(ctx context.Context) (*peggytypes.LastClai
 
 func (l *ethOracle) sendNewEventClaims(ctx context.Context, events []event) error {
 	sendEventsFn := func() error {
-		// in case sending one of more claims fails, we reload the latest observed nonce to filter processed events
+		// in case sending one of more claims fails, we reload the latest claimed nonce to filter processed events
 		lastClaim, err := l.Injective.LastClaimEventByAddr(ctx, l.injAddr)
 		if err != nil {
 			return err

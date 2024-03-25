@@ -21,7 +21,7 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Ne
 		PeggyID:           peggyID,
 	}
 
-	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting EthSigner...")
+	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Signer...")
 
 	return loops.RunLoop(ctx, defaultLoopDur, func() error {
 		return signer.SignValsetsAndBatches(ctx)
@@ -35,7 +35,7 @@ type ethSigner struct {
 }
 
 func (l *ethSigner) Logger() log.Logger {
-	return l.logger.WithField("loop", "EthSigner")
+	return l.logger.WithField("loop", "Signer")
 }
 
 func (l *ethSigner) SignValsetsAndBatches(ctx context.Context) error {
@@ -51,8 +51,14 @@ func (l *ethSigner) SignValsetsAndBatches(ctx context.Context) error {
 }
 
 func (l *ethSigner) signNewValsetUpdates(ctx context.Context) error {
-	oldestUnsignedValsets, err := l.getUnsignedValsets(ctx)
-	if err != nil {
+	var oldestUnsignedValsets []*peggytypes.Valset
+	getUnsignedValsetsFn := func() error {
+		oldestUnsignedValsets, _ = l.Injective.OldestUnsignedValsets(ctx, l.injAddr)
+		return nil
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), getUnsignedValsetsFn); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}
 
@@ -62,82 +68,46 @@ func (l *ethSigner) signNewValsetUpdates(ctx context.Context) error {
 	}
 
 	for _, vs := range oldestUnsignedValsets {
-		if err := l.signValset(ctx, vs); err != nil {
+		if err := retryFnOnErr(ctx, l.Logger(), func() error {
+			return l.Injective.SendValsetConfirm(ctx, l.ethAddr, l.PeggyID, vs)
+		}); err != nil {
+			l.Logger().WithError(err).Errorln("got error, loop exits")
 			return err
 		}
+
+		l.Logger().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
 	}
 
 	return nil
 }
 
 func (l *ethSigner) signNewBatch(ctx context.Context) error {
-	oldestUnsignedTransactionBatch, err := l.getUnsignedBatch(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := l.signBatch(ctx, oldestUnsignedTransactionBatch); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (l *ethSigner) getUnsignedBatch(ctx context.Context) (*peggytypes.OutgoingTxBatch, error) {
 	var oldestUnsignedBatch *peggytypes.OutgoingTxBatch
-	if err := retryFnOnErr(ctx, l.Logger(), func() error {
+	getBatchFn := func() error {
 		oldestUnsignedBatch, _ = l.Injective.OldestUnsignedTransactionBatch(ctx, l.injAddr)
 		return nil
-	}); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return nil, err
 	}
 
-	return oldestUnsignedBatch, nil
-}
+	if err := retryFnOnErr(ctx, l.Logger(), getBatchFn); err != nil {
+		l.Logger().WithError(err).Errorln("got error, loop exits")
+		return err
+	}
 
-func (l *ethSigner) signBatch(ctx context.Context, batch *peggytypes.OutgoingTxBatch) error {
-	if batch == nil {
+	if oldestUnsignedBatch == nil {
 		l.Logger().Infoln("no batch to confirm")
 		return nil
 	}
 
-	if err := retryFnOnErr(ctx, l.Logger(), func() error {
-		return l.Injective.SendBatchConfirm(ctx, l.ethAddr, l.PeggyID, batch)
-	}); err != nil {
+	confirmBatchFn := func() error {
+		return l.Injective.SendBatchConfirm(ctx, l.ethAddr, l.PeggyID, oldestUnsignedBatch)
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), confirmBatchFn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"token_contract": batch.TokenContract, "batch_nonce": batch.BatchNonce, "txs": len(batch.Transactions)}).Infoln("confirmed batch on Injective")
-
-	return nil
-}
-
-func (l *ethSigner) getUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
-	var oldestUnsignedValsets []*peggytypes.Valset
-	fn := func() error {
-		oldestUnsignedValsets, _ = l.Injective.OldestUnsignedValsets(ctx, l.injAddr)
-		return nil
-	}
-
-	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return nil, err
-	}
-
-	return oldestUnsignedValsets, nil
-}
-
-func (l *ethSigner) signValset(ctx context.Context, vs *peggytypes.Valset) error {
-	if err := retryFnOnErr(ctx, l.Logger(), func() error {
-		return l.Injective.SendValsetConfirm(ctx, l.ethAddr, l.PeggyID, vs)
-	}); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return err
-	}
-
-	l.Logger().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
+	l.Logger().WithFields(log.Fields{"token_contract": oldestUnsignedBatch.TokenContract, "batch_nonce": oldestUnsignedBatch.BatchNonce, "txs": len(oldestUnsignedBatch.Transactions)}).Infoln("confirmed batch on Injective")
 
 	return nil
 }
