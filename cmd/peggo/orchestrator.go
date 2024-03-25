@@ -77,6 +77,8 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		})
 		orShutdown(err)
 
+		log.Infoln("connected to Injective network")
+
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
 
@@ -109,9 +111,11 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		)
 		orShutdown(err)
 
-		isValidator := cosmos.HasRegisteredOrchestrator(cosmosNetwork, ethKeyFromAddress)
+		log.Infoln("connected to Ethereum network")
+
+		addr, isValidator := cosmos.HasRegisteredOrchestrator(cosmosNetwork, ethKeyFromAddress)
 		if isValidator {
-			log.Debugln("provided ETH address is registered with a validator, configuring peggo to run in validator mode")
+			log.Debugln("provided ETH address is registered with a validator", addr.String())
 		}
 
 		// Create peggo and run it

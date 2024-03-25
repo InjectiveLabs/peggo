@@ -3,6 +3,7 @@ package cosmos
 import (
 	"context"
 	"fmt"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"time"
 
@@ -36,6 +37,14 @@ type Network interface {
 }
 
 func NewNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg NetworkConfig) (Network, error) {
+	log.WithFields(log.Fields{
+		"chain_id":          cfg.ChainID,
+		"orchestrator_addr": cfg.ValidatorAddress,
+		"grpc":              cfg.CosmosGRPC,
+		"tendermint_rpc":    cfg.TendermintRPC,
+		"gas_price":         cfg.GasPrice,
+	}).Debugln("Injective network config")
+
 	clientCfg := cfg.loadClientConfig()
 
 	clientCtx, err := chain.NewClientContext(clientCfg.ChainId, cfg.ValidatorAddress, k)
@@ -70,13 +79,6 @@ func NewNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg Networ
 		peggy.NewBroadcastClient(chainClient, ethSignFn),
 		tendermint.NewRPCClient(clientCfg.TmEndpoint),
 	}
-
-	log.WithFields(log.Fields{
-		"chain_id":   cfg.ChainID,
-		"addr":       cfg.ValidatorAddress,
-		"chain_grpc": clientCfg.ChainGrpcEndpoint,
-		"tendermint": clientCfg.TmEndpoint,
-	}).Infoln("connected to Injective network")
 
 	return net, nil
 }
@@ -146,13 +148,14 @@ func loadBalancedEndpoints(cfg NetworkConfig) clientcommon.Network {
 	return clientcommon.LoadNetwork(networkName, "lb")
 }
 
-func HasRegisteredOrchestrator(n Network, ethAddr gethcommon.Address) bool {
+func HasRegisteredOrchestrator(n Network, ethAddr gethcommon.Address) (cosmostypes.AccAddress, bool) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
-	if _, err := n.GetValidatorAddress(ctx, ethAddr); err != nil {
-		return false
+	validator, err := n.GetValidatorAddress(ctx, ethAddr)
+	if err != nil {
+		return nil, false
 	}
 
-	return true
+	return validator, true
 }

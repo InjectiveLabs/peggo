@@ -70,6 +70,14 @@ func NewNetwork(
 	signerFn bind.SignerFn,
 	cfg NetworkConfig,
 ) (Network, error) {
+	log.WithFields(log.Fields{
+		"eth_rpc":              cfg.EthNodeRPC,
+		"eth_addr":             fromAddr.String(),
+		"peggy_contract":       peggyContractAddr,
+		"max_gas_price":        cfg.MaxGasPrice,
+		"gas_price_adjustment": cfg.GasPriceAdjustment,
+	}).Infoln("Ethereum network config")
+
 	evmRPC, err := rpc.Dial(cfg.EthNodeRPC)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", cfg.EthNodeRPC)
@@ -95,12 +103,6 @@ func NewNetwork(
 	if err != nil {
 		return nil, err
 	}
-
-	log.WithFields(log.Fields{
-		"rpc":            cfg.EthNodeRPC,
-		"addr":           fromAddr.String(),
-		"peggy_contract": peggyContractAddr,
-	}).Infoln("connected to Ethereum network")
 
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
 	if cfg.EthNodeAlchemyWS != "" {
