@@ -2,9 +2,10 @@ package committer
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
+
+	"github.com/ethereum/go-ethereum"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +14,7 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 )

@@ -55,12 +55,12 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewValsetUpdates(context.TODO()))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
@@ -94,12 +94,12 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
-		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
+		assert.Error(t, l.signNewValsetUpdates(context.TODO()))
 	})
 
 	t.Run("no transaction batch sign", func(t *testing.T) {
@@ -118,12 +118,12 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewBatch(context.TODO()))
 	})
 
 	t.Run("failed to send batch confirm", func(t *testing.T) {
@@ -146,12 +146,12 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
-		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
+		assert.Error(t, l.signNewBatch(context.TODO()))
 	})
 
 	t.Run("valset update and transaction batch are confirmed", func(t *testing.T) {
@@ -174,11 +174,11 @@ func TestEthSignerLoop(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
+		l := ethSigner{
 			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+			LoopDuration:      defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewBatch(context.TODO()))
 	})
 }

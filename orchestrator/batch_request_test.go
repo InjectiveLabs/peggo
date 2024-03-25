@@ -31,7 +31,7 @@ func TestRequestBatches(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 
@@ -53,7 +53,7 @@ func TestRequestBatches(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 
@@ -84,7 +84,7 @@ func TestRequestBatches(t *testing.T) {
 		o := &PeggyOrchestrator{
 			logger:         suplog.DefaultLogger,
 			inj:            inj,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			maxAttempts:    1,
 			minBatchFeeUSD: 51.0,
 			erc20ContractMapping: map[eth.Address]string{
@@ -92,7 +92,7 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 
@@ -123,7 +123,7 @@ func TestRequestBatches(t *testing.T) {
 		o := &PeggyOrchestrator{
 			logger:         suplog.DefaultLogger,
 			inj:            inj,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			maxAttempts:    1,
 			minBatchFeeUSD: 49.0,
 			erc20ContractMapping: map[eth.Address]string{
@@ -131,7 +131,7 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 
@@ -157,14 +157,14 @@ func TestCheckFeeThreshold(t *testing.T) {
 
 		o := &PeggyOrchestrator{
 			logger:         suplog.DefaultLogger,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			minBatchFeeUSD: 21,
 			erc20ContractMapping: map[eth.Address]string{
 				tokenAddr: "inj",
 			},
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 
@@ -185,14 +185,14 @@ func TestCheckFeeThreshold(t *testing.T) {
 
 		o := &PeggyOrchestrator{
 			logger:         suplog.DefaultLogger,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			minBatchFeeUSD: 333.333,
 			erc20ContractMapping: map[eth.Address]string{
 				tokenAddr: "inj",
 			},
 		}
 
-		loop := batchRequestLoop{
+		loop := batchRequester{
 			PeggyOrchestrator: o,
 		}
 

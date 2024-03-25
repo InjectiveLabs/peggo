@@ -11,8 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xlab/suplog"
 
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 )
 
 func TestEthOracle(t *testing.T) {
@@ -48,14 +49,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Now(),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Now(),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.NoError(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(100))
 	})
 
 	t.Run("failed to get SendToCosmos events", func(t *testing.T) {
@@ -76,14 +77,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Now(),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Now(),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.Error(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(100))
 	})
 
 	t.Run("failed to get last claim event from injective", func(t *testing.T) {
@@ -125,14 +126,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Now(),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Now(),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.Error(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(100))
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(100))
 	})
 
 	t.Run("old events are pruned", func(t *testing.T) {
@@ -185,14 +186,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Now(),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Now(),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.NoError(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(104))
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(104))
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 0)
 	})
 
@@ -246,14 +247,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Now(),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Now(),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.NoError(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(104))
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(104))
 		assert.Equal(t, inj.sendEthereumClaimsCallCount, 1)
 	})
 
@@ -279,14 +280,14 @@ func TestEthOracle(t *testing.T) {
 			maxAttempts: 1,
 		}
 
-		loop := ethOracleLoop{
+		loop := ethOracle{
 			PeggyOrchestrator:       o,
-			lastResyncWithInjective: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
-			lastCheckedEthHeight:    100,
+			LastResyncWithInjective: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
+			LastObservedEthHeight:   100,
 		}
 
 		assert.NoError(t, loop.observeEthEvents(context.TODO()))
-		assert.Equal(t, loop.lastCheckedEthHeight, uint64(101))
-		assert.True(t, time.Since(loop.lastResyncWithInjective) < 1*time.Second)
+		assert.Equal(t, loop.LastObservedEthHeight, uint64(101))
+		assert.True(t, time.Since(loop.LastResyncWithInjective) < 1*time.Second)
 	})
 }

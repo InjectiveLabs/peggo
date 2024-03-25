@@ -9,12 +9,13 @@ import (
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
+	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
+
 	"github.com/InjectiveLabs/peggo/orchestrator"
 	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/version"
-	chaintypes "github.com/InjectiveLabs/sdk-go/chain/types"
 )
 
 // startOrchestrator action runs an infinite loop,
@@ -22,8 +23,6 @@ import (
 //
 // $ peggo orchestrator
 func orchestratorCmd(cmd *cli.Cmd) {
-	// orchestrator-specific CLI options
-
 	cmd.Before = func() {
 		initMetrics(cmd)
 	}
@@ -43,21 +42,19 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}).Infoln("peggo - peggy binary for Ethereum bridge")
 
 		if *cfg.cosmosUseLedger || *cfg.ethUseLedger {
-			log.Fatalln("cannot use Ledger for peggo, since signatures must be realtime")
+			log.Fatalln("cannot use Ledger for orchestrator, since signatures must be realtime")
 		}
 
-		valAddress, cosmosKeyring, err := initCosmosKeyring(
-			cfg.cosmosKeyringDir,
-			cfg.cosmosKeyringAppName,
-			cfg.cosmosKeyringBackend,
-			cfg.cosmosKeyFrom,
-			cfg.cosmosKeyPassphrase,
-			cfg.cosmosPrivKey,
-			cfg.cosmosUseLedger,
-		)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to initialize Injective keyring")
-		}
+		cosmosKeyring, err := cosmos.NewKeyring(cosmos.KeyringConfig{
+			KeyringDir:     *cfg.cosmosKeyringDir,
+			KeyringAppName: *cfg.cosmosKeyringAppName,
+			KeyringBackend: *cfg.cosmosKeyringBackend,
+			KeyFrom:        *cfg.cosmosKeyFrom,
+			KeyPassphrase:  *cfg.cosmosKeyPassphrase,
+			PrivateKey:     *cfg.cosmosPrivKey,
+			UseLedger:      *cfg.cosmosUseLedger,
+		})
+		orShutdown(err)
 
 		ethKeyFromAddress, signerFn, personalSignFn, err := initEthereumAccountsManager(
 			uint64(*cfg.ethChainID),
@@ -71,82 +68,75 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to initialize Ethereum account")
 		}
 
-		log.WithFields(log.Fields{"inj_addr": valAddress.String(), "eth_addr": ethKeyFromAddress.String()}).Infoln("starting peggo service")
-
-		var (
-			injectiveNet       orchestrator.InjectiveNetwork
-			customEndpointRPCs = *cfg.cosmosGRPC != "" && *cfg.tendermintRPC != ""
-		)
-
-		if customEndpointRPCs {
-			injectiveNet, err = cosmos.NewCustomRPCNetwork(
-				*cfg.cosmosChainID,
-				valAddress.String(),
-				*cfg.cosmosGRPC,
-				*cfg.cosmosGasPrices,
-				*cfg.tendermintRPC,
-				cosmosKeyring,
-				personalSignFn,
-			)
-		} else {
-			// load balanced connection
-			injectiveNet, err = cosmos.NewLoadBalancedNetwork(
-				*cfg.cosmosChainID,
-				valAddress.String(),
-				*cfg.cosmosGasPrices,
-				cosmosKeyring,
-				personalSignFn,
-			)
-		}
-
+		cosmosNetwork, err := cosmos.NewNetwork(cosmosKeyring, personalSignFn, cosmos.NetworkConfig{
+			ChainID:          *cfg.cosmosChainID,
+			ValidatorAddress: cosmosKeyring.Addr.String(),
+			CosmosGRPC:       *cfg.cosmosGRPC,
+			TendermintRPC:    *cfg.tendermintRPC,
+			GasPrice:         *cfg.cosmosGasPrices,
+		})
 		orShutdown(err)
+
+		log.Infoln("connected to Injective network")
 
 		ctx, cancelFn := context.WithCancel(context.Background())
 		closer.Bind(cancelFn)
 
 		// Construct erc20 token mapping
-		peggyParams, err := injectiveNet.PeggyParams(ctx)
+		peggyParams, err := cosmosNetwork.PeggyParams(ctx)
 		if err != nil {
 			log.WithError(err).Fatalln("failed to query peggy params, is injectived running?")
 		}
 
-		peggyContractAddr := gethcommon.HexToAddress(peggyParams.BridgeEthereumAddress)
-		injTokenAddr := gethcommon.HexToAddress(peggyParams.CosmosCoinErc20Contract)
-
-		erc20ContractMapping := make(map[gethcommon.Address]string)
-		erc20ContractMapping[injTokenAddr] = chaintypes.InjectiveCoin
+		var (
+			peggyContractAddr    = gethcommon.HexToAddress(peggyParams.BridgeEthereumAddress)
+			injTokenAddr         = gethcommon.HexToAddress(peggyParams.CosmosCoinErc20Contract)
+			erc20ContractMapping = map[gethcommon.Address]string{
+				injTokenAddr: chaintypes.InjectiveCoin,
+			}
+		)
 
 		// Connect to ethereum network
-		ethereumNet, err := ethereum.NewNetwork(
-			*cfg.ethNodeRPC,
+		ethereumNetwork, err := ethereum.NewNetwork(
 			peggyContractAddr,
 			ethKeyFromAddress,
 			signerFn,
-			*cfg.ethGasPriceAdjustment,
-			*cfg.ethMaxGasPrice,
-			*cfg.pendingTxWaitDuration,
-			*cfg.ethNodeAlchemyWS,
+			ethereum.NetworkConfig{
+				EthNodeRPC:            *cfg.ethNodeRPC,
+				GasPriceAdjustment:    *cfg.ethGasPriceAdjustment,
+				MaxGasPrice:           *cfg.ethMaxGasPrice,
+				PendingTxWaitDuration: *cfg.pendingTxWaitDuration,
+				EthNodeAlchemyWS:      *cfg.ethNodeAlchemyWS,
+			},
 		)
 		orShutdown(err)
 
-		coingeckoFeed := coingecko.NewCoingeckoPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi})
+		log.Infoln("connected to Ethereum network")
+
+		addr, isValidator := cosmos.HasRegisteredOrchestrator(cosmosNetwork, ethKeyFromAddress)
+		if isValidator {
+			log.Debugln("provided ETH address is registered with a validator", addr.String())
+		}
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(
-			injectiveNet,
-			ethereumNet,
-			coingeckoFeed,
-			erc20ContractMapping,
-			*cfg.minBatchFeeUSD,
-			*cfg.relayValsets,
-			*cfg.relayBatches,
-			*cfg.relayValsetOffsetDur,
-			*cfg.relayBatchOffsetDur,
+			cosmosKeyring.Addr,
+			ethKeyFromAddress,
+			coingecko.NewPriceFeed(100, &coingecko.Config{BaseURL: *cfg.coingeckoApi}),
+			orchestrator.Config{
+				MinBatchFeeUSD:       *cfg.minBatchFeeUSD,
+				ERC20ContractMapping: erc20ContractMapping,
+				RelayValsetOffsetDur: *cfg.relayValsetOffsetDur,
+				RelayBatchOffsetDur:  *cfg.relayBatchOffsetDur,
+				RelayValsets:         *cfg.relayValsets,
+				RelayBatches:         *cfg.relayBatches,
+				RelayerMode:          !isValidator,
+			},
 		)
 		orShutdown(err)
 
 		go func() {
-			if err := peggo.Run(ctx); err != nil {
+			if err := peggo.Run(ctx, cosmosNetwork, ethereumNetwork); err != nil {
 				log.Errorln(err)
 				os.Exit(1)
 			}
