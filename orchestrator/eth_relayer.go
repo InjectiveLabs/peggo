@@ -216,6 +216,12 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 
 	// todo: skip timed out batches
 	for _, batch := range latestBatches {
+		// todo: remove
+		// ignore batches built with GoerliINJ (Sepolia testnet migration)
+		if batch.TokenContract == "0xAD1794307245443B3Cb55d88e79EEE4d8a548C03" {
+			continue
+		}
+
 		sigs, err := l.Injective.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
