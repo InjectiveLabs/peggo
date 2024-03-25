@@ -29,7 +29,7 @@ const (
 	// 2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
 	// 3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
 	// 4. if an event was sent to Injective successfully but didn't end up in a block, subsequently claimed events will be ignored until a manual restart or auto re-sync occur
-	resyncInterval = 3 * time.Hour
+	resyncInterval = 24 * time.Hour
 )
 
 // EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -82,11 +82,7 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 	}
 
 	if !bonded {
-		l.Logger().WithFields(log.Fields{
-			"orchestrator_addr":   l.injAddr.String(),
-			"eth_addr":            l.ethAddr.String(),
-			"latest_valset_block": vs.Height,
-		}).Debugln("validator not in active set, returning...")
+		l.Logger().WithFields(log.Fields{"orchestrator_addr": l.injAddr.String(), "eth_addr": l.ethAddr.String(), "latest_inj_block": vs.Height}).Infoln("validator not in active set")
 		return nil
 	}
 
