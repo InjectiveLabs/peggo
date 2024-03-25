@@ -26,21 +26,20 @@ const (
 )
 
 func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
-	if noRelay := s.relayValsetOffsetDur == 0 && s.relayBatchOffsetDur == 0; noRelay {
-		return nil
-	}
-
 	rel := relayer{
 		PeggyOrchestrator: s,
 		Injective:         inj,
 		Ethereum:          eth,
 	}
 
-	s.logger.WithFields(log.Fields{
-		"loop_duration": defaultRelayerLoopDur.String(),
-		"relay_batches": rel.relayBatchOffsetDur != 0,
-		"relay_valsets": rel.relayValsetOffsetDur != 0,
-	}).Debugln("starting Relayer...")
+	relayingBatches := rel.IsRelayingValsets()
+	relayingValsets := rel.IsRelayingValsets()
+
+	if noRelay := !relayingBatches && !relayingValsets; noRelay {
+		return nil
+	}
+
+	s.logger.WithFields(log.Fields{"loop_duration": defaultRelayerLoopDur.String(), "relay_batches": relayingBatches, "relay_valsets": relayingValsets}).Debugln("starting Relayer...")
 
 	return loops.RunLoop(ctx, defaultRelayerLoopDur, func() error {
 		return rel.RelayValsetsAndBatches(ctx)
@@ -55,6 +54,14 @@ type relayer struct {
 
 func (l *relayer) Logger() log.Logger {
 	return l.logger.WithField("loop", "Relayer")
+}
+
+func (l *relayer) IsRelayingBatches() bool {
+	return l.relayBatchOffsetDur != 0
+}
+
+func (l *relayer) IsRelayingValsets() bool {
+	return l.relayValsetOffsetDur != 0
 }
 
 func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
@@ -94,7 +101,7 @@ func (l *relayer) RelayValsetsAndBatches(ctx context.Context) error {
 
 func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
 	var latestEthValset *peggytypes.Valset
-	if err := retryFnOnErr(ctx, l.Logger(), func() error {
+	fn := func() error {
 		vs, err := l.findLatestValsetOnEth(ctx)
 		if err != nil {
 			return err
@@ -102,7 +109,9 @@ func (l *relayer) GetLatestEthValset(ctx context.Context) (*peggytypes.Valset, e
 
 		latestEthValset = vs
 		return nil
-	}); err != nil {
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return nil, err
 	}
@@ -115,51 +124,46 @@ func (l *relayer) relayValset(ctx context.Context, latestEthValset *peggytypes.V
 	doneFn := metrics.ReportFuncTiming(l.svcTags)
 	defer doneFn()
 
-	// we should determine if we need to relay one
-	// to Ethereum for that we will find the latest confirmed valset and compare it to the ethereum chain
-	latestValsets, err := l.Injective.LatestValsets(ctx)
+	latestInjectiveValsets, err := l.Injective.LatestValsets(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest valset updates from Injective")
 	}
 
 	var (
-		oldestConfirmedValset     *peggytypes.Valset
-		oldestConfirmedValsetSigs []*peggytypes.MsgValsetConfirm
+		latestConfirmedValset *peggytypes.Valset
+		confirmations         []*peggytypes.MsgValsetConfirm
 	)
 
-	for _, set := range latestValsets {
+	for _, set := range latestInjectiveValsets {
 		sigs, err := l.Injective.AllValsetConfirms(ctx, set.Nonce)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get valset confirmations for nonce %d", set.Nonce)
-		} else if len(sigs) == 0 {
+		}
+
+		if len(sigs) == 0 {
 			continue
 		}
 
-		oldestConfirmedValsetSigs = sigs
-		oldestConfirmedValset = set
+		confirmations = sigs
+		latestConfirmedValset = set
 		break
 	}
 
-	if oldestConfirmedValset == nil {
+	if latestConfirmedValset == nil {
 		l.Logger().Infoln("no valset to relay")
 		return nil
 	}
 
-	if !l.shouldRelayValset(ctx, oldestConfirmedValset) {
+	if !l.shouldRelayValset(ctx, latestConfirmedValset) {
 		return nil
 	}
 
-	txHash, err := l.Ethereum.SendEthValsetUpdate(ctx,
-		latestEthValset,
-		oldestConfirmedValset,
-		oldestConfirmedValsetSigs,
-	)
-
+	txHash, err := l.Ethereum.SendEthValsetUpdate(ctx, latestEthValset, latestConfirmedValset, confirmations)
 	if err != nil {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent valset tx to Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent validator set update to Ethereum")
 
 	return nil
 }
@@ -206,8 +210,8 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 	}
 
 	var (
-		oldestConfirmedInjBatch     *peggytypes.OutgoingTxBatch
-		oldestConfirmedInjBatchSigs []*peggytypes.MsgConfirmBatch
+		oldestConfirmedBatch *peggytypes.OutgoingTxBatch
+		confirmations        []*peggytypes.MsgConfirmBatch
 	)
 
 	// todo: skip timed out batches
@@ -221,25 +225,25 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 			continue
 		}
 
-		oldestConfirmedInjBatch = batch
-		oldestConfirmedInjBatchSigs = sigs
+		oldestConfirmedBatch = batch
+		confirmations = sigs
 	}
 
-	if oldestConfirmedInjBatch == nil {
+	if oldestConfirmedBatch == nil {
 		l.Logger().Infoln("no batch to relay")
 		return nil
 	}
 
-	if !l.shouldRelayBatch(ctx, oldestConfirmedInjBatch) {
+	if !l.shouldRelayBatch(ctx, oldestConfirmedBatch) {
 		return nil
 	}
 
-	txHash, err := l.Ethereum.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedInjBatch, oldestConfirmedInjBatchSigs)
+	txHash, err := l.Ethereum.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedBatch, confirmations)
 	if err != nil {
 		return err
 	}
 
-	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent batch tx to Ethereum")
+	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent outgoing tx batch to Ethereum")
 
 	return nil
 }
