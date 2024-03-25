@@ -125,14 +125,14 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 	})
 
 	if len(newEvents) == 0 {
-		l.Logger().WithField("last_claimed_event_nonce", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
+		l.Logger().WithFields(log.Fields{"last_claimed_event_nonce": lastClaim.EthereumEventNonce, "block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("no new events on Ethereum")
 		l.LastObservedEthHeight = latestHeight
 
 		return nil
 	}
 
 	if expected, actual := lastClaim.EthereumEventNonce+1, newEvents[0].Nonce(); expected != actual {
-		l.Logger().WithFields(log.Fields{"expected_nonce": expected, "actual_nonce": actual, "last_claim_event_nonce": lastClaim.EthereumEventNonce}).Infoln("orchestrator missed an Ethereum event. Resyncing event nonce with last claimed event...")
+		l.Logger().WithFields(log.Fields{"expected_nonce": expected, "actual_nonce": actual, "last_claimed_event_nonce": lastClaim.EthereumEventNonce}).Infoln("orchestrator missed an Ethereum event. Resyncing event nonce with last claimed event...")
 		l.LastObservedEthHeight = lastClaim.EthereumEventHeight
 
 		return nil
@@ -142,7 +142,7 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Debugln("scanned Ethereum blocks")
+	l.Logger().WithFields(log.Fields{"claims": len(newEvents), "block_start": l.LastObservedEthHeight, "block_end": latestHeight}).Infoln("sent new event claims to Injective")
 	l.LastObservedEthHeight = latestHeight
 
 	if time.Since(l.LastResyncWithInjective) >= resyncInterval {
@@ -260,6 +260,7 @@ func (l *ethOracle) getLastClaimEvent(ctx context.Context) (*peggytypes.LastClai
 
 func (l *ethOracle) sendNewEventClaims(ctx context.Context, events []event) error {
 	sendEventsFn := func() error {
+		// in case sending one of more claims fails, we reload the latest observed nonce to filter processed events
 		lastClaim, err := l.Injective.LastClaimEventByAddr(ctx, l.injAddr)
 		if err != nil {
 			return err
@@ -267,7 +268,6 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events []event) erro
 
 		newEvents := filterEvents(events, lastClaim.EthereumEventNonce)
 		if len(newEvents) == 0 {
-			l.Logger().WithField("last_claimed_event_nonce", lastClaim.EthereumEventNonce).Infoln("no new events on Ethereum")
 			return nil
 		}
 
@@ -280,8 +280,6 @@ func (l *ethOracle) sendNewEventClaims(ctx context.Context, events []event) erro
 			// only after previous event is executed successfully. Otherwise it will through `non contiguous event nonce` failing CheckTx.
 			time.Sleep(1200 * time.Millisecond)
 		}
-
-		l.Logger().WithField("claims", len(newEvents)).Infoln("sent new event claims to Injective")
 
 		return nil
 	}
@@ -311,7 +309,7 @@ func (l *ethOracle) autoResync(ctx context.Context) error {
 		return err
 	}
 
-	l.Logger().WithFields(log.Fields{"last_resync": l.LastResyncWithInjective.String(), "last_claimed_eth_height": latestHeight}).Infoln("resyncing with last claimed event on Injective")
+	l.Logger().WithFields(log.Fields{"last_resync": l.LastResyncWithInjective.String(), "last_claimed_eth_height": latestHeight}).Infoln("auto resyncing with last claimed event on Injective")
 
 	l.LastObservedEthHeight = latestHeight
 	l.LastResyncWithInjective = time.Now()
