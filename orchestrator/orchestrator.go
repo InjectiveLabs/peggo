@@ -100,21 +100,6 @@ func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth eth
 	return s.startValidatorMode(ctx, inj, eth)
 }
 
-func (s *PeggyOrchestrator) hasDelegateValidator(ctx context.Context, inj cosmos.Network) bool {
-	subCtx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelFn()
-
-	validator, err := inj.GetValidatorAddress(subCtx, s.ethAddr)
-	if err != nil {
-		s.logger.WithError(err).Debugln("no delegate validator address found")
-		return false
-	}
-
-	s.logger.WithField("addr", validator.String()).Debugln("found delegate validator")
-
-	return true
-}
-
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
 func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {

@@ -110,6 +110,9 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		orShutdown(err)
 
 		isValidator := cosmos.HasRegisteredOrchestrator(cosmosNetwork, ethKeyFromAddress)
+		if isValidator {
+			log.Debugln("provided ETH address is registered with a validator, configuring peggo to run in validator mode")
+		}
 
 		// Create peggo and run it
 		peggo, err := orchestrator.NewPeggyOrchestrator(

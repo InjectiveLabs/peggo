@@ -116,10 +116,12 @@ func (l *ethSigner) signBatch(ctx context.Context, batch *peggytypes.OutgoingTxB
 
 func (l *ethSigner) getUnsignedValsets(ctx context.Context) ([]*peggytypes.Valset, error) {
 	var oldestUnsignedValsets []*peggytypes.Valset
-	if err := retryFnOnErr(ctx, l.Logger(), func() error {
+	fn := func() error {
 		oldestUnsignedValsets, _ = l.Injective.OldestUnsignedValsets(ctx, l.injAddr)
 		return nil
-	}); err != nil {
+	}
+
+	if err := retryFnOnErr(ctx, l.Logger(), fn); err != nil {
 		l.Logger().WithError(err).Errorln("got error, loop exits")
 		return nil, err
 	}
