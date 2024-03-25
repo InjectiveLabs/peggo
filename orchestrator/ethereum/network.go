@@ -13,12 +13,11 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type NetworkConfig struct {
@@ -76,7 +75,7 @@ func NewNetwork(
 		"peggy_contract":       peggyContractAddr,
 		"max_gas_price":        cfg.MaxGasPrice,
 		"gas_price_adjustment": cfg.GasPriceAdjustment,
-	}).Infoln("Ethereum network config")
+	}).Debugln("Ethereum network config")
 
 	evmRPC, err := rpc.Dial(cfg.EthNodeRPC)
 	if err != nil {
