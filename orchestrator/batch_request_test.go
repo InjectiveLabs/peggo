@@ -169,7 +169,7 @@ func TestCheckFeeThreshold(t *testing.T) {
 		}
 
 		// 2.5 * 10 > 21
-		assert.True(t, loop.checkFeeThreshold(tokenAddr, totalFees))
+		assert.True(t, loop.CheckMinBatchFee(tokenAddr, totalFees))
 	})
 
 	t.Run("fee threshold is met", func(t *testing.T) {
@@ -197,6 +197,6 @@ func TestCheckFeeThreshold(t *testing.T) {
 		}
 
 		// 2.5 * 100 < 333.333
-		assert.False(t, loop.checkFeeThreshold(tokenAddr, totalFees))
+		assert.False(t, loop.CheckMinBatchFee(tokenAddr, totalFees))
 	})
 }

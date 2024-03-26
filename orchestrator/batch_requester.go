@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
-	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
@@ -39,7 +38,7 @@ func (l *batchRequester) Logger() log.Logger {
 }
 
 func (l *batchRequester) RequestBatches(ctx context.Context) error {
-	fees, err := l.getUnbatchedTokenFees(ctx)
+	fees, err := l.GetUnbatchedTokenFees(ctx)
 	if err != nil {
 		l.Logger().WithError(err).Warningln("unable to get outgoing withdrawal fees")
 		return nil
@@ -51,13 +50,13 @@ func (l *batchRequester) RequestBatches(ctx context.Context) error {
 	}
 
 	for _, fee := range fees {
-		l.requestBatch(ctx, fee)
+		l.RequestTokenBatch(ctx, fee)
 	}
 
 	return nil
 }
 
-func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
+func (l *batchRequester) GetUnbatchedTokenFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
 	var unbatchedFees []*peggytypes.BatchFees
 	fn := func() error {
 		fees, err := l.Injective.UnbatchedTokensWithFees(ctx)
@@ -77,19 +76,31 @@ func (l *batchRequester) getUnbatchedTokenFees(ctx context.Context) ([]*peggytyp
 	return unbatchedFees, nil
 }
 
-func (l *batchRequester) requestBatch(ctx context.Context, fee *peggytypes.BatchFees) {
-	tokenAddr := gethcommon.HexToAddress(fee.Token)
-	if thresholdMet := l.checkFeeThreshold(fee.TotalFees, tokenAddr); !thresholdMet {
+func (l *batchRequester) RequestTokenBatch(ctx context.Context, fee *peggytypes.BatchFees) {
+	tokenContract := gethcommon.HexToAddress(fee.Token)
+	tokenPriceInUSD, err := l.priceFeed.QueryUSDPrice(tokenContract)
+	if err != nil {
+		l.Logger().WithError(err).Warningln("failed to query oracle for token price")
 		return
 	}
 
-	tokenDenom := l.tokenDenom(tokenAddr)
-	l.Logger().WithFields(log.Fields{"denom": tokenDenom, "token_contract": tokenAddr.String()}).Infoln("requesting batch on Injective")
+	tokenDecimals, err := l.Ethereum.TokenDecimals(ctx, tokenContract)
+	if err != nil {
+		l.Logger().WithError(err).Warningln("failed to query decimals from token contract")
+		return
+	}
+
+	if l.CheckMinBatchFee(fee, tokenPriceInUSD, tokenDecimals) {
+		return
+	}
+
+	tokenDenom := l.GetTokenDenom(tokenContract)
+	l.Logger().WithFields(log.Fields{"token_denom": tokenDenom, "token_contract": tokenContract.String()}).Infoln("requesting new token batch on Injective")
 
 	_ = l.Injective.SendRequestBatch(ctx, tokenDenom)
 }
 
-func (l *batchRequester) tokenDenom(tokenAddr gethcommon.Address) string {
+func (l *batchRequester) GetTokenDenom(tokenAddr gethcommon.Address) string {
 	if cosmosDenom, ok := l.erc20ContractMapping[tokenAddr]; ok {
 		return cosmosDenom
 	}
@@ -97,24 +108,19 @@ func (l *batchRequester) tokenDenom(tokenAddr gethcommon.Address) string {
 	return peggytypes.PeggyDenomString(tokenAddr)
 }
 
-func (l *batchRequester) checkFeeThreshold(fees cosmostypes.Int, tokenAddr gethcommon.Address) bool {
+func (l *batchRequester) CheckMinBatchFee(fee *peggytypes.BatchFees, tokenPriceInUSD float64, tokenDecimals uint8) bool {
 	if l.minBatchFeeUSD == 0 {
 		return true
-	}
-
-	tokenPriceInUSD, err := l.priceFeed.QueryUSDPrice(tokenAddr)
-	if err != nil {
-		return false
 	}
 
 	var (
 		minFeeInUSDDec     = decimal.NewFromFloat(l.minBatchFeeUSD)
 		tokenPriceInUSDDec = decimal.NewFromFloat(tokenPriceInUSD)
-		totalFeeInUSDDec   = decimal.NewFromBigInt(fees.BigInt(), -18).Mul(tokenPriceInUSDDec) // todo: fix decimals
+		totalFeeInUSDDec   = decimal.NewFromBigInt(fee.TotalFees.BigInt(), -1*int32(tokenDecimals)).Mul(tokenPriceInUSDDec)
 	)
 
 	if totalFeeInUSDDec.LessThan(minFeeInUSDDec) {
-		l.Logger().WithFields(log.Fields{"token_contract": tokenAddr.String(), "batch_fee": totalFeeInUSDDec.String(), "min_fee": minFeeInUSDDec.String()}).Debugln("insufficient token batch fee")
+		l.Logger().WithFields(log.Fields{"token_contract": fee.Token, "total_fee": totalFeeInUSDDec.String(), "min_fee": minFeeInUSDDec.String()}).Debugln("insufficient fee for token batch request, skipping...")
 		return false
 	}
 
