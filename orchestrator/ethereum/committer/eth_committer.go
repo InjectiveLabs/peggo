@@ -2,8 +2,6 @@ package committer
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
 	"math/big"
 	"strings"
 
@@ -97,11 +95,6 @@ func (e *ethCommitter) SendTx(
 		Context:  ctx, // with RPC timeout
 	}
 
-	println("**ETH_COMMITTER**")
-	fmt.Printf("From: %v\n", e.fromAddress.String())
-	fmt.Printf("GasPrice: %v\n", e.committerOpts.GasPrice.String())
-	fmt.Printf("GasLimit: %v\n", e.committerOpts.GasLimit)
-
 	// Figure out the gas price values
 	suggestedGasPrice, err := e.evmProvider.SuggestGasPrice(opts.Context)
 	if err != nil {
@@ -132,13 +125,6 @@ func (e *ethCommitter) SendTx(
 		Value:    new(big.Int),
 		Data:     txData,
 	}
-
-	println("**CALL MSG**")
-	fmt.Printf("From: %v\n", msg.From.String())
-	fmt.Printf("To: %v\n", msg.To.String())
-	fmt.Printf("GasPrice: %v\n", msg.GasPrice.String())
-	fmt.Printf("Value: %v\n", msg.Value.String())
-	fmt.Printf("Data: %v\n", hex.EncodeToString(txData))
 
 	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
 	if err != nil {
