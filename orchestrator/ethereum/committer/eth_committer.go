@@ -97,6 +97,11 @@ func (e *ethCommitter) SendTx(
 		Context:  ctx, // with RPC timeout
 	}
 
+	println("**ETH_COMMITTER**")
+	fmt.Printf("From: %v\n", e.fromAddress.String())
+	fmt.Printf("GasPrice: %v\n", e.committerOpts.GasPrice.String())
+	fmt.Printf("GasLimit: %v\n", e.committerOpts.GasLimit)
+
 	// Figure out the gas price values
 	suggestedGasPrice, err := e.evmProvider.SuggestGasPrice(opts.Context)
 	if err != nil {
