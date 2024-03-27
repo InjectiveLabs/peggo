@@ -2,11 +2,8 @@ package committer
 
 import (
 	"context"
-	"encoding/hex"
 	"math/big"
 	"strings"
-
-	"github.com/ethereum/go-ethereum"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -119,27 +116,27 @@ func (e *ethCommitter) SendTx(
 	}
 
 	// estimate gas limit
-	msg := ethereum.CallMsg{
-		From:     opts.From,
-		To:       &recipient,
-		GasPrice: gasPrice,
-		Value:    new(big.Int),
-		Data:     txData,
-	}
+	//msg := ethereum.CallMsg{
+	//	From:     opts.From,
+	//	To:       &recipient,
+	//	GasPrice: gasPrice,
+	//	Value:    new(big.Int),
+	//	Data:     txData,
+	//}
 
-	println("**ETH CALL MSG**")
-	println("From:", msg.From.String())
-	println("To:", msg.To.String())
-	println("GasPrice:", msg.GasPrice.String())
-	println("Value:", msg.Value.String())
-	println("Data:", hex.EncodeToString(txData))
+	//println("**ETH CALL MSG**")
+	//println("From:", msg.From.String())
+	//println("To:", msg.To.String())
+	//println("GasPrice:", msg.GasPrice.String())
+	//println("Value:", msg.Value.String())
+	//println("Data:", hex.EncodeToString(txData))
 
-	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
-	if err != nil {
-		return common.Hash{}, errors.Wrap(err, "failed to estimate gas")
-	}
-
-	opts.GasLimit = gasLimit
+	//gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
+	//if err != nil {
+	//	return common.Hash{}, errors.Wrap(err, "failed to estimate gas")
+	//}
+	//
+	//opts.GasLimit = gasLimit
 
 	resyncNonces := func(from common.Address) {
 		e.nonceCache.Sync(from, func() (uint64, error) {
