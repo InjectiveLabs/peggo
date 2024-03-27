@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -81,6 +82,11 @@ func NewNetwork(
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", cfg.EthNodeRPC)
 	}
+
+	println("**NEW ETHEREUM NETWORK**")
+	fmt.Printf("fromAddr: %v\n", fromAddr.String())
+	fmt.Printf("GasPriceAdjustment: %v\n", cfg.GasPriceAdjustment)
+	fmt.Printf("MaxGasPrice: %v\n", cfg.MaxGasPrice)
 
 	ethCommitter, err := committer.NewEthCommitter(
 		fromAddr,
