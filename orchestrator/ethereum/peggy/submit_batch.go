@@ -2,6 +2,7 @@ package peggy
 
 import (
 	"context"
+	"encoding/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -89,6 +90,10 @@ func (s *peggyContract) SendTransactionBatch(
 	if s.pendingTxInputList.IsPendingTxInput(txData, s.pendingTxWaitDuration) {
 		return nil, errors.New("Transaction with same batch input data is already present in mempool")
 	}
+
+	println("**SENDING BATCH TX**")
+	println("peggy_contract:", s.peggyAddress.String())
+	println("tx data:", hex.EncodeToString(txData))
 
 	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
 	if err != nil {
