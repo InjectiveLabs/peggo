@@ -2,6 +2,8 @@ package committer
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -125,6 +127,13 @@ func (e *ethCommitter) SendTx(
 		Value:    new(big.Int),
 		Data:     txData,
 	}
+
+	println("**CALL MSG**")
+	fmt.Printf("From: %v\n", msg.From.String())
+	fmt.Printf("To: %v\n", msg.To.String())
+	fmt.Printf("GasPrice: %v\n", msg.GasPrice.String())
+	fmt.Printf("Value: %v\n", msg.Value.String())
+	fmt.Printf("Data: %v\n", hex.EncodeToString(txData))
 
 	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
 	if err != nil {
