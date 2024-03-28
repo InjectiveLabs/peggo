@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 )
 
 // ParanoidGroup is a special primitive to run groups of goroutines, e.g. loops.

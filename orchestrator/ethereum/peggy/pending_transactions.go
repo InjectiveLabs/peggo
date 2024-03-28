@@ -3,7 +3,6 @@ package peggy
 import (
 	"bytes"
 	"context"
-
 	"time"
 
 	log "github.com/xlab/suplog"

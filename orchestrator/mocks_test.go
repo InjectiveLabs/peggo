@@ -2,11 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	eth "github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"time"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	eth "github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
@@ -54,11 +57,11 @@ type mockInjective struct {
 	latestTransactionBatchesFn   func(context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	transactionBatchSignaturesFn func(context.Context, uint64, eth.Address) ([]*peggytypes.MsgConfirmBatch, error)
 
-	hasRegisteredEthAddress func(ctx context.Context, address eth.Address) (bool, error)
+	getValidatorAddressFn func(ctx context.Context, address eth.Address) (sdk.AccAddress, error)
 }
 
-func (i *mockInjective) HasRegisteredEthAddress(ctx context.Context, addr eth.Address) (bool, error) {
-	return i.hasRegisteredEthAddress(ctx, addr)
+func (i *mockInjective) GetValidatorAddress(ctx context.Context, addr eth.Address) (sdk.AccAddress, error) {
+	return i.getValidatorAddressFn(ctx, addr)
 }
 
 func (i *mockInjective) UnbatchedTokensWithFees(ctx context.Context) ([]*peggytypes.BatchFees, error) {
@@ -159,7 +162,7 @@ func (e mockEthereum) FromAddress() eth.Address {
 	return e.fromAddressFn()
 }
 
-func (e mockEthereum) HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
+func (e mockEthereum) GetHeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error) {
 	return e.headerByNumberFn(ctx, number)
 }
 

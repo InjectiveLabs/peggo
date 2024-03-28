@@ -25,14 +25,14 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			inj:         inj,
 			maxAttempts: 1,
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		assert.NoError(t, loop.requestBatches(context.TODO()))
@@ -47,14 +47,14 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			inj:         inj,
 			maxAttempts: 1,
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		assert.NoError(t, loop.requestBatches(context.TODO()))
@@ -81,10 +81,10 @@ func TestRequestBatches(t *testing.T) {
 
 		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:         suplog.DefaultLogger,
 			inj:            inj,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			maxAttempts:    1,
 			minBatchFeeUSD: 51.0,
 			erc20ContractMapping: map[eth.Address]string{
@@ -92,8 +92,8 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		assert.NoError(t, loop.requestBatches(context.TODO()))
@@ -120,10 +120,10 @@ func TestRequestBatches(t *testing.T) {
 
 		feed := mockPriceFeed{queryFn: func(_ eth.Address) (float64, error) { return 1, nil }}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:         suplog.DefaultLogger,
 			inj:            inj,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			maxAttempts:    1,
 			minBatchFeeUSD: 49.0,
 			erc20ContractMapping: map[eth.Address]string{
@@ -131,8 +131,8 @@ func TestRequestBatches(t *testing.T) {
 			},
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		assert.NoError(t, loop.requestBatches(context.TODO()))
@@ -155,17 +155,17 @@ func TestCheckFeeThreshold(t *testing.T) {
 			}}
 		)
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:         suplog.DefaultLogger,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			minBatchFeeUSD: 21,
 			erc20ContractMapping: map[eth.Address]string{
 				tokenAddr: "inj",
 			},
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		// 2.5 * 10 > 21
@@ -183,17 +183,17 @@ func TestCheckFeeThreshold(t *testing.T) {
 			}}
 		)
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:         suplog.DefaultLogger,
-			pricefeed:      feed,
+			priceFeed:      feed,
 			minBatchFeeUSD: 333.333,
 			erc20ContractMapping: map[eth.Address]string{
 				tokenAddr: "inj",
 			},
 		}
 
-		loop := batchRequestLoop{
-			PeggyOrchestrator: o,
+		loop := batchRequester{
+			Orchestrator: o,
 		}
 
 		// 2.5 * 100 < 333.333

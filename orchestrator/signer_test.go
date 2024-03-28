@@ -19,7 +19,7 @@ func TestEthSignerLoop(t *testing.T) {
 	t.Run("failed to fetch peggy id from contract", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
+		orch := &Orchestrator{
 			maxAttempts: 1,
 			eth: mockEthereum{
 				getPeggyIDFn: func(context.Context) (common.Hash, error) {
@@ -28,7 +28,7 @@ func TestEthSignerLoop(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.EthSignerMainLoop(context.TODO()))
+		assert.Error(t, orch.runEthSigner(context.TODO()))
 	})
 
 	t.Run("no valset to sign", func(t *testing.T) {
@@ -49,18 +49,18 @@ func TestEthSignerLoop(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      log.DefaultLogger,
 			inj:         injective,
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
-			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+		l := ethSigner{
+			Orchestrator: o,
+			LoopDuration: defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewValsetUpdates(context.TODO()))
 	})
 
 	t.Run("failed to send valset confirm", func(t *testing.T) {
@@ -88,18 +88,18 @@ func TestEthSignerLoop(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      log.DefaultLogger,
 			inj:         injective,
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
-			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+		l := ethSigner{
+			Orchestrator: o,
+			LoopDuration: defaultLoopDur,
 		}
 
-		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
+		assert.Error(t, l.signNewValsetUpdates(context.TODO()))
 	})
 
 	t.Run("no transaction batch sign", func(t *testing.T) {
@@ -112,18 +112,18 @@ func TestEthSignerLoop(t *testing.T) {
 			sendBatchConfirmFn:               func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      log.DefaultLogger,
 			inj:         injective,
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
-			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+		l := ethSigner{
+			Orchestrator: o,
+			LoopDuration: defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewBatch(context.TODO()))
 	})
 
 	t.Run("failed to send batch confirm", func(t *testing.T) {
@@ -140,18 +140,18 @@ func TestEthSignerLoop(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      log.DefaultLogger,
 			inj:         injective,
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
-			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+		l := ethSigner{
+			Orchestrator: o,
+			LoopDuration: defaultLoopDur,
 		}
 
-		assert.Error(t, l.signBatchesAndValsets(context.TODO()))
+		assert.Error(t, l.signNewBatch(context.TODO()))
 	})
 
 	t.Run("valset update and transaction batch are confirmed", func(t *testing.T) {
@@ -168,17 +168,17 @@ func TestEthSignerLoop(t *testing.T) {
 			sendBatchConfirmFn:  func(context.Context, common.Hash, *types.OutgoingTxBatch, common.Address) error { return nil },
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      log.DefaultLogger,
 			inj:         injective,
 			maxAttempts: 1,
 		}
 
-		l := ethSignerLoop{
-			PeggyOrchestrator: o,
-			loopDuration:      defaultLoopDur,
+		l := ethSigner{
+			Orchestrator: o,
+			LoopDuration: defaultLoopDur,
 		}
 
-		assert.NoError(t, l.signBatchesAndValsets(context.TODO()))
+		assert.NoError(t, l.signNewBatch(context.TODO()))
 	})
 }
