@@ -22,7 +22,7 @@ func TestEthOracle(t *testing.T) {
 	t.Run("failed to get latest header from ethereum", func(t *testing.T) {
 		t.Parallel()
 
-		orch := &PeggyOrchestrator{
+		orch := &Orchestrator{
 			logger: suplog.DefaultLogger,
 			eth: mockEthereum{
 				headerByNumberFn: func(context.Context, *big.Int) (*types.Header, error) {
@@ -31,7 +31,7 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		assert.Error(t, orch.EthOracleMainLoop(context.TODO()))
+		assert.Error(t, orch.runEthOracle(context.TODO()))
 	})
 
 	t.Run("latest ethereum header is old", func(t *testing.T) {
@@ -43,14 +43,14 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         ethereum,
 			maxAttempts: 1,
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Now(),
 			LastObservedEthHeight:   100,
 		}
@@ -71,14 +71,14 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         ethereum,
 			maxAttempts: 1,
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Now(),
 			LastObservedEthHeight:   100,
 		}
@@ -119,7 +119,7 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         ethereum,
 			inj:         injective,
@@ -127,7 +127,7 @@ func TestEthOracle(t *testing.T) {
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Now(),
 			LastObservedEthHeight:   100,
 		}
@@ -179,7 +179,7 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         eth,
 			inj:         inj,
@@ -187,7 +187,7 @@ func TestEthOracle(t *testing.T) {
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Now(),
 			LastObservedEthHeight:   100,
 		}
@@ -240,7 +240,7 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         eth,
 			inj:         inj,
@@ -248,7 +248,7 @@ func TestEthOracle(t *testing.T) {
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Now(),
 			LastObservedEthHeight:   100,
 		}
@@ -273,7 +273,7 @@ func TestEthOracle(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:      suplog.DefaultLogger,
 			eth:         eth,
 			inj:         inj,
@@ -281,7 +281,7 @@ func TestEthOracle(t *testing.T) {
 		}
 
 		loop := ethOracle{
-			PeggyOrchestrator:       o,
+			Orchestrator:            o,
 			LastResyncWithInjective: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
 			LastObservedEthHeight:   100,
 		}

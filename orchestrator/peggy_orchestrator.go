@@ -37,7 +37,7 @@ type Config struct {
 	RelayerMode          bool
 }
 
-type PeggyOrchestrator struct {
+type Orchestrator struct {
 	logger  log.Logger
 	svcTags metrics.Tags
 
@@ -57,8 +57,8 @@ func NewPeggyOrchestrator(
 	ethAddr gethcommon.Address,
 	priceFeed PriceFeed,
 	cfg Config,
-) (*PeggyOrchestrator, error) {
-	o := &PeggyOrchestrator{
+) (*Orchestrator, error) {
+	o := &Orchestrator{
 		logger:               log.DefaultLogger,
 		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
 		injAddr:              orchestratorAddr,
@@ -92,7 +92,7 @@ func NewPeggyOrchestrator(
 
 // Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
-func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+func (s *Orchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	if s.isRelayer {
 		return s.startRelayerMode(ctx, inj, eth)
 	}
@@ -102,7 +102,7 @@ func (s *PeggyOrchestrator) Run(ctx context.Context, inj cosmos.Network, eth eth
 
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
-func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+func (s *Orchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	log.Infoln("running orchestrator in validator mode")
 
 	// get gethcommon block observed by this validator
@@ -124,10 +124,10 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.EthOracleMainLoop(ctx, inj, eth, lastObservedEthBlock) })
-	pg.Go(func() error { return s.EthSignerMainLoop(ctx, inj, peggyContractID) })
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
-	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
+	pg.Go(func() error { return s.runEthOracle(ctx, inj, eth, lastObservedEthBlock) })
+	pg.Go(func() error { return s.runEthSigner(ctx, inj, peggyContractID) })
+	pg.Go(func() error { return s.runBatchRequester(ctx, inj, eth) })
+	pg.Go(func() error { return s.runRelayer(ctx, inj, eth) })
 
 	return pg.Wait()
 }
@@ -135,18 +135,18 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context, inj cosmos.N
 // startRelayerMode runs orchestrator processes that only relay specific
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
-func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+func (s *Orchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
 	log.Infoln("running orchestrator in relayer mode")
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx, inj, eth) })
-	pg.Go(func() error { return s.RelayerMainLoop(ctx, inj, eth) })
+	pg.Go(func() error { return s.runBatchRequester(ctx, inj, eth) })
+	pg.Go(func() error { return s.runRelayer(ctx, inj, eth) })
 
 	return pg.Wait()
 }
 
-func (s *PeggyOrchestrator) getLastClaimBlockHeight(ctx context.Context, inj cosmos.Network) (uint64, error) {
+func (s *Orchestrator) getLastClaimBlockHeight(ctx context.Context, inj cosmos.Network) (uint64, error) {
 	metrics.ReportFuncCall(s.svcTags)
 	doneFn := metrics.ReportFuncTiming(s.svcTags)
 	defer doneFn()

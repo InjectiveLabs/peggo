@@ -11,14 +11,14 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-// EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
+// runEthSigner simply signs off on any batches or validator sets provided by the validator
 // since these are provided directly by a trusted Injective node they can simply be assumed to be
 // valid and signed off on.
-func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Network, peggyID gethcommon.Hash) error {
+func (s *Orchestrator) runEthSigner(ctx context.Context, inj cosmos.Network, peggyID gethcommon.Hash) error {
 	signer := ethSigner{
-		PeggyOrchestrator: s,
-		Injective:         inj,
-		PeggyID:           peggyID,
+		Orchestrator: s,
+		Injective:    inj,
+		PeggyID:      peggyID,
 	}
 
 	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Signer...")
@@ -29,7 +29,7 @@ func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context, inj cosmos.Ne
 }
 
 type ethSigner struct {
-	*PeggyOrchestrator
+	*Orchestrator
 	Injective cosmos.Network
 	PeggyID   gethcommon.Hash
 }
