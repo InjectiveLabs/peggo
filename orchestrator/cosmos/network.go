@@ -37,14 +37,6 @@ type Network interface {
 }
 
 func NewNetwork(k keyring.Keyring, ethSignFn keystore.PersonalSignFn, cfg NetworkConfig) (Network, error) {
-	log.WithFields(log.Fields{
-		"chain_id":          cfg.ChainID,
-		"orchestrator_addr": cfg.ValidatorAddress,
-		"grpc":              cfg.CosmosGRPC,
-		"tendermint_rpc":    cfg.TendermintRPC,
-		"gas_price":         cfg.GasPrice,
-	}).Debugln("Injective network config")
-
 	clientCfg := cfg.loadClientConfig()
 
 	clientCtx, err := chain.NewClientContext(clientCfg.ChainId, cfg.ValidatorAddress, k)
@@ -108,10 +100,14 @@ func awaitConnection(client chain.ChainClient, timeout time.Duration) *grpc.Clie
 
 func (cfg NetworkConfig) loadClientConfig() clientcommon.Network {
 	if custom := cfg.CosmosGRPC != "" && cfg.TendermintRPC != ""; custom {
+		log.WithFields(log.Fields{"cosmos_grpc": cfg.CosmosGRPC, "tendermint_rpc": cfg.TendermintRPC}).Debugln("using custom endpoints for Injective")
 		return customEndpoints(cfg)
 	}
 
-	return loadBalancedEndpoints(cfg)
+	c := loadBalancedEndpoints(cfg)
+	log.WithFields(log.Fields{"cosmos_grpc": c.ChainGrpcEndpoint, "tendermint_rpc": c.TmEndpoint}).Debugln("using load balanced endpoints for Injective")
+
+	return c
 }
 
 func customEndpoints(cfg NetworkConfig) clientcommon.Network {
