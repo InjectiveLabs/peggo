@@ -30,7 +30,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                injective,
 			maxAttempts:        1,
@@ -38,8 +38,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -57,7 +57,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			maxAttempts:        1,
@@ -65,8 +65,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -84,7 +84,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			maxAttempts:        1,
@@ -92,8 +92,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayValset(context.TODO()))
@@ -124,7 +124,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -133,8 +133,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -165,7 +165,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -174,8 +174,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -209,7 +209,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -218,8 +218,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -256,7 +256,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -265,8 +265,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -306,7 +306,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -315,8 +315,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -372,7 +372,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -381,8 +381,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayValset(context.TODO()))
@@ -441,7 +441,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:             suplog.DefaultLogger,
 			inj:                inj,
 			eth:                eth,
@@ -450,8 +450,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -510,7 +510,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:               suplog.DefaultLogger,
 			inj:                  inj,
 			eth:                  eth,
@@ -520,8 +520,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayValset(context.TODO()))
@@ -583,7 +583,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:               suplog.DefaultLogger,
 			inj:                  inj,
 			eth:                  eth,
@@ -593,8 +593,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayValset(context.TODO()))
@@ -656,7 +656,7 @@ func TestValsetRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:               suplog.DefaultLogger,
 			inj:                  inj,
 			eth:                  eth,
@@ -666,8 +666,8 @@ func TestValsetRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayValset(context.TODO()))
@@ -686,7 +686,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			maxAttempts:       1,
@@ -694,8 +694,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -713,7 +713,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			maxAttempts:       1,
@@ -721,8 +721,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -740,7 +740,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			maxAttempts:       1,
@@ -748,8 +748,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayBatch(context.TODO()))
@@ -773,7 +773,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -782,8 +782,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -815,7 +815,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -824,8 +824,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -861,7 +861,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -870,8 +870,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -910,7 +910,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -919,8 +919,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -962,7 +962,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -971,8 +971,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -1020,7 +1020,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -1029,8 +1029,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayBatch(context.TODO()))
@@ -1081,7 +1081,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:            suplog.DefaultLogger,
 			inj:               inj,
 			eth:               eth,
@@ -1090,8 +1090,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -1142,7 +1142,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:              suplog.DefaultLogger,
 			inj:                 inj,
 			eth:                 eth,
@@ -1152,8 +1152,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayBatch(context.TODO()))
@@ -1207,7 +1207,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:              suplog.DefaultLogger,
 			inj:                 inj,
 			eth:                 eth,
@@ -1217,8 +1217,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.Error(t, l.relayBatch(context.TODO()))
@@ -1273,7 +1273,7 @@ func TestBatchRelaying(t *testing.T) {
 			},
 		}
 
-		o := &PeggyOrchestrator{
+		o := &Orchestrator{
 			logger:              suplog.DefaultLogger,
 			inj:                 inj,
 			eth:                 eth,
@@ -1283,8 +1283,8 @@ func TestBatchRelaying(t *testing.T) {
 		}
 
 		l := relayer{
-			PeggyOrchestrator: o,
-			LoopDuration:      defaultRelayerLoopDur,
+			Orchestrator: o,
+			LoopDuration: defaultRelayerLoopDur,
 		}
 
 		assert.NoError(t, l.relayBatch(context.TODO()))

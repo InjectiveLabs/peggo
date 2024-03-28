@@ -13,11 +13,11 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
+func (s *Orchestrator) runBatchRequester(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
 	requester := batchRequester{
-		PeggyOrchestrator: s,
-		Injective:         inj,
-		Ethereum:          eth,
+		Orchestrator: s,
+		Injective:    inj,
+		Ethereum:     eth,
 	}
 
 	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting BatchRequester...")
@@ -28,7 +28,7 @@ func (s *PeggyOrchestrator) BatchRequesterLoop(ctx context.Context, inj cosmos.N
 }
 
 type batchRequester struct {
-	*PeggyOrchestrator
+	*Orchestrator
 	Injective cosmos.Network
 	Ethereum  ethereum.Network
 }

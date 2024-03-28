@@ -32,16 +32,16 @@ const (
 	resyncInterval = 24 * time.Hour
 )
 
-// EthOracleMainLoop is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
+// runEthOracle is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
 // and ferried over to Cosmos where they will be used to issue tokens or process batches.
-func (s *PeggyOrchestrator) EthOracleMainLoop(
+func (s *Orchestrator) runEthOracle(
 	ctx context.Context,
 	inj cosmos.Network,
 	eth ethereum.Network,
 	lastObservedBlock uint64,
 ) error {
 	oracle := ethOracle{
-		PeggyOrchestrator:       s,
+		Orchestrator:            s,
 		Injective:               inj,
 		Ethereum:                eth,
 		LastObservedEthHeight:   lastObservedBlock,
@@ -56,7 +56,7 @@ func (s *PeggyOrchestrator) EthOracleMainLoop(
 }
 
 type ethOracle struct {
-	*PeggyOrchestrator
+	*Orchestrator
 	Injective               cosmos.Network
 	Ethereum                ethereum.Network
 	LastResyncWithInjective time.Time
@@ -157,6 +157,8 @@ func (l *ethOracle) ObserveEthEvents(ctx context.Context) error {
 func (l *ethOracle) getEthEvents(ctx context.Context, startBlock, endBlock uint64) ([]event, error) {
 	var events []event
 	scanEthEventsFn := func() error {
+		events = nil // clear previous result in case a retry happens
+
 		oldDepositEvents, err := l.Ethereum.GetSendToCosmosEvents(startBlock, endBlock)
 		if err != nil {
 			return errors.Wrap(err, "failed to get SendToCosmos events")

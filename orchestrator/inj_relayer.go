@@ -25,16 +25,15 @@ const (
 	findValsetBlocksToSearch = 2000
 )
 
-func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
+func (s *Orchestrator) runRelayer(ctx context.Context, inj cosmos.Network, eth ethereum.Network) (err error) {
 	rel := relayer{
-		PeggyOrchestrator: s,
-		Injective:         inj,
-		Ethereum:          eth,
+		Orchestrator: s,
+		Injective:    inj,
+		Ethereum:     eth,
 	}
 
-	relayingBatches := rel.IsRelayingValsets()
+	relayingBatches := rel.IsRelayingBatches()
 	relayingValsets := rel.IsRelayingValsets()
-
 	if noRelay := !relayingBatches && !relayingValsets; noRelay {
 		return nil
 	}
@@ -47,7 +46,7 @@ func (s *PeggyOrchestrator) RelayerMainLoop(ctx context.Context, inj cosmos.Netw
 }
 
 type relayer struct {
-	*PeggyOrchestrator
+	*Orchestrator
 	Injective cosmos.Network
 	Ethereum  ethereum.Network
 }
