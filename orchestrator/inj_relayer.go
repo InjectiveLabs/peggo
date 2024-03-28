@@ -248,7 +248,10 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 
 	txHash, err := l.Ethereum.SendTransactionBatch(ctx, latestEthValset, oldestConfirmedBatch, confirmations)
 	if err != nil {
-		return err
+		// Returning an error here triggers retries which don't help much except risk a binary crash
+		// Better to warn the user and try again in the next loop interval
+		log.WithError(err).Warningln("failed to send outgoing tx batch to Ethereum")
+		return nil
 	}
 
 	l.Logger().WithField("tx_hash", txHash.Hex()).Infoln("sent outgoing tx batch to Ethereum")
