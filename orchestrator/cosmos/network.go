@@ -121,8 +121,6 @@ func customEndpoints(cfg NetworkConfig) clientcommon.Network {
 	c.LcdEndpoint = ""
 	c.ExplorerGrpcEndpoint = ""
 
-	log.Infoln("using custom endpoints for Injective")
-
 	return c
 }
 
@@ -138,8 +136,6 @@ func loadBalancedEndpoints(cfg NetworkConfig) clientcommon.Network {
 	default:
 		panic(fmt.Errorf("no provider for chain id %s", cfg.ChainID))
 	}
-
-	log.Infoln("using load balanced endpoints for Injective")
 
 	return clientcommon.LoadNetwork(networkName, "lb")
 }
