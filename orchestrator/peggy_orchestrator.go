@@ -18,8 +18,11 @@ import (
 )
 
 const (
-	defaultLoopDur   = 60 * time.Second
-	maxRetryAttempts = 10
+	defaultLoopDur = 60 * time.Second
+)
+
+var (
+	maxRetryAttempts uint = 10
 )
 
 // PriceFeed provides token price for a given contract address
