@@ -4,7 +4,6 @@
   "author": "Injective Protocol",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "login": "yarn graph auth",
     "codegen:development": "yarn graph codegen subgraph.development.yaml",
     "codegen:devnet": "yarn graph codegen subgraph.devnet.yaml",
     "codegen:kovan": "yarn graph codegen subgraph.kovan.yaml",
@@ -13,19 +12,19 @@
     "codegen:mainnet": "yarn graph codegen subgraph.mainnet.yaml",
     "create:development": "yarn graph create injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020",
     "deploy:development": "yarn graph deploy injectivelabs/injective-peggo-mainnet --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
-    "deploy:devnet": "graph deploy --product hosted-service injectivelabs/injective-peggo-devnet subgraph.devnet.yaml",
-    "deploy:kovan": "graph deploy --product hosted-service injectivelabs/injective-peggo-kovan subgraph.kovan.yaml",
-    "deploy:kovan:local": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.kovan.yaml",
-    "deploy:sepolia": "graph deploy --product hosted-service injectivelabs/injective-peggo-sepolia subgraph.sepolia.yaml",
-    "deploy:sepolia:local": "graph deploy --product hosted-service injectivelabs/injective-peggo-sepolia --node http://127.0.0.1:8020 subgraph.sepolia.yaml",
-    "deploy:goerli": "graph deploy --product hosted-service injectivelabs/injective-peggo-goerli subgraph.goerli.yaml",
-    "deploy:goerli:local": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.goerli.yaml",
-    "deploy:mainnet": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet subgraph.mainnet.yaml",
-    "deploy:mainnet:local": "graph deploy --product hosted-service injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.mainnet.yaml"
+    "deploy:devnet": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-devnet subgraph.devnet.yaml",
+    "deploy:kovan": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-kovan subgraph.kovan.yaml",
+    "deploy:kovan:local": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.kovan.yaml",
+    "deploy:sepolia": "graph deploy --product subgraph-studio injective-peggo-sepolia subgraph.sepolia.yaml",
+    "deploy:sepolia:local": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-sepolia --node http://127.0.0.1:8020 subgraph.sepolia.yaml",
+    "deploy:goerli": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-goerli subgraph.goerli.yaml",
+    "deploy:goerli:local": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.goerli.yaml",
+    "deploy:mainnet": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-mainnet subgraph.mainnet.yaml",
+    "deploy:mainnet:local": "graph deploy --product subgraph-studio injectivelabs/injective-peggo-mainnet --node http://127.0.0.1:8020 subgraph.mainnet.yaml"
   },
   "devDependencies": {
-    "@graphprotocol/graph-cli": "^0.21.1",
-    "@graphprotocol/graph-ts": "^0.20.1",
+    "@graphprotocol/graph-cli": "^0.71.0",
+    "@graphprotocol/graph-ts": "^0.35.1",
     "keytar": "^7.7.0",
     "lodash.template": "^4.5.0"
   },
