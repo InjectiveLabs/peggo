@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
 	"time"
@@ -53,8 +54,7 @@ type Network interface {
 		confirms []*peggytypes.MsgConfirmBatch,
 	) (*gethcommon.Hash, error)
 
-	// todo: audit fix
-	//TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error)
+	TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error)
 }
 
 type network struct {
@@ -109,6 +109,25 @@ func NewNetwork(
 	}
 
 	return n, nil
+}
+
+func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error) {
+	msg := ethereum.CallMsg{
+		//From:      gethcommon.Address{},
+		To:   &tokenContract,
+		Data: gethcommon.Hex2Bytes("313ce567"), // Function signature for decimals(),
+	}
+
+	res, err := n.Provider().CallContract(ctx, msg, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(res) == 0 {
+		return 0, errors.Errorf("no decimals found for token contract %s", tokenContract.Hex())
+	}
+
+	return uint8(big.NewInt(0).SetBytes(res).Uint64()), nil
 }
 
 func (n *network) GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error) {
