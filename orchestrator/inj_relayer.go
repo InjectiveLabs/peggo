@@ -219,6 +219,12 @@ func (l *relayer) relayBatch(ctx context.Context, latestEthValset *peggytypes.Va
 	)
 
 	for _, batch := range latestBatches {
+		// temporary
+		if _, err := l.Ethereum.TokenDecimals(ctx, gethcommon.HexToAddress(batch.TokenContract)); err != nil {
+			l.Logger().Warningln("skipping batch for non existent token contract", batch.TokenContract)
+			continue
+		}
+
 		if batch.BatchTimeout <= latestEthHeight.Number.Uint64() {
 			l.Logger().WithFields(log.Fields{"batch_nonce": batch.BatchNonce, "batch_timeout_height": batch.BatchTimeout, "latest_eth_height": latestEthHeight.Number.Uint64()}).Debugln("skipping timed out batch")
 			continue
