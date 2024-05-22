@@ -1,4 +1,4 @@
-package coingecko
+package pricefeed
 
 import (
 	"encoding/json"
@@ -26,7 +26,11 @@ const (
 
 var zeroPrice = float64(0)
 
-type PriceFeed struct {
+type Config struct {
+	BaseURL string
+}
+
+type CoingeckoPriceFeed struct {
 	client *http.Client
 	config *Config
 
@@ -36,8 +40,28 @@ type PriceFeed struct {
 	svcTags metrics.Tags
 }
 
-type Config struct {
-	BaseURL string
+// NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
+// from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
+func NewCoingeckoPriceFeed(interval time.Duration, endpointConfig *Config) *CoingeckoPriceFeed {
+	return &CoingeckoPriceFeed{
+		client: &http.Client{
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: maxRespHeadersTime,
+			},
+			Timeout: maxRespTime,
+		},
+		config: checkCoingeckoConfig(endpointConfig),
+
+		interval: interval,
+
+		logger: log.WithFields(log.Fields{
+			"svc":      "oracle",
+			"provider": "coingeckgo",
+		}),
+		svcTags: metrics.Tags{
+			"provider": string("coingeckgo"),
+		},
+	}
 }
 
 func urlJoin(baseURL string, segments ...string) string {
@@ -50,7 +74,7 @@ func urlJoin(baseURL string, segments ...string) string {
 
 }
 
-func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
+func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error) {
 	metrics.ReportFuncCall(cp.svcTags)
 	doneFn := metrics.ReportFuncTiming(cp.svcTags)
 	defer doneFn()
@@ -122,30 +146,6 @@ func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error
 	return tokenPriceInUSD, nil
 }
 
-// NewPriceFeed returns price puller for given symbol. The price will be pulled
-// from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
-func NewPriceFeed(interval time.Duration, endpointConfig *Config) *PriceFeed {
-	return &PriceFeed{
-		client: &http.Client{
-			Transport: &http.Transport{
-				ResponseHeaderTimeout: maxRespHeadersTime,
-			},
-			Timeout: maxRespTime,
-		},
-		config: checkCoingeckoConfig(endpointConfig),
-
-		interval: interval,
-
-		logger: log.WithFields(log.Fields{
-			"svc":      "oracle",
-			"provider": "coingeckgo",
-		}),
-		svcTags: metrics.Tags{
-			"provider": string("coingeckgo"),
-		},
-	}
-}
-
 func checkCoingeckoConfig(cfg *Config) *Config {
 	if cfg == nil {
 		cfg = &Config{}
@@ -158,7 +158,7 @@ func checkCoingeckoConfig(cfg *Config) *Config {
 	return cfg
 }
 
-func (cp *PriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+func (cp *CoingeckoPriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
 	metrics.ReportFuncCall(cp.svcTags)
 	doneFn := metrics.ReportFuncTiming(cp.svcTags)
 	defer doneFn()

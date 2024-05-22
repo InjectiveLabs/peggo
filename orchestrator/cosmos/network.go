@@ -3,23 +3,22 @@ package cosmos
 import (
 	"context"
 	"fmt"
-	cosmostypes "github.com/cosmos/cosmos-sdk/types"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 	"time"
 
 	comethttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	"github.com/InjectiveLabs/sdk-go/client/chain"
-	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
-
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tendermint"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	"github.com/InjectiveLabs/sdk-go/client/chain"
+	clientcommon "github.com/InjectiveLabs/sdk-go/client/common"
 )
 
 type NetworkConfig struct {
