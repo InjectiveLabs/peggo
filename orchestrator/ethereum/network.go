@@ -2,11 +2,11 @@ package ethereum
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -113,9 +113,8 @@ func NewNetwork(
 
 func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error) {
 	msg := ethereum.CallMsg{
-		//From:      gethcommon.Address{},
 		To:   &tokenContract,
-		Data: gethcommon.Hex2Bytes("313ce567"), // Function signature for decimals(),
+		Data: gethcommon.Hex2Bytes("313ce567"), // decimals() method signature
 	}
 
 	res, err := n.Provider().CallContract(ctx, msg, nil)

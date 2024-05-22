@@ -1,4 +1,4 @@
-package coingecko
+package pricefeed
 
 import (
 	"encoding/json"
@@ -122,9 +122,9 @@ func (cp *PriceFeed) QueryUSDPrice(erc20Contract common.Address) (float64, error
 	return tokenPriceInUSD, nil
 }
 
-// NewPriceFeed returns price puller for given symbol. The price will be pulled
+// NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
 // from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
-func NewPriceFeed(interval time.Duration, endpointConfig *Config) *PriceFeed {
+func NewCoingeckoPriceFeed(interval time.Duration, endpointConfig *Config) *PriceFeed {
 	return &PriceFeed{
 		client: &http.Client{
 			Transport: &http.Transport{

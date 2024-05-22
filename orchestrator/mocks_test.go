@@ -2,14 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	log "github.com/xlab/suplog"
 	"math/big"
 	"time"
 
-	comettypes "github.com/cometbft/cometbft/rpc/core/types"
-	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	cometrpc "github.com/cometbft/cometbft/rpc/core/types"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
+	log "github.com/xlab/suplog"
 
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -25,28 +25,28 @@ func (p MockPriceFeed) QueryUSDPrice(address gethcommon.Address) (float64, error
 
 type MockCosmosNetwork struct {
 	PeggyParamsFn                      func(ctx context.Context) (*peggytypes.Params, error)
-	LastClaimEventByAddrFn             func(ctx context.Context, address sdktypes.AccAddress) (*peggytypes.LastClaimEvent, error)
-	GetValidatorAddressFn              func(ctx context.Context, address gethcommon.Address) (sdktypes.AccAddress, error)
+	LastClaimEventByAddrFn             func(ctx context.Context, address cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error)
+	GetValidatorAddressFn              func(ctx context.Context, address gethcommon.Address) (cosmostypes.AccAddress, error)
 	CurrentValsetFn                    func(ctx context.Context) (*peggytypes.Valset, error)
 	ValsetAtFn                         func(ctx context.Context, uint642 uint64) (*peggytypes.Valset, error)
-	OldestUnsignedValsetsFn            func(ctx context.Context, address sdktypes.AccAddress) ([]*peggytypes.Valset, error)
+	OldestUnsignedValsetsFn            func(ctx context.Context, address cosmostypes.AccAddress) ([]*peggytypes.Valset, error)
 	LatestValsetsFn                    func(ctx context.Context) ([]*peggytypes.Valset, error)
 	AllValsetConfirmsFn                func(ctx context.Context, uint642 uint64) ([]*peggytypes.MsgValsetConfirm, error)
-	OldestUnsignedTransactionBatchFn   func(ctx context.Context, address sdktypes.AccAddress) (*peggytypes.OutgoingTxBatch, error)
+	OldestUnsignedTransactionBatchFn   func(ctx context.Context, address cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error)
 	LatestTransactionBatchesFn         func(ctx context.Context) ([]*peggytypes.OutgoingTxBatch, error)
 	UnbatchedTokensWithFeesFn          func(ctx context.Context) ([]*peggytypes.BatchFees, error)
 	TransactionBatchSignaturesFn       func(ctx context.Context, uint642 uint64, address gethcommon.Address) ([]*peggytypes.MsgConfirmBatch, error)
-	UpdatePeggyOrchestratorAddressesFn func(ctx context.Context, address gethcommon.Address, address2 sdktypes.Address) error
+	UpdatePeggyOrchestratorAddressesFn func(ctx context.Context, address gethcommon.Address, address2 cosmostypes.Address) error
 	SendValsetConfirmFn                func(ctx context.Context, address gethcommon.Address, hash gethcommon.Hash, valset *peggytypes.Valset) error
 	SendBatchConfirmFn                 func(ctx context.Context, ethFrom gethcommon.Address, peggyID gethcommon.Hash, batch *peggytypes.OutgoingTxBatch) error
 	SendRequestBatchFn                 func(ctx context.Context, denom string) error
-	SendToEthFn                        func(ctx context.Context, destination gethcommon.Address, amount, fee sdktypes.Coin) error
+	SendToEthFn                        func(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error
 	SendOldDepositClaimFn              func(ctx context.Context, deposit *peggyevents.PeggySendToCosmosEvent) error
 	SendDepositClaimFn                 func(ctx context.Context, deposit *peggyevents.PeggySendToInjectiveEvent) error
 	SendWithdrawalClaimFn              func(ctx context.Context, withdrawal *peggyevents.PeggyTransactionBatchExecutedEvent) error
 	SendValsetClaimFn                  func(ctx context.Context, vs *peggyevents.PeggyValsetUpdatedEvent) error
 	SendERC20DeployedClaimFn           func(ctx context.Context, erc20 *peggyevents.PeggyERC20DeployedEvent) error
-	GetBlockFn                         func(ctx context.Context, height int64) (*comettypes.ResultBlock, error)
+	GetBlockFn                         func(ctx context.Context, height int64) (*cometrpc.ResultBlock, error)
 	GetLatestBlockHeightFn             func(ctx context.Context) (int64, error)
 }
 
@@ -54,11 +54,11 @@ func (n MockCosmosNetwork) PeggyParams(ctx context.Context) (*peggytypes.Params,
 	return n.PeggyParamsFn(ctx)
 }
 
-func (n MockCosmosNetwork) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress sdktypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
+func (n MockCosmosNetwork) LastClaimEventByAddr(ctx context.Context, validatorAccountAddress cosmostypes.AccAddress) (*peggytypes.LastClaimEvent, error) {
 	return n.LastClaimEventByAddrFn(ctx, validatorAccountAddress)
 }
 
-func (n MockCosmosNetwork) GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (sdktypes.AccAddress, error) {
+func (n MockCosmosNetwork) GetValidatorAddress(ctx context.Context, addr gethcommon.Address) (cosmostypes.AccAddress, error) {
 	return n.GetValidatorAddressFn(ctx, addr)
 }
 
@@ -70,7 +70,7 @@ func (n MockCosmosNetwork) CurrentValset(ctx context.Context) (*peggytypes.Valse
 	return n.CurrentValsetFn(ctx)
 }
 
-func (n MockCosmosNetwork) OldestUnsignedValsets(ctx context.Context, valAccountAddress sdktypes.AccAddress) ([]*peggytypes.Valset, error) {
+func (n MockCosmosNetwork) OldestUnsignedValsets(ctx context.Context, valAccountAddress cosmostypes.AccAddress) ([]*peggytypes.Valset, error) {
 	return n.OldestUnsignedValsetsFn(ctx, valAccountAddress)
 }
 
@@ -82,7 +82,7 @@ func (n MockCosmosNetwork) AllValsetConfirms(ctx context.Context, nonce uint64) 
 	return n.AllValsetConfirmsFn(ctx, nonce)
 }
 
-func (n MockCosmosNetwork) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress sdktypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
+func (n MockCosmosNetwork) OldestUnsignedTransactionBatch(ctx context.Context, valAccountAddress cosmostypes.AccAddress) (*peggytypes.OutgoingTxBatch, error) {
 	return n.OldestUnsignedTransactionBatchFn(ctx, valAccountAddress)
 }
 
@@ -98,7 +98,7 @@ func (n MockCosmosNetwork) TransactionBatchSignatures(ctx context.Context, nonce
 	return n.TransactionBatchSignaturesFn(ctx, nonce, tokenContract)
 }
 
-func (n MockCosmosNetwork) UpdatePeggyOrchestratorAddresses(ctx context.Context, ethFrom gethcommon.Address, orchAddr sdktypes.AccAddress) error {
+func (n MockCosmosNetwork) UpdatePeggyOrchestratorAddresses(ctx context.Context, ethFrom gethcommon.Address, orchAddr cosmostypes.AccAddress) error {
 	return n.UpdatePeggyOrchestratorAddressesFn(ctx, ethFrom, orchAddr)
 }
 
@@ -114,7 +114,7 @@ func (n MockCosmosNetwork) SendRequestBatch(ctx context.Context, denom string) e
 	return n.SendRequestBatchFn(ctx, denom)
 }
 
-func (n MockCosmosNetwork) SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee sdktypes.Coin) error {
+func (n MockCosmosNetwork) SendToEth(ctx context.Context, destination gethcommon.Address, amount, fee cosmostypes.Coin) error {
 	return n.SendToEthFn(ctx, destination, amount, fee)
 }
 
@@ -138,7 +138,7 @@ func (n MockCosmosNetwork) SendERC20DeployedClaim(ctx context.Context, erc20 *pe
 	return n.SendERC20DeployedClaimFn(ctx, erc20)
 }
 
-func (n MockCosmosNetwork) GetBlock(ctx context.Context, height int64) (*comettypes.ResultBlock, error) {
+func (n MockCosmosNetwork) GetBlock(ctx context.Context, height int64) (*cometrpc.ResultBlock, error) {
 	return n.GetBlockFn(ctx, height)
 }
 
@@ -147,12 +147,12 @@ func (n MockCosmosNetwork) GetLatestBlockHeight(ctx context.Context) (int64, err
 	panic("implement me")
 }
 
-func (n MockCosmosNetwork) GetTxs(ctx context.Context, block *comettypes.ResultBlock) ([]*comettypes.ResultTx, error) {
+func (n MockCosmosNetwork) GetTxs(ctx context.Context, block *cometrpc.ResultBlock) ([]*cometrpc.ResultTx, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n MockCosmosNetwork) GetValidatorSet(ctx context.Context, height int64) (*comettypes.ResultValidators, error) {
+func (n MockCosmosNetwork) GetValidatorSet(ctx context.Context, height int64) (*cometrpc.ResultValidators, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -169,10 +169,15 @@ type MockEthereumNetwork struct {
 	SendEthValsetUpdateFn               func(ctx context.Context, oldValset *peggytypes.Valset, newValset *peggytypes.Valset, confirms []*peggytypes.MsgValsetConfirm) (*gethcommon.Hash, error)
 	GetTxBatchNonceFn                   func(ctx context.Context, erc20ContractAddress gethcommon.Address) (*big.Int, error)
 	SendTransactionBatchFn              func(ctx context.Context, currentValset *peggytypes.Valset, batch *peggytypes.OutgoingTxBatch, confirms []*peggytypes.MsgConfirmBatch) (*gethcommon.Hash, error)
+	TokenDecimalsFn                     func(ctx context.Context, address gethcommon.Address) (uint8, error)
 }
 
 func (n MockEthereumNetwork) GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error) {
 	return n.GetHeaderByNumberFn(ctx, number)
+}
+
+func (n MockEthereumNetwork) TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error) {
+	return n.TokenDecimalsFn(ctx, tokenContract)
 }
 
 func (n MockEthereumNetwork) GetPeggyID(ctx context.Context) (gethcommon.Hash, error) {
