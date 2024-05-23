@@ -55,3 +55,11 @@ jobs:
           echo $TAG
           [[ $ECR_ENABLED == "false" ]] || docker buildx build --tag $ECR_REPO:$TAG --platform linux/amd64,linux/arm64 --push .
           [[ $GHCR_ENABLED == "false" ]] || docker buildx build --tag $GHCR_REPO:$TAG --platform linux/amd64,linux/arm64 --push .
+
+      - name: NONROOT Build image and push
+        run: |
+          cd peggo/
+          TAG=${{ github.ref_name }}-nonroot
+          echo $TAG
+          [[ $ECR_ENABLED == "false" ]] || docker buildx build -f Dockerfile.nonroot --tag $ECR_REPO:$TAG --platform linux/amd64,linux/arm64 --push .
+          [[ $GHCR_ENABLED == "false" ]] || docker buildx build -f Dockerfile.nonroot --tag $GHCR_REPO:$TAG --platform linux/amd64,linux/arm64 --push .
