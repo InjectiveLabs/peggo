@@ -2,214 +2,105 @@ package orchestrator
 
 import (
 	"context"
-	"time"
 
-	"github.com/avast/retry-go"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
-// EthSignerMainLoop simply signs off on any batches or validator sets provided by the validator
+// runSigner simply signs off on any batches or validator sets provided by the validator
 // since these are provided directly by a trusted Injective node they can simply be assumed to be
 // valid and signed off on.
-func (s *PeggyOrchestrator) EthSignerMainLoop(ctx context.Context) error {
-	peggyID, err := s.getPeggyID(ctx)
-	if err != nil {
-		return err
+func (s *Orchestrator) runSigner(ctx context.Context, peggyID gethcommon.Hash) error {
+	signer := signer{
+		Orchestrator: s,
+		peggyID:      peggyID,
 	}
 
-	loop := ethSignerLoop{
-		PeggyOrchestrator: s,
-		loopDuration:      defaultLoopDur,
-		peggyID:           peggyID,
-		ethFrom:           s.eth.FromAddress(),
-	}
+	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Signer...")
 
-	return loop.Run(ctx)
-}
-
-func (s *PeggyOrchestrator) getPeggyID(ctx context.Context) (common.Hash, error) {
-	var peggyID common.Hash
-	getPeggyIDFn := func() (err error) {
-		peggyID, err = s.eth.GetPeggyID(ctx)
-		return err
-	}
-
-	if err := retry.Do(getPeggyIDFn,
-		retry.Context(ctx),
-		retry.Attempts(s.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			log.WithError(err).Warningf("failed to get Peggy ID from Ethereum contract, will retry (%d)", n)
-		}),
-	); err != nil {
-		log.WithError(err).Errorln("got error, loop exits")
-		return [32]byte{}, err
-	}
-
-	log.WithField("id", peggyID.Hex()).Debugln("got peggy ID from Ethereum contract")
-
-	return peggyID, nil
-}
-
-type ethSignerLoop struct {
-	*PeggyOrchestrator
-	loopDuration time.Duration
-	peggyID      common.Hash
-	ethFrom      common.Address
-}
-
-func (l *ethSignerLoop) Logger() log.Logger {
-	return l.logger.WithField("loop", "EthSigner")
-}
-
-func (l *ethSignerLoop) Run(ctx context.Context) error {
-	return loops.RunLoop(ctx, l.loopDuration, func() error {
-		if err := l.signNewValsetUpdates(ctx); err != nil {
-			return err
-		}
-
-		if err := l.signNewBatch(ctx); err != nil {
-			return err
-		}
-
-		return nil
+	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+		return signer.sign(ctx)
 	})
 }
 
-func (l *ethSignerLoop) signNewValsetUpdates(ctx context.Context) error {
-	oldestUnsignedValsets, err := l.getUnsignedValsets(ctx)
-	if err != nil {
+type signer struct {
+	*Orchestrator
+	peggyID gethcommon.Hash
+}
+
+func (l *signer) Log() log.Logger {
+	return l.logger.WithField("loop", "Signer")
+}
+
+func (l *signer) sign(ctx context.Context) error {
+	if err := l.signValidatorSets(ctx); err != nil {
 		return err
 	}
 
-	if len(oldestUnsignedValsets) == 0 {
-		l.Logger().Debugln("no valset updates to confirm")
+	if err := l.signNewBatch(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *signer) signValidatorSets(ctx context.Context) error {
+	var valsets []*peggytypes.Valset
+	fn := func() error {
+		valsets, _ = l.injective.OldestUnsignedValsets(ctx, l.cfg.CosmosAddr)
 		return nil
 	}
 
-	for _, vs := range oldestUnsignedValsets {
-		if err := l.signValset(ctx, vs); err != nil {
+	if err := l.retry(ctx, fn); err != nil {
+		return err
+	}
+
+	if len(valsets) == 0 {
+		l.Log().Infoln("no validator set to confirm")
+		return nil
+	}
+
+	for _, vs := range valsets {
+		if err := l.retry(ctx, func() error {
+			return l.injective.SendValsetConfirm(ctx, l.cfg.EthereumAddr, l.peggyID, vs)
+		}); err != nil {
 			return err
 		}
 
-		// todo: in case of multiple updates, we should sleep in between tx (non-continuous nonce)
+		l.Log().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
 	}
 
 	return nil
 }
 
-func (l *ethSignerLoop) signNewBatch(ctx context.Context) error {
-	oldestUnsignedTransactionBatch, err := l.getUnsignedBatch(ctx)
-	if err != nil {
-		return err
-	}
-
-	if oldestUnsignedTransactionBatch == nil {
-		l.Logger().Debugln("no batch to confirm")
+func (l *signer) signNewBatch(ctx context.Context) error {
+	var oldestUnsignedBatch *peggytypes.OutgoingTxBatch
+	getBatchFn := func() error {
+		oldestUnsignedBatch, _ = l.injective.OldestUnsignedTransactionBatch(ctx, l.cfg.CosmosAddr)
 		return nil
 	}
 
-	if err := l.signBatch(ctx, oldestUnsignedTransactionBatch); err != nil {
+	if err := l.retry(ctx, getBatchFn); err != nil {
 		return err
 	}
 
-	return nil
-}
+	if oldestUnsignedBatch == nil {
+		l.Log().Infoln("no batch to confirm")
+		return nil
+	}
 
-func (l *ethSignerLoop) getUnsignedBatch(ctx context.Context) (*types.OutgoingTxBatch, error) {
-	var oldestUnsignedBatch *types.OutgoingTxBatch
-	getOldestUnsignedBatchFn := func() (err error) {
-		// sign the last unsigned batch, TODO check if we already have signed this
-		oldestUnsignedBatch, err = l.inj.OldestUnsignedTransactionBatch(ctx)
-		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedBatch == nil {
-			return nil
-		}
+	confirmBatchFn := func() error {
+		return l.injective.SendBatchConfirm(ctx, l.cfg.EthereumAddr, l.peggyID, oldestUnsignedBatch)
+	}
 
+	if err := l.retry(ctx, confirmBatchFn); err != nil {
 		return err
 	}
 
-	if err := retry.Do(getOldestUnsignedBatchFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get unconfirmed batch, will retry (%d)", n)
-		}),
-	); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return nil, err
-	}
-
-	return oldestUnsignedBatch, nil
-}
-
-func (l *ethSignerLoop) signBatch(ctx context.Context, batch *types.OutgoingTxBatch) error {
-	signFn := func() error {
-		return l.inj.SendBatchConfirm(ctx, l.ethFrom, l.peggyID, batch)
-	}
-
-	if err := retry.Do(signFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to confirm batch on Injective, will retry (%d)", n)
-		}),
-	); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return err
-	}
-
-	l.Logger().WithFields(log.Fields{"token_contract": batch.TokenContract, "batch_nonce": batch.BatchNonce, "txs": len(batch.Transactions)}).Infoln("confirmed batch on Injective")
-
-	return nil
-}
-
-func (l *ethSignerLoop) getUnsignedValsets(ctx context.Context) ([]*types.Valset, error) {
-	var oldestUnsignedValsets []*types.Valset
-	getOldestUnsignedValsetsFn := func() (err error) {
-		oldestUnsignedValsets, err = l.inj.OldestUnsignedValsets(ctx)
-		if errors.Is(err, cosmos.ErrNotFound) || oldestUnsignedValsets == nil {
-			return nil
-		}
-
-		return err
-	}
-
-	if err := retry.Do(getOldestUnsignedValsetsFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to get unconfirmed valset updates, will retry (%d)", n)
-		}),
-	); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return nil, err
-	}
-
-	return oldestUnsignedValsets, nil
-}
-
-func (l *ethSignerLoop) signValset(ctx context.Context, vs *types.Valset) error {
-	signFn := func() error {
-		return l.inj.SendValsetConfirm(ctx, l.ethFrom, l.peggyID, vs)
-	}
-
-	if err := retry.Do(signFn,
-		retry.Context(ctx),
-		retry.Attempts(l.maxAttempts),
-		retry.OnRetry(func(n uint, err error) {
-			l.Logger().WithError(err).Warningf("failed to confirm valset update on Injective, will retry (%d)", n)
-		}),
-	); err != nil {
-		l.Logger().WithError(err).Errorln("got error, loop exits")
-		return err
-	}
-
-	l.Logger().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
+	l.Log().WithFields(log.Fields{"token_contract": oldestUnsignedBatch.TokenContract, "batch_nonce": oldestUnsignedBatch.BatchNonce, "txs": len(oldestUnsignedBatch.Transactions)}).Infoln("confirmed batch on Injective")
 
 	return nil
 }

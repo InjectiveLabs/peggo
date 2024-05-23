@@ -4,75 +4,63 @@ import (
 	"context"
 	"time"
 
-	eth "github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
+	"github.com/avast/retry-go"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-const defaultLoopDur = 60 * time.Second
+const (
+	defaultLoopDur = 60 * time.Second
+)
 
-type PeggyOrchestrator struct {
-	logger  log.Logger
-	svcTags metrics.Tags
-
-	inj       InjectiveNetwork
-	eth       EthereumNetwork
-	pricefeed PriceFeed
-
-	erc20ContractMapping map[eth.Address]string
-	relayValsetOffsetDur time.Duration
-	relayBatchOffsetDur  time.Duration
-	minBatchFeeUSD       float64
-	maxAttempts          uint // max number of times a retry func will be called before exiting
-
-	valsetRelayEnabled      bool
-	batchRelayEnabled       bool
-	periodicBatchRequesting bool
+// PriceFeed provides token price for a given contract address
+type PriceFeed interface {
+	QueryUSDPrice(address gethcommon.Address) (float64, error)
 }
 
-func NewPeggyOrchestrator(
-	injective InjectiveNetwork,
-	ethereum EthereumNetwork,
+type Config struct {
+	CosmosAddr           cosmostypes.AccAddress
+	EthereumAddr         gethcommon.Address
+	MinBatchFeeUSD       float64
+	ERC20ContractMapping map[gethcommon.Address]string
+	RelayValsetOffsetDur time.Duration
+	RelayBatchOffsetDur  time.Duration
+	RelayValsets         bool
+	RelayBatches         bool
+	RelayerMode          bool
+}
+
+type Orchestrator struct {
+	logger      log.Logger
+	svcTags     metrics.Tags
+	cfg         Config
+	maxAttempts uint
+
+	injective cosmos.Network
+	ethereum  ethereum.Network
+	priceFeed PriceFeed
+}
+
+func NewOrchestrator(
+	inj cosmos.Network,
+	eth ethereum.Network,
 	priceFeed PriceFeed,
-	erc20ContractMapping map[eth.Address]string,
-	minBatchFeeUSD float64,
-	valsetRelayingEnabled,
-	batchRelayingEnabled bool,
-	valsetRelayingOffset,
-	batchRelayingOffset string,
-) (*PeggyOrchestrator, error) {
-	o := &PeggyOrchestrator{
-		logger:               log.DefaultLogger,
-		svcTags:              metrics.Tags{"svc": "peggy_orchestrator"},
-		inj:                  injective,
-		eth:                  ethereum,
-		pricefeed:            priceFeed,
-		erc20ContractMapping: erc20ContractMapping,
-		minBatchFeeUSD:       minBatchFeeUSD,
-		valsetRelayEnabled:   valsetRelayingEnabled,
-		batchRelayEnabled:    batchRelayingEnabled,
-		maxAttempts:          10, // default is 10 for retry pkg
-	}
-
-	if valsetRelayingEnabled {
-		dur, err := time.ParseDuration(valsetRelayingOffset)
-		if err != nil {
-			return nil, errors.Wrapf(err, "valset relaying enabled but offset duration is not properly set")
-		}
-
-		o.relayValsetOffsetDur = dur
-	}
-
-	if batchRelayingEnabled {
-		dur, err := time.ParseDuration(batchRelayingOffset)
-		if err != nil {
-			return nil, errors.Wrapf(err, "batch relaying enabled but offset duration is not properly set")
-		}
-
-		o.relayBatchOffsetDur = dur
+	cfg Config,
+) (*Orchestrator, error) {
+	o := &Orchestrator{
+		logger:      log.DefaultLogger,
+		svcTags:     metrics.Tags{"svc": "peggy_orchestrator"},
+		injective:   inj,
+		ethereum:    eth,
+		priceFeed:   priceFeed,
+		cfg:         cfg,
+		maxAttempts: 10,
 	}
 
 	return o, nil
@@ -80,40 +68,41 @@ func NewPeggyOrchestrator(
 
 // Run starts all major loops required to make
 // up the Orchestrator, all of these are async loops.
-func (s *PeggyOrchestrator) Run(ctx context.Context) error {
-	if !s.hasRegisteredETHAddress(ctx) {
-		return s.startRelayerMode(ctx)
+func (s *Orchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	if s.cfg.RelayerMode {
+		return s.startRelayerMode(ctx, inj, eth)
 	}
 
-	return s.startValidatorMode(ctx)
-}
-
-func (s *PeggyOrchestrator) hasRegisteredETHAddress(ctx context.Context) bool {
-	subCtx, cancelFn := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelFn()
-
-	ok, _ := s.inj.HasRegisteredEthAddress(subCtx, s.eth.FromAddress())
-	return ok
+	return s.startValidatorMode(ctx, inj, eth)
 }
 
 // startValidatorMode runs all orchestrator processes. This is called
 // when peggo is run alongside a validator injective node.
-func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
-	log.WithFields(log.Fields{
-		"batch_requesting":   true,
-		"eth_event_tracking": true,
-		"batch_signing":      true,
-		"valset_signing":     true,
-		"valset_relaying":    s.valsetRelayEnabled,
-		"batch_relaying":     s.batchRelayEnabled,
-	}).Infoln("running in validator mode")
+func (s *Orchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	log.Infoln("running orchestrator in validator mode")
+
+	lastObservedEthBlock, _ := s.getLastClaimBlockHeight(ctx, inj)
+	if lastObservedEthBlock == 0 {
+		peggyParams, err := inj.PeggyParams(ctx)
+		if err != nil {
+			s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
+		}
+
+		lastObservedEthBlock = peggyParams.BridgeContractStartHeight
+	}
+
+	// get peggy ID from contract
+	peggyContractID, err := eth.GetPeggyID(ctx)
+	if err != nil {
+		s.logger.WithError(err).Fatalln("unable to query peggy ID from contract")
+	}
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.EthOracleMainLoop(ctx) })
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx) })
-	pg.Go(func() error { return s.EthSignerMainLoop(ctx) })
-	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
+	pg.Go(func() error { return s.runOracle(ctx, lastObservedEthBlock) })
+	pg.Go(func() error { return s.runSigner(ctx, peggyContractID) })
+	pg.Go(func() error { return s.runBatchCreator(ctx) })
+	pg.Go(func() error { return s.runRelayer(ctx) })
 
 	return pg.Wait()
 }
@@ -121,17 +110,35 @@ func (s *PeggyOrchestrator) startValidatorMode(ctx context.Context) error {
 // startRelayerMode runs orchestrator processes that only relay specific
 // messages that do not require a validator's signature. This mode is run
 // alongside a non-validator injective node
-func (s *PeggyOrchestrator) startRelayerMode(ctx context.Context) error {
-	log.WithFields(log.Fields{
-		"batch_requesting": true,
-		"valset_relaying":  s.valsetRelayEnabled,
-		"batch_relaying":   s.batchRelayEnabled,
-	}).Infoln("running in relayer mode")
+func (s *Orchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	log.Infoln("running orchestrator in relayer mode")
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.BatchRequesterLoop(ctx) })
-	pg.Go(func() error { return s.RelayerMainLoop(ctx) })
+	pg.Go(func() error { return s.runBatchCreator(ctx) })
+	pg.Go(func() error { return s.runRelayer(ctx) })
 
 	return pg.Wait()
+}
+
+func (s *Orchestrator) getLastClaimBlockHeight(ctx context.Context, inj cosmos.Network) (uint64, error) {
+	metrics.ReportFuncCall(s.svcTags)
+	doneFn := metrics.ReportFuncTiming(s.svcTags)
+	defer doneFn()
+
+	claim, err := inj.LastClaimEventByAddr(ctx, s.cfg.CosmosAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	return claim.EthereumEventHeight, nil
+}
+
+func (s *Orchestrator) retry(ctx context.Context, fn func() error) error {
+	return retry.Do(fn,
+		retry.Context(ctx),
+		retry.Attempts(s.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			s.logger.WithError(err).Warningf("loop error, retrying... (#%d)", n+1)
+		}))
 }

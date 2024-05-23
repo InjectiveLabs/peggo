@@ -468,7 +468,7 @@ func initConfig(cmd *cli.Cmd) Config {
 
 	cfg.coingeckoApi = cmd.String(cli.StringOpt{
 		Name:   "coingecko_api",
-		Desc:   "Specify HTTP endpoint for coingecko api.",
+		Desc:   "Specify HTTP endpoint for pricefeed api.",
 		EnvVar: "PEGGO_COINGECKO_API",
 		Value:  "https://api.coingecko.com/api/v3",
 	})

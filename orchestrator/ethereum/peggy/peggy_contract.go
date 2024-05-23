@@ -14,10 +14,11 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/InjectiveLabs/metrics"
+	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
+
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
 type PeggyContract interface {

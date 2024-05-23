@@ -1,4 +1,4 @@
-package coingecko
+package pricefeed
 
 import (
 	"math/big"

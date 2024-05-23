@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
@@ -16,33 +17,67 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/committer"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	wrappers "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
+	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
 
-type Network struct {
+type NetworkConfig struct {
+	EthNodeRPC            string
+	GasPriceAdjustment    float64
+	MaxGasPrice           string
+	PendingTxWaitDuration string
+	EthNodeAlchemyWS      string
+}
+
+// Network is the orchestrator's reference endpoint to the Ethereum network
+type Network interface {
+	GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error)
+	GetPeggyID(ctx context.Context) (gethcommon.Hash, error)
+
+	GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error)
+	GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error)
+	GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error)
+	GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error)
+	GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error)
+
+	GetValsetNonce(ctx context.Context) (*big.Int, error)
+	SendEthValsetUpdate(ctx context.Context,
+		oldValset *peggytypes.Valset,
+		newValset *peggytypes.Valset,
+		confirms []*peggytypes.MsgValsetConfirm,
+	) (*gethcommon.Hash, error)
+
+	GetTxBatchNonce(ctx context.Context, erc20ContractAddress gethcommon.Address) (*big.Int, error)
+	SendTransactionBatch(ctx context.Context,
+		currentValset *peggytypes.Valset,
+		batch *peggytypes.OutgoingTxBatch,
+		confirms []*peggytypes.MsgConfirmBatch,
+	) (*gethcommon.Hash, error)
+
+	TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error)
+}
+
+type network struct {
 	peggy.PeggyContract
+
+	FromAddr gethcommon.Address
 }
 
 func NewNetwork(
-	ethNodeRPC string,
 	peggyContractAddr,
-	fromAddr ethcmn.Address,
+	fromAddr gethcommon.Address,
 	signerFn bind.SignerFn,
-	gasPriceAdjustment float64,
-	maxGasPrice string,
-	pendingTxWaitDuration string,
-	ethNodeAlchemyWS string,
-) (*Network, error) {
-	evmRPC, err := rpc.Dial(ethNodeRPC)
+	cfg NetworkConfig,
+) (Network, error) {
+	evmRPC, err := rpc.Dial(cfg.EthNodeRPC)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", ethNodeRPC)
+		return nil, errors.Wrapf(err, "failed to connect to ethereum RPC: %s", cfg.EthNodeRPC)
 	}
 
 	ethCommitter, err := committer.NewEthCommitter(
 		fromAddr,
-		gasPriceAdjustment,
-		maxGasPrice,
+		cfg.GasPriceAdjustment,
+		cfg.MaxGasPrice,
 		signerFn,
 		provider.NewEVMProvider(evmRPC),
 	)
@@ -50,7 +85,7 @@ func NewNetwork(
 		return nil, err
 	}
 
-	pendingTxDuration, err := time.ParseDuration(pendingTxWaitDuration)
+	pendingTxDuration, err := time.ParseDuration(cfg.PendingTxWaitDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -60,36 +95,58 @@ func NewNetwork(
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"rpc":                 ethNodeRPC,
-		"peggy_contract_addr": peggyContractAddr,
-	}).Infoln("connected to Ethereum network")
-
 	// If Alchemy Websocket URL is set, then Subscribe to Pending Transaction of Peggy Contract.
-	if ethNodeAlchemyWS != "" {
+	if cfg.EthNodeAlchemyWS != "" {
 		log.WithFields(log.Fields{
-			"url": ethNodeAlchemyWS,
+			"url": cfg.EthNodeAlchemyWS,
 		}).Infoln("subscribing to Alchemy websocket")
-		go peggyContract.SubscribeToPendingTxs(ethNodeAlchemyWS)
+		go peggyContract.SubscribeToPendingTxs(cfg.EthNodeAlchemyWS)
 	}
 
-	return &Network{PeggyContract: peggyContract}, nil
+	n := &network{
+		PeggyContract: peggyContract,
+		FromAddr:      fromAddr,
+	}
+
+	return n, nil
 }
 
-func (n *Network) FromAddress() ethcmn.Address {
-	return n.PeggyContract.FromAddress()
+func (n *network) TokenDecimals(ctx context.Context, tokenContract gethcommon.Address) (uint8, error) {
+	msg := ethereum.CallMsg{
+		To:   &tokenContract,
+		Data: gethcommon.Hex2Bytes("313ce567"), // decimals() method signature
+	}
+
+	res, err := n.Provider().CallContract(ctx, msg, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(res) == 0 {
+		return 0, errors.Errorf("no decimals found for token contract %s", tokenContract.Hex())
+	}
+
+	return uint8(big.NewInt(0).SetBytes(res).Uint64()), nil
 }
 
-func (n *Network) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (n *network) GetHeaderByNumber(ctx context.Context, number *big.Int) (*gethtypes.Header, error) {
 	return n.Provider().HeaderByNumber(ctx, number)
 }
 
-func (n *Network) GetPeggyID(ctx context.Context) (ethcmn.Hash, error) {
-	return n.PeggyContract.GetPeggyID(ctx, n.FromAddress())
+func (n *network) GetPeggyID(ctx context.Context) (gethcommon.Hash, error) {
+	return n.PeggyContract.GetPeggyID(ctx, n.FromAddr)
 }
 
-func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrappers.PeggySendToCosmosEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+func (n *network) GetValsetNonce(ctx context.Context) (*big.Int, error) {
+	return n.PeggyContract.GetValsetNonce(ctx, n.FromAddr)
+}
+
+func (n *network) GetTxBatchNonce(ctx context.Context, erc20ContractAddress gethcommon.Address) (*big.Int, error) {
+	return n.PeggyContract.GetTxBatchNonce(ctx, erc20ContractAddress, n.FromAddr)
+}
+
+func (n *network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToCosmosEvent, error) {
+	peggyFilterer, err := peggyevents.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
@@ -108,7 +165,7 @@ func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrapper
 
 	defer iter.Close()
 
-	var sendToCosmosEvents []*wrappers.PeggySendToCosmosEvent
+	var sendToCosmosEvents []*peggyevents.PeggySendToCosmosEvent
 	for iter.Next() {
 		sendToCosmosEvents = append(sendToCosmosEvents, iter.Event)
 	}
@@ -116,8 +173,8 @@ func (n *Network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*wrapper
 	return sendToCosmosEvents, nil
 }
 
-func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrappers.PeggySendToInjectiveEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+func (n *network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggySendToInjectiveEvent, error) {
+	peggyFilterer, err := peggyevents.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
@@ -136,7 +193,7 @@ func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrap
 
 	defer iter.Close()
 
-	var sendToInjectiveEvents []*wrappers.PeggySendToInjectiveEvent
+	var sendToInjectiveEvents []*peggyevents.PeggySendToInjectiveEvent
 	for iter.Next() {
 		sendToInjectiveEvents = append(sendToInjectiveEvents, iter.Event)
 	}
@@ -144,8 +201,8 @@ func (n *Network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*wrap
 	return sendToInjectiveEvents, nil
 }
 
-func (n *Network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyERC20DeployedEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+func (n *network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyERC20DeployedEvent, error) {
+	peggyFilterer, err := peggyevents.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
@@ -164,7 +221,7 @@ func (n *Network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*w
 
 	defer iter.Close()
 
-	var transactionBatchExecutedEvents []*wrappers.PeggyERC20DeployedEvent
+	var transactionBatchExecutedEvents []*peggyevents.PeggyERC20DeployedEvent
 	for iter.Next() {
 		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
 	}
@@ -172,8 +229,8 @@ func (n *Network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*w
 	return transactionBatchExecutedEvents, nil
 }
 
-func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyValsetUpdatedEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+func (n *network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyValsetUpdatedEvent, error) {
+	peggyFilterer, err := peggyevents.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
@@ -192,7 +249,7 @@ func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappe
 
 	defer iter.Close()
 
-	var valsetUpdatedEvents []*wrappers.PeggyValsetUpdatedEvent
+	var valsetUpdatedEvents []*peggyevents.PeggyValsetUpdatedEvent
 	for iter.Next() {
 		valsetUpdatedEvents = append(valsetUpdatedEvents, iter.Event)
 	}
@@ -200,8 +257,8 @@ func (n *Network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*wrappe
 	return valsetUpdatedEvents, nil
 }
 
-func (n *Network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*wrappers.PeggyTransactionBatchExecutedEvent, error) {
-	peggyFilterer, err := wrappers.NewPeggyFilterer(n.Address(), n.Provider())
+func (n *network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64) ([]*peggyevents.PeggyTransactionBatchExecutedEvent, error) {
+	peggyFilterer, err := peggyevents.NewPeggyFilterer(n.Address(), n.Provider())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init Peggy events filterer")
 	}
@@ -220,38 +277,12 @@ func (n *Network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64)
 
 	defer iter.Close()
 
-	var transactionBatchExecutedEvents []*wrappers.PeggyTransactionBatchExecutedEvent
+	var transactionBatchExecutedEvents []*peggyevents.PeggyTransactionBatchExecutedEvent
 	for iter.Next() {
 		transactionBatchExecutedEvents = append(transactionBatchExecutedEvents, iter.Event)
 	}
 
 	return transactionBatchExecutedEvents, nil
-}
-
-func (n *Network) GetValsetNonce(ctx context.Context) (*big.Int, error) {
-	return n.PeggyContract.GetValsetNonce(ctx, n.FromAddress())
-}
-
-func (n *Network) SendEthValsetUpdate(
-	ctx context.Context,
-	oldValset *peggytypes.Valset,
-	newValset *peggytypes.Valset,
-	confirms []*peggytypes.MsgValsetConfirm,
-) (*ethcmn.Hash, error) {
-	return n.PeggyContract.SendEthValsetUpdate(ctx, oldValset, newValset, confirms)
-}
-
-func (n *Network) GetTxBatchNonce(ctx context.Context, erc20ContractAddress ethcmn.Address) (*big.Int, error) {
-	return n.PeggyContract.GetTxBatchNonce(ctx, erc20ContractAddress, n.FromAddress())
-}
-
-func (n *Network) SendTransactionBatch(
-	ctx context.Context,
-	currentValset *peggytypes.Valset,
-	batch *peggytypes.OutgoingTxBatch,
-	confirms []*peggytypes.MsgConfirmBatch,
-) (*ethcmn.Hash, error) {
-	return n.PeggyContract.SendTransactionBatch(ctx, currentValset, batch, confirms)
 }
 
 func isUnknownBlockErr(err error) bool {
