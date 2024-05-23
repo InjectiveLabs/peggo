@@ -93,7 +93,6 @@ func (s *peggyContract) SendTransactionBatch(
 	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("failed to sign and submit (Peggy submitBatch) to EVM")
 		return nil, err
 	}
 

@@ -25,7 +25,7 @@ type batchCreator struct {
 }
 
 func (l *batchCreator) Log() log.Logger {
-	return l.logger.WithField("loop", "BatchRequest")
+	return l.logger.WithField("loop", "BatchCreator")
 }
 
 func (l *batchCreator) requestTokenBatches(ctx context.Context) error {
