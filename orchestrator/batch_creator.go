@@ -25,18 +25,18 @@ type batchCreator struct {
 }
 
 func (l *batchCreator) Log() log.Logger {
-	return l.logger.WithField("loop", "BatchRequest")
+	return l.logger.WithField("loop", "BatchCreator")
 }
 
 func (l *batchCreator) requestTokenBatches(ctx context.Context) error {
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
-		l.Log().WithError(err).Warningln("failed to get un-batched token fees")
+		l.Log().WithError(err).Warningln("failed to get withdrawal fees")
 		return nil
 	}
 
 	if len(fees) == 0 {
-		l.Log().Infoln("no token fees to batch")
+		l.Log().Infoln("no withdrawals to batch")
 		return nil
 	}
 

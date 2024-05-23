@@ -60,7 +60,8 @@ func (l *oracle) observeEthEvents(ctx context.Context) error {
 	// check if validator is in the active set since claims will fail otherwise
 	vs, err := l.injective.CurrentValset(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to get active validator set on Injective")
+		l.logger.WithError(err).Warningln("failed to get active validator set on Injective")
+		return err
 	}
 
 	bonded := false
