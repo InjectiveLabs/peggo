@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "./utils/Context.sol";
-
 /**
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an account (an owner) that can be granted exclusive access to
@@ -20,15 +19,12 @@ abstract contract OwnableWithExpiry is Context {
     address private _owner;
     uint256 private _deployTimestamp;
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor() {
+    constructor () {
         address msgSender = _msgSender();
         _owner = msgSender;
         _deployTimestamp = block.timestamp;
@@ -66,7 +62,7 @@ abstract contract OwnableWithExpiry is Context {
      * @return The timestamp of ownership expiry.
      */
     function getOwnershipExpiryTimestamp() public view returns (uint256) {
-        return _deployTimestamp + 104 weeks;
+       return _deployTimestamp + 30 weeks;
     }
 
     /**
@@ -74,10 +70,10 @@ abstract contract OwnableWithExpiry is Context {
      * @return True if the contract ownership is expired.
      */
     function isOwnershipExpired() public view returns (bool) {
-        return block.timestamp > getOwnershipExpiryTimestamp();
+       return block.timestamp > getOwnershipExpiryTimestamp();
     }
 
-    /**
+     /**
      * @dev Leaves the contract without owner. It will not be possible to call
      * `onlyOwner` functions anymore. Can only be called after ownership is expired.
      */
@@ -91,10 +87,7 @@ abstract contract OwnableWithExpiry is Context {
      * Can only be called by the current owner.
      */
     function transferOwnership(address newOwner) external virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
     }
