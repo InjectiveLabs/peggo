@@ -154,7 +154,7 @@ func (l *relayer) shouldRelayValset(ctx context.Context, vs *peggytypes.Valset) 
 
 	// Check if other validators already updated the valset
 	if vs.Nonce <= latestEthereumValsetNonce.Uint64() {
-		l.Log().WithFields(log.Fields{"eth_nonce": latestEthereumValsetNonce, "inj_nonce": vs.Nonce}).Debugln("valset already updated on Ethereum")
+		l.Log().WithFields(log.Fields{"eth_nonce": latestEthereumValsetNonce, "inj_nonce": vs.Nonce}).Debugln("validator set already updated on Ethereum")
 		return false
 	}
 
