@@ -71,7 +71,7 @@ func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.Ba
 
 	tokenDecimals, err := l.ethereum.TokenDecimals(ctx, tokenAddress)
 	if err != nil {
-		l.Log().WithError(err).Warningln("is token contract address valid?")
+		l.Log().WithError(err).Warningln("is token address valid?")
 		return
 	}
 
