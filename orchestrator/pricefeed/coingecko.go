@@ -101,45 +101,40 @@ func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float
 	resp, err := cp.client.Do(req)
 	if err != nil {
 		metrics.ReportFuncError(cp.svcTags)
-		err = errors.Wrapf(err, "failed to fetch price from %s", reqURL)
-		return zeroPrice, err
+		return zeroPrice, errors.Wrapf(err, "failed to fetch price from %s", reqURL)
 	}
 
 	respBody, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		_ = resp.Body.Close()
 		metrics.ReportFuncError(cp.svcTags)
-		err = errors.Wrapf(err, "failed to read response body from %s", reqURL)
-		return zeroPrice, err
+		return zeroPrice, errors.Wrapf(err, "failed to read response body from %s", reqURL)
 	}
+
 	_ = resp.Body.Close()
 
 	var f interface{}
 	if err := json.Unmarshal(respBody, &f); err != nil {
 		metrics.ReportFuncError(cp.svcTags)
-		cp.logger.WithError(err).Errorln("failed to unmarshal response")
 		return zeroPrice, err
 	}
 
 	m, ok := f.(map[string]interface{})
 	if !ok {
 		metrics.ReportFuncError(cp.svcTags)
-		cp.logger.WithError(err).Errorln("failed to cast response type: map[string]interface{}")
-		return zeroPrice, err
+		return zeroPrice, errors.Errorf("failed to cast response type: map[string]interface{}")
 	}
 
 	v := m[strings.ToLower(erc20Contract.String())]
 	if v == nil {
 		metrics.ReportFuncError(cp.svcTags)
-		cp.logger.WithError(err).Errorln("failed to get contract address")
-		return zeroPrice, err
+		return zeroPrice, errors.Errorf("failed to get contract address")
 	}
 
 	n, ok := v.(map[string]interface{})
 	if !ok {
 		metrics.ReportFuncError(cp.svcTags)
-		cp.logger.WithError(err).Errorln("failed to cast value type: map[string]interface{}")
-		return zeroPrice, err
+		return zeroPrice, errors.Errorf("failed to cast value type: map[string]interface{}")
 	}
 
 	tokenPriceInUSD := n["usd"].(float64)

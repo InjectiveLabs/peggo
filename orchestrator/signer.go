@@ -88,15 +88,17 @@ func (l *signer) signNewBatch(ctx context.Context) error {
 	}
 
 	if oldestUnsignedBatch == nil {
-		l.Log().Infoln("no batch to confirm")
+		l.Log().Infoln("no token batch to confirm")
 		return nil
 	}
 
-	confirmBatchFn := func() error {
-		return l.injective.SendBatchConfirm(ctx, l.cfg.EthereumAddr, l.peggyID, oldestUnsignedBatch)
-	}
-
-	if err := l.retry(ctx, confirmBatchFn); err != nil {
+	if err := l.retry(ctx, func() error {
+		return l.injective.SendBatchConfirm(ctx,
+			l.cfg.EthereumAddr,
+			l.peggyID,
+			oldestUnsignedBatch,
+		)
+	}); err != nil {
 		return err
 	}
 
