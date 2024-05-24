@@ -65,7 +65,7 @@ func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.Ba
 	tokenAddress := gethcommon.HexToAddress(fee.Token)
 	tokenPriceUSD, err := l.priceFeed.QueryUSDPrice(tokenAddress)
 	if err != nil {
-		l.Log().WithError(err).Warningln("failed to query price feed")
+		l.Log().WithError(err).Warningln("failed to query price feed", "token_addr", tokenAddress.String())
 		return
 	}
 
@@ -80,7 +80,7 @@ func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.Ba
 	}
 
 	tokenDenom := l.getTokenDenom(tokenAddress)
-	l.Log().WithFields(log.Fields{"token_denom": tokenDenom, "token_address": tokenAddress.String()}).Infoln("requesting token batch on Injective")
+	l.Log().WithFields(log.Fields{"token_denom": tokenDenom, "token_addr": tokenAddress.String()}).Infoln("requesting token batch on Injective")
 
 	_ = l.injective.SendRequestBatch(ctx, tokenDenom)
 }
@@ -106,7 +106,7 @@ func (l *batchCreator) checkMinBatchFee(fee *peggytypes.BatchFees, tokenPriceInU
 	)
 
 	if totalFeeUSD.LessThan(minFeeUSD) {
-		l.Log().WithFields(log.Fields{"token_address": fee.Token, "total_fee": totalFeeUSD.String() + "USD", "min_fee": minFeeUSD.String() + "USD"}).Debugln("insufficient fee for a batch request, skipping...")
+		l.Log().WithFields(log.Fields{"token_addr": fee.Token, "total_fee": totalFeeUSD.String() + "USD", "min_fee": minFeeUSD.String() + "USD"}).Debugln("insufficient fee for a batch request, skipping...")
 		return false
 	}
 
