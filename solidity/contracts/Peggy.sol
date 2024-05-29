@@ -146,11 +146,9 @@ contract Peggy is
         );
     }
 
-    function lastBatchNonce(address _erc20Address)
-        public
-        view
-        returns (uint256)
-    {
+    function lastBatchNonce(
+        address _erc20Address
+    ) public view returns (uint256) {
         return state_lastBatchNonces[_erc20Address];
     }
 
@@ -176,11 +174,10 @@ contract Peggy is
     // Where h is the keccak256 hash function.
     // The validator powers must be decreasing or equal. This is important for checking the signatures on the
     // next valset, since it allows the caller to stop verifying signatures once a quorum of signatures have been verified.
-    function makeCheckpoint(ValsetArgs memory _valsetArgs, bytes32 _peggyId)
-        private
-        pure
-        returns (bytes32)
-    {
+    function makeCheckpoint(
+        ValsetArgs memory _valsetArgs,
+        bytes32 _peggyId
+    ) private pure returns (bytes32) {
         // bytes32 encoding of the string "checkpoint"
         bytes32 methodName = 0x636865636b706f696e7400000000000000000000000000000000000000000000;
 
@@ -457,17 +454,27 @@ contract Peggy is
         uint256 _amount,
         string calldata _data
     ) external whenNotPaused nonReentrant {
+        uint256 balanceBeforeTransfer = IERC20(_tokenContract).balanceOf(
+            address(this)
+        );
+
         IERC20(_tokenContract).safeTransferFrom(
             msg.sender,
             address(this),
             _amount
         );
+
+        uint256 balanceAfterTransfer = IERC20(_tokenContract).balanceOf(
+            address(this)
+        );
+        uint256 transferAmount = balanceAfterTransfer - balanceBeforeTransfer;
+
         state_lastEventNonce = state_lastEventNonce + 1;
         emit SendToInjectiveEvent(
             _tokenContract,
             msg.sender,
             _destination,
-            _amount,
+            transferAmount,
             state_lastEventNonce,
             _data
         );
