@@ -75,7 +75,7 @@ func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.Ba
 		return
 	}
 
-	if l.checkMinBatchFee(fee, tokenPriceUSD, tokenDecimals) {
+	if !l.checkMinBatchFee(fee, tokenPriceUSD, tokenDecimals) {
 		return
 	}
 
