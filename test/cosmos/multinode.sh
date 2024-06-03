@@ -147,6 +147,8 @@ if [[ ! -d "$hdir" ]]; then
 	echo "NOTE: Setting Governance Voting Period to 10 seconds for rapid testing"
 	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["voting_params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
 	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["voting_period"]="10s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+	cat $n0cfgDir/genesis.json | jq '.app_state["gov"]["params"]["expedited_voting_period"]="9s"' > $n0cfgDir/tmp_genesis.json && mv $n0cfgDir/tmp_genesis.json $n0cfgDir/genesis.json
+
 
 
   # Mint Watever tokens for each validator
@@ -194,22 +196,22 @@ if [[ ! -d "$hdir" ]]; then
 	cp $n0cfgDir/genesis.json $n2cfgDir/genesis.json
 
 	# Create gentxs and collect them in n0
-	$NODE_BIN $home0 gentx $VAL0_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid
-	$NODE_BIN $home1 gentx $VAL1_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
-	$NODE_BIN $home2 gentx $VAL2_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
+	$NODE_BIN $home0 genesis gentx $VAL0_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid
+	$NODE_BIN $home1 genesis gentx $VAL1_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
+	$NODE_BIN $home2 genesis gentx $VAL2_KEY "1000$SCALE_FACTOR$STAKE_DENOM" $kbt $cid &>/dev/null
 
 	cp $n1cfgDir/gentx/*.json $n0cfgDir/gentx/
 	cp $n2cfgDir/gentx/*.json $n0cfgDir/gentx/
-	$NODE_BIN $home0 collect-gentxs &>/dev/null
+	$NODE_BIN $home0 genesis collect-gentxs &>/dev/null
 
 	# Copy genesis file into n1 and n2s
 	cp $n0cfgDir/genesis.json $n1cfgDir/genesis.json
 	cp $n0cfgDir/genesis.json $n2cfgDir/genesis.json
 
 	# Run this to ensure everything worked and that the genesis file is setup correctly
-	$NODE_BIN $home0 validate-genesis
-	$NODE_BIN $home1 validate-genesis
-	$NODE_BIN $home2 validate-genesis
+	$NODE_BIN $home0 genesis validate
+	$NODE_BIN $home1 genesis validate
+	$NODE_BIN $home2 genesis validate
 
 	# Actually a cross-platform solution, sed is rubbish
 	# Example usage: $REGEX_REPLACE 's/^param = ".*?"/param = "100"/' config.toml
@@ -261,14 +263,14 @@ fi # data dir check
 # Start the instances
 echo "Starting injectived nodes..."
 
-echo $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080"
-$NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" --grpc-web.address "0.0.0.0:9080" > $hdir.n0.log 2>&1 &
+echo $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090"
+$NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" > $hdir.n0.log 2>&1 &
 
-echo $NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" --grpc-web.address "0.0.0.0:9081"
-$NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" --grpc-web.address "0.0.0.0:9081" > $hdir.n1.log 2>&1 &
+echo $NODE_BIN $home1 start --grpc.address "0.0.0.0:9091"
+$NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" > $hdir.n1.log 2>&1 &
 
-echo $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" --grpc-web.address "0.0.0.0:9082"
-$NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" --grpc-web.address "0.0.0.0:9082" > $hdir.n2.log 2>&1 &
+echo $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092"
+$NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" > $hdir.n2.log 2>&1 &
 
 
 

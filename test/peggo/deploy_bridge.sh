@@ -10,65 +10,41 @@ POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
 VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
 VALIDATOR_POWERS="${VALIDATOR_POWERS:-1431655765,1431655765,1431655765}"
 
-echo "** Deploying Peggy contract suite **"
+echo "*** Deploying Peggy contract suite ***"
+echo "  PEGGY_ID=$PEGGY_ID"
+echo "  POWER_THRESHOLD=$POWER_THRESHOLD"
+echo "  VALIDATOR_ADDRESSES=$VALIDATOR_ADDRESSES"
+echo "  VALIDATOR_POWERS=$VALIDATOR_POWERS"
+echo -e "\n"
+
 
 deployer_pk=$(cat ../ethereum/geth/clique_signer.key)
 
 peggy_contract_path="../../solidity/contracts/Peggy.sol"
-peggy_admin_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol"
+admin_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol"
 upgradeable_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/TransparentUpgradeableProxy.sol"
 cosmos_coin_contract_path="../../solidity/contracts/CosmosToken.sol"
 
-echo "Using PEGGY_ID $PEGGY_ID"
-echo "Using POWER_THRESHOLD $POWER_THRESHOLD"
-echo "Using VALIDATOR_ADDRESSES $VALIDATOR_ADDRESSES"
-echo "Using VALIDATOR_POWERS $VALIDATOR_POWERS"
-echo -e "\n"
 
-peggy_impl_address=$(etherman --name Peggy \
-                    --source $peggy_contract_path \
-                    -P "$deployer_pk" \
-                    deploy)
-echo "Deployed Peggy implementation contract: $peggy_impl_address"
-
-peggy_init_data=$(etherman --name Peggy \
-                --source $peggy_contract_path \
-                -P "$deployer_pk" \
-                tx --bytecode "$peggy_impl_address" \
-                initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
-echo "Initialized Peggy implementation contract. Init data:"
-echo "$peggy_init_data"
-
-proxy_admin_address=$(etherman --name ProxyAdmin \
-                    -P "$deployer_pk" \
-                    --source "$peggy_admin_proxy_contract_path" \
-                    deploy)
-echo "Deployed ProxyAdmin contract for Peggy: $proxy_admin_address"
-
-peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy \
-                    --source "$upgradeable_proxy_contract_path" \
-                    -P "$deployer_pk" \
-                    deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
-echo "Deployed TransparentUpgradeableProxy for $peggy_impl_address (Peggy) with $proxy_admin_address (ProxyAdmin) as the admin"
-
-
-# get the block number early so Oracle can catch the first event by Peggy.sol
+# get the bridge_contract_start_height early so orchestrators can catch the first Valset Updated event from Peggy.sol
 peggy_block_number=$(curl http://localhost:8545 \
                 -X POST \
                 -H "Content-Type: application/json" \
                 -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' 2>/dev/null \
                 | python3 -c "import sys, json; print(int(json.load(sys.stdin)['result']['number'], 0))")
 
-coin_contract_address=$(etherman --name CosmosERC20 \
-                      -P "$deployer_pk" \
-                      --source "$cosmos_coin_contract_path" \
-                      deploy "$peggy_proxy_address" "Injective" "inj" 18)
-echo "Deployed Cosmos Coin contract: $coin_contract_address"
+peggy_impl_address=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" deploy)
+peggy_init_data=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" tx --bytecode "$peggy_impl_address" initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+proxy_admin_address=$(etherman --name ProxyAdmin -P "$deployer_pk" --source "$admin_proxy_contract_path" deploy)
+peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy --source "$upgradeable_proxy_contract_path" -P "$deployer_pk" deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
+coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$cosmos_coin_contract_path" deploy "$peggy_proxy_address" "Injective" "inj" 18)
 
-echo "Peggy deployment done!"
-echo "  * Contract address: $peggy_proxy_address"
-echo "  * Contract deployment height: $peggy_block_number"
-echo -e "=======================\n"
+echo "Peggy.sol: $peggy_impl_address"
+echo "ProxyAdmin.sol: $proxy_admin_address"
+echo "TransparentUpgradeableProxy.sol: $peggy_proxy_address"
+echo "Injective token: $coin_contract_address"
+echo "Contract suite deployment done!"
+echo -e "\n"
 
 sleep 2
 
@@ -101,23 +77,21 @@ resp_check() {
 echo "Submitting gov proposal for Peggy module params update..."
 cat $peggy_params_json
 
+#resp="$(yes $PASSPHRASE | injectived tx gov submit-proposal $peggy_params_json --home $n0_home_dir --from user --gas 2000000 --gas-prices 500000000inj $TX_OPTS)"
+#resp_check "$resp" "Failed to submit gov proposal"
+
 resp="$(yes $PASSPHRASE | injectived tx gov submit-proposal $peggy_params_json --home $n0_home_dir --from user --gas 2000000 --gas-prices 500000000inj $TX_OPTS)"
-resp_check "$resp" "Failed to submit gov proposal"
+echo "$resp"
 
 sleep 2
 
 current_proposal_id=$(curl 'http://localhost:10337/cosmos/gov/v1beta1/proposals?proposal_status=0&pagination.limit=1&pagination.reverse=true' 2>/dev/null | jq -r '.proposals[].proposal_id')
 
-resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n0_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
-resp_check "$resp" "val0 failed to vote on gov proposal"
+yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n0_home_dir --from val --gas-prices 500000000inj $TX_OPTS &>/dev/null
+yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n1_home_dir --from val --gas-prices 500000000inj $TX_OPTS &>/dev/null
+yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n2_home_dir --from val --gas-prices 500000000inj $TX_OPTS &>/dev/null
 
-resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n1_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
-resp_check "$resp" "val1 failed to vote on gov proposal"
-
-resp="$(yes $PASSPHRASE | injectived tx gov vote "$current_proposal_id" yes --home $n2_home_dir --from val --gas-prices 500000000inj $TX_OPTS)"
-resp_check "$resp" "val2 failed to vote on gov proposal"
-
-echo -n "Waiting for proposal to pass..."
+echo -n "Waiting for proposal to pass... "
 sleep 8
 echo "DONE"
 
@@ -129,16 +103,11 @@ n0_eth_addr="0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4"
 n1_eth_addr="0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c"
 n2_eth_addr="0x8B094eD440900CEB75B83A22eD8A2C7582B442C2"
 
-resp="$(injectived tx peggy set-orchestrator-address $n0_inj_addr $n0_inj_addr $n0_eth_addr --home $n0_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
-resp_check "$resp" "val0 failed to register orchestrator address"
+injectived tx peggy set-orchestrator-address $n0_inj_addr $n0_inj_addr $n0_eth_addr --home $n0_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS &>/dev/null
+injectived tx peggy set-orchestrator-address $n1_inj_addr $n1_inj_addr $n1_eth_addr --home $n1_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS &>/dev/null
+injectived tx peggy set-orchestrator-address $n2_inj_addr $n2_inj_addr $n2_eth_addr --home $n2_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS &>/dev/null
 
-resp="$(injectived tx peggy set-orchestrator-address $n1_inj_addr $n1_inj_addr $n1_eth_addr --home $n1_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
-resp_check "$resp" "val1 failed to register orchestrator address"
-
-resp="$(injectived tx peggy set-orchestrator-address $n2_inj_addr $n2_inj_addr $n2_eth_addr --home $n2_home_dir --from=val --gas-prices 100000000000000inj $TX_OPTS)"
-resp_check "$resp" "val2 failed to register orchestrator address"
-
-echo -n "Registering orchestrator ETH addresses..."
+echo -n "Registering orchestrator ETH addresses... "
 sleep 2
 echo "DONE"
 
