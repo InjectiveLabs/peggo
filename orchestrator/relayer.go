@@ -216,7 +216,7 @@ func (l *relayer) relayTokenBatch(ctx context.Context, latestEthValset *peggytyp
 	}
 
 	if oldestConfirmedBatch == nil {
-		l.Log().Infoln("no batch to relay")
+		l.Log().Infoln("no token batch to relay")
 		return nil
 	}
 
