@@ -63,6 +63,8 @@ func (l *batchCreator) getUnbatchedTokenFees(ctx context.Context) ([]*peggytypes
 
 func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.BatchFees) {
 	tokenAddress := gethcommon.HexToAddress(fee.Token)
+	tokenDenom := l.getTokenDenom(tokenAddress)
+
 	tokenPriceUSD, err := l.priceFeed.QueryUSDPrice(tokenAddress)
 	if err != nil {
 		l.Log().WithError(err).Warningln("failed to query price feed", "token_addr", tokenAddress.String())
@@ -79,7 +81,6 @@ func (l *batchCreator) requestTokenBatch(ctx context.Context, fee *peggytypes.Ba
 		return
 	}
 
-	tokenDenom := l.getTokenDenom(tokenAddress)
 	l.Log().WithFields(log.Fields{"token_denom": tokenDenom, "token_addr": tokenAddress.String()}).Infoln("requesting token batch on Injective")
 
 	_ = l.injective.SendRequestBatch(ctx, tokenDenom)
@@ -94,19 +95,23 @@ func (l *batchCreator) getTokenDenom(tokenAddr gethcommon.Address) string {
 }
 
 func (l *batchCreator) checkMinBatchFee(fee *peggytypes.BatchFees, tokenPriceInUSD float64, tokenDecimals uint8) bool {
-	minFee := l.cfg.MinBatchFeeUSD
-	if minFee == 0 {
+	if l.cfg.MinBatchFeeUSD == 0 {
 		return true
 	}
 
 	var (
-		minFeeUSD     = decimal.NewFromFloat(minFee)
+		minFeeUSD     = decimal.NewFromFloat(l.cfg.MinBatchFeeUSD)
 		tokenPriceUSD = decimal.NewFromFloat(tokenPriceInUSD)
 		totalFeeUSD   = decimal.NewFromBigInt(fee.TotalFees.BigInt(), -1*int32(tokenDecimals)).Mul(tokenPriceUSD)
 	)
 
+	l.Log().WithFields(log.Fields{
+		"token_addr": fee.Token,
+		"total_fee":  totalFeeUSD.String() + "USD",
+		"min_fee":    minFeeUSD.String() + "USD",
+	}).Debugln("checking token withdrawal fees")
+
 	if totalFeeUSD.LessThan(minFeeUSD) {
-		l.Log().WithFields(log.Fields{"token_addr": fee.Token, "total_fee": totalFeeUSD.String() + "USD", "min_fee": minFeeUSD.String() + "USD"}).Debugln("insufficient fee for a batch request, skipping...")
 		return false
 	}
 
