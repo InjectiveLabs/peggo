@@ -505,7 +505,6 @@ contract Peggy is
         string calldata _symbol,
         uint8 _decimals
     ) external {
-        // Deploy an ERC20 with entire supply granted to Peggy.sol
         CosmosERC20 erc20 = new CosmosERC20(
             address(this),
             _name,
