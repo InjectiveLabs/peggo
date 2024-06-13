@@ -51,6 +51,8 @@ contract Peggy is
     bytes32 public state_peggyId;
     uint256 public state_powerThreshold;
 
+    mapping(address => bool) public isInjectiveNativeToken;
+
     // TransactionBatchExecutedEvent and SendToInjectiveEvent both include the field _eventNonce.
     // This is incremented every time one of these events is emitted. It is checked by the
     // Cosmos module to ensure that all events are received in order, and that none are lost.
@@ -423,10 +425,18 @@ contract Peggy is
                 // Send transaction amounts to destinations
                 uint256 totalFee;
                 for (uint256 i = 0; i < _amounts.length; i++) {
-                    IERC20(_tokenContract).safeTransfer(
-                        _destinations[i],
-                        _amounts[i]
-                    );
+                    if (isInjectiveNativeToken[_tokenContract]) {
+                        CosmosERC20(_tokenContract).mint(
+                            _destinations[i],
+                            _amounts[i]
+                        );
+                    } else {
+                        IERC20(_tokenContract).safeTransfer(
+                            _destinations[i],
+                            _amounts[i]
+                        );
+                    }
+
                     totalFee = totalFee + _fees[i];
                 }
 
@@ -454,22 +464,31 @@ contract Peggy is
         uint256 _amount,
         string calldata _data
     ) external whenNotPaused nonReentrant {
-        uint256 balanceBeforeTransfer = IERC20(_tokenContract).balanceOf(
-            address(this)
-        );
+        uint256 transferAmount;
 
-        IERC20(_tokenContract).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
+        if (isInjectiveNativeToken[_tokenContract]) {
+            CosmosERC20(_tokenContract).burn(msg.sender, _amount);
 
-        uint256 balanceAfterTransfer = IERC20(_tokenContract).balanceOf(
-            address(this)
-        );
-        uint256 transferAmount = balanceAfterTransfer - balanceBeforeTransfer;
+            transferAmount = _amount;
+        } else {
+            uint256 balanceBeforeTransfer = IERC20(_tokenContract).balanceOf(
+                address(this)
+            );
+
+            IERC20(_tokenContract).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+
+            uint256 balanceAfterTransfer = IERC20(_tokenContract).balanceOf(
+                address(this)
+            );
+            transferAmount = balanceAfterTransfer - balanceBeforeTransfer;
+        }
 
         state_lastEventNonce = state_lastEventNonce + 1;
+
         emit SendToInjectiveEvent(
             _tokenContract,
             msg.sender,
@@ -486,13 +505,14 @@ contract Peggy is
         string calldata _symbol,
         uint8 _decimals
     ) external {
-        // Deploy an ERC20 with entire supply granted to Peggy.sol
         CosmosERC20 erc20 = new CosmosERC20(
             address(this),
             _name,
             _symbol,
             _decimals
         );
+
+        isInjectiveNativeToken[address(erc20)] = true;
 
         // Fire an event to let the Cosmos module know
         state_lastEventNonce = state_lastEventNonce + 1;
