@@ -505,13 +505,7 @@ contract Peggy is
         string calldata _symbol,
         uint8 _decimals
     ) external {
-        CosmosERC20 erc20 = new CosmosERC20(
-            address(this),
-            _name,
-            _symbol,
-            _decimals
-        );
-
+        CosmosERC20 erc20 = new CosmosERC20(_name, _symbol, _decimals);
         isInjectiveNativeToken[address(erc20)] = true;
 
         // Fire an event to let the Cosmos module know
