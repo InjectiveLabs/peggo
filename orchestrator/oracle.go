@@ -59,7 +59,8 @@ func (l *oracle) Log() log.Logger {
 
 func (l *oracle) observeEthEvents(ctx context.Context) error {
 	metrics.ReportFuncCall(l.svcTags)
-	defer metrics.ReportFuncTiming(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
 
 	// check if validator is in the active set since claims will fail otherwise
 	vs, err := l.injective.CurrentValset(ctx)

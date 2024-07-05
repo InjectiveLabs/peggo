@@ -38,7 +38,8 @@ func (l *signer) Log() log.Logger {
 
 func (l *signer) sign(ctx context.Context) error {
 	metrics.ReportFuncCall(l.svcTags)
-	defer metrics.ReportFuncTiming(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
 
 	if err := l.signValidatorSets(ctx); err != nil {
 		return err

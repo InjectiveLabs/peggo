@@ -31,7 +31,8 @@ func (l *batchCreator) Log() log.Logger {
 
 func (l *batchCreator) requestTokenBatches(ctx context.Context) error {
 	metrics.ReportFuncCall(l.svcTags)
-	defer metrics.ReportFuncTiming(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
 
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
