@@ -44,6 +44,9 @@ func (l *relayer) Log() log.Logger {
 }
 
 func (l *relayer) relay(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	defer metrics.ReportFuncTiming(l.svcTags)
+
 	ethValset, err := l.getLatestEthValset(ctx)
 	if err != nil {
 		return err
@@ -78,6 +81,9 @@ func (l *relayer) relay(ctx context.Context) error {
 }
 
 func (l *relayer) getLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
+	metrics.ReportFuncCall(l.svcTags)
+	defer metrics.ReportFuncTiming(l.svcTags)
+
 	var latestEthValset *peggytypes.Valset
 	fn := func() error {
 		vs, err := l.findLatestValsetOnEth(ctx)
@@ -98,8 +104,7 @@ func (l *relayer) getLatestEthValset(ctx context.Context) (*peggytypes.Valset, e
 
 func (l *relayer) relayValset(ctx context.Context, latestEthValset *peggytypes.Valset) error {
 	metrics.ReportFuncCall(l.svcTags)
-	doneFn := metrics.ReportFuncTiming(l.svcTags)
-	defer doneFn()
+	defer metrics.ReportFuncTiming(l.svcTags)
 
 	latestInjectiveValsets, err := l.injective.LatestValsets(ctx)
 	if err != nil {
@@ -178,8 +183,7 @@ func (l *relayer) shouldRelayValset(ctx context.Context, vs *peggytypes.Valset) 
 
 func (l *relayer) relayTokenBatch(ctx context.Context, latestEthValset *peggytypes.Valset) error {
 	metrics.ReportFuncCall(l.svcTags)
-	doneFn := metrics.ReportFuncTiming(l.svcTags)
-	defer doneFn()
+	defer metrics.ReportFuncTiming(l.svcTags)
 
 	batches, err := l.injective.LatestTransactionBatches(ctx)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
@@ -29,6 +30,9 @@ func (l *batchCreator) Log() log.Logger {
 }
 
 func (l *batchCreator) requestTokenBatches(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	defer metrics.ReportFuncTiming(l.svcTags)
+
 	fees, err := l.getUnbatchedTokenFees(ctx)
 	if err != nil {
 		l.Log().WithError(err).Warningln("failed to get withdrawal fees")

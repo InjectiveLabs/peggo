@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggyevents "github.com/InjectiveLabs/peggo/solidity/wrappers/Peggy.sol"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
@@ -57,6 +58,9 @@ func (l *oracle) Log() log.Logger {
 }
 
 func (l *oracle) observeEthEvents(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	defer metrics.ReportFuncTiming(l.svcTags)
+
 	// check if validator is in the active set since claims will fail otherwise
 	vs, err := l.injective.CurrentValset(ctx)
 	if err != nil {
