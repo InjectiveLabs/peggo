@@ -8,8 +8,8 @@ dataSources:
     name: Peggy
     network: "sepolia"
     source:
-      address: "0x429b9aD854D72abe857287BC6cA05A24077C6f09"
-      startBlock: 5526196
+      address: "0x12e1181a741b70BE6A9D81f85af3E92B6ba41897"
+      startBlock: 5533785
       abi: Peggy
     mapping:
       kind: ethereum/events
