@@ -16,9 +16,8 @@ import "./utils/Context.sol";
  * `onlyOwner`, which can be applied to your functions to restrict their use to
  * the owner.
  */
-abstract contract OwnableWithExpiry is Context {
+abstract contract Ownable is Context {
     address private _owner;
-    uint256 private _deployTimestamp;
 
     event OwnershipTransferred(
         address indexed previousOwner,
@@ -31,7 +30,6 @@ abstract contract OwnableWithExpiry is Context {
     constructor() {
         address msgSender = _msgSender();
         _owner = msgSender;
-        _deployTimestamp = block.timestamp;
         emit OwnershipTransferred(address(0), msgSender);
     }
 
@@ -58,31 +56,6 @@ abstract contract OwnableWithExpiry is Context {
      * thereby removing any functionality that is only available to the owner.
      */
     function renounceOwnership() external virtual onlyOwner {
-        _renounceOwnership();
-    }
-
-    /**
-     * @dev Get the timestamp of ownership expiry.
-     * @return The timestamp of ownership expiry.
-     */
-    function getOwnershipExpiryTimestamp() public view returns (uint256) {
-        return _deployTimestamp + 104 weeks;
-    }
-
-    /**
-     * @dev Check if the contract ownership is expired.
-     * @return True if the contract ownership is expired.
-     */
-    function isOwnershipExpired() public view returns (bool) {
-        return block.timestamp > getOwnershipExpiryTimestamp();
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called after ownership is expired.
-     */
-    function renounceOwnershipAfterExpiry() external {
-        require(isOwnershipExpired(), "Ownership not yet expired");
         _renounceOwnership();
     }
 

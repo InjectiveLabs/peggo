@@ -61,14 +61,12 @@ func initCosmosOptions(
 		Name:   "cosmos-grpc",
 		Desc:   "Cosmos GRPC querying endpoint",
 		EnvVar: "PEGGO_COSMOS_GRPC",
-		Value:  "tcp://localhost:9900",
 	})
 
 	*tendermintRPC = cmd.String(cli.StringOpt{
 		Name:   "tendermint-rpc",
 		Desc:   "Tendermint RPC endpoint",
 		EnvVar: "PEGGO_TENDERMINT_RPC",
-		Value:  "http://localhost:26657",
 	})
 
 	*cosmosGasPrices = cmd.String(cli.StringOpt{
@@ -134,50 +132,6 @@ func initCosmosKeyOptions(
 		Desc:   "Use the Cosmos app on hardware ledger to sign transactions.",
 		EnvVar: "PEGGO_COSMOS_USE_LEDGER",
 		Value:  false,
-	})
-}
-
-func initEthereumOptions(
-	cmd *cli.Cmd,
-	ethChainID **int,
-	ethNodeRPC **string,
-	ethNodeAlchemyWS **string,
-	ethGasPriceAdjustment **float64,
-	ethMaxGasPrice **string,
-) {
-	*ethChainID = cmd.Int(cli.IntOpt{
-		Name:   "eth-chain-id",
-		Desc:   "Specify Chain ID of the Ethereum network.",
-		EnvVar: "PEGGO_ETH_CHAIN_ID",
-		Value:  42,
-	})
-
-	*ethNodeRPC = cmd.String(cli.StringOpt{
-		Name:   "eth-node-http",
-		Desc:   "Specify HTTP endpoint for an Ethereum node.",
-		EnvVar: "PEGGO_ETH_RPC",
-		Value:  "http://localhost:1317",
-	})
-
-	*ethNodeAlchemyWS = cmd.String(cli.StringOpt{
-		Name:   "eth-node-alchemy-ws",
-		Desc:   "Specify websocket url for an Alchemy ethereum node.",
-		EnvVar: "PEGGO_ETH_ALCHEMY_WS",
-		Value:  "",
-	})
-
-	*ethGasPriceAdjustment = cmd.Float64(cli.Float64Opt{
-		Name:   "eth_gas_price_adjustment",
-		Desc:   "gas price adjustment for Ethereum transactions",
-		EnvVar: "PEGGO_ETH_GAS_PRICE_ADJUSTMENT",
-		Value:  float64(1.3),
-	})
-
-	*ethMaxGasPrice = cmd.String(cli.StringOpt{
-		Name:   "eth-max-gas-price",
-		Desc:   "Specify Max gas price for Ethereum Transactions in GWei",
-		EnvVar: "PEGGO_ETH_MAX_GAS_PRICE",
-		Value:  "500gwei",
 	})
 }
 
@@ -274,73 +228,250 @@ func initStatsdOptions(
 	})
 }
 
-// initRelayerOption sets options for relayer.
-func initRelayerOptions(
-	cmd *cli.Cmd,
-	relayValsets **bool,
-	relayValsetOffsetDur **string,
-	relayBatches **bool,
-	relayBatchOffsetDur **string,
-	pendingTxWaitDuration **string,
-) {
-	*relayValsets = cmd.Bool(cli.BoolOpt{
+type Config struct {
+	// Cosmos params
+	cosmosChainID   *string
+	cosmosGRPC      *string
+	tendermintRPC   *string
+	cosmosGasPrices *string
+
+	// Cosmos Key Management
+	cosmosKeyringDir     *string
+	cosmosKeyringAppName *string
+	cosmosKeyringBackend *string
+
+	cosmosKeyFrom       *string
+	cosmosKeyPassphrase *string
+	cosmosPrivKey       *string
+	cosmosUseLedger     *bool
+
+	// Ethereum params
+	ethChainID            *int
+	ethNodeRPC            *string
+	ethNodeAlchemyWS      *string
+	ethGasPriceAdjustment *float64
+	ethMaxGasPrice        *string
+
+	// Ethereum Key Management
+	ethKeystoreDir *string
+	ethKeyFrom     *string
+	ethPassphrase  *string
+	ethPrivKey     *string
+	ethUseLedger   *bool
+
+	// Relayer config
+	relayValsets          *bool
+	relayValsetOffsetDur  *string
+	relayBatches          *bool
+	relayBatchOffsetDur   *string
+	pendingTxWaitDuration *string
+
+	// Batch requester config
+	minBatchFeeUSD *float64
+
+	coingeckoApi *string
+}
+
+func initConfig(cmd *cli.Cmd) Config {
+	cfg := Config{}
+
+	/** Injective **/
+
+	cfg.cosmosChainID = cmd.String(cli.StringOpt{
+		Name:   "cosmos-chain-id",
+		Desc:   "Specify Chain ID of the Cosmos network.",
+		EnvVar: "PEGGO_COSMOS_CHAIN_ID",
+		Value:  "888",
+	})
+
+	cfg.cosmosGRPC = cmd.String(cli.StringOpt{
+		Name:   "cosmos-grpc",
+		Desc:   "Cosmos GRPC querying endpoint",
+		EnvVar: "PEGGO_COSMOS_GRPC",
+	})
+
+	cfg.tendermintRPC = cmd.String(cli.StringOpt{
+		Name:   "tendermint-rpc",
+		Desc:   "Tendermint RPC endpoint",
+		EnvVar: "PEGGO_TENDERMINT_RPC",
+	})
+
+	cfg.cosmosGasPrices = cmd.String(cli.StringOpt{
+		Name:   "cosmos-gas-prices",
+		Desc:   "Specify Cosmos chain transaction fees as DecCoins gas prices",
+		EnvVar: "PEGGO_COSMOS_GAS_PRICES",
+		Value:  "", // example: 500000000inj
+	})
+
+	cfg.cosmosKeyringBackend = cmd.String(cli.StringOpt{
+		Name:   "cosmos-keyring",
+		Desc:   "Specify Cosmos keyring backend (os|file|kwallet|pass|test)",
+		EnvVar: "PEGGO_COSMOS_KEYRING",
+		Value:  "file",
+	})
+
+	cfg.cosmosKeyringDir = cmd.String(cli.StringOpt{
+		Name:   "cosmos-keyring-dir",
+		Desc:   "Specify Cosmos keyring dir, if using file keyring.",
+		EnvVar: "PEGGO_COSMOS_KEYRING_DIR",
+		Value:  "",
+	})
+
+	cfg.cosmosKeyringAppName = cmd.String(cli.StringOpt{
+		Name:   "cosmos-keyring-app",
+		Desc:   "Specify Cosmos keyring app name.",
+		EnvVar: "PEGGO_COSMOS_KEYRING_APP",
+		Value:  "peggo",
+	})
+
+	cfg.cosmosKeyFrom = cmd.String(cli.StringOpt{
+		Name:   "cosmos-from",
+		Desc:   "Specify the Cosmos validator key name or address. If specified, must exist in keyring, ledger or match the privkey.",
+		EnvVar: "PEGGO_COSMOS_FROM",
+	})
+
+	cfg.cosmosKeyPassphrase = cmd.String(cli.StringOpt{
+		Name:   "cosmos-from-passphrase",
+		Desc:   "Specify keyring passphrase, otherwise Stdin will be used.",
+		EnvVar: "PEGGO_COSMOS_FROM_PASSPHRASE",
+		Value:  "peggo",
+	})
+
+	cfg.cosmosPrivKey = cmd.String(cli.StringOpt{
+		Name:   "cosmos-pk",
+		Desc:   "Provide a raw Cosmos account private key of the validator in hex. USE FOR TESTING ONLY!",
+		EnvVar: "PEGGO_COSMOS_PK",
+	})
+
+	cfg.cosmosUseLedger = cmd.Bool(cli.BoolOpt{
+		Name:   "cosmos-use-ledger",
+		Desc:   "Use the Cosmos app on hardware ledger to sign transactions.",
+		EnvVar: "PEGGO_COSMOS_USE_LEDGER",
+		Value:  false,
+	})
+
+	/** Ethereum **/
+
+	cfg.ethChainID = cmd.Int(cli.IntOpt{
+		Name:   "eth-chain-id",
+		Desc:   "Specify Chain ID of the Ethereum network.",
+		EnvVar: "PEGGO_ETH_CHAIN_ID",
+		Value:  42,
+	})
+
+	cfg.ethNodeRPC = cmd.String(cli.StringOpt{
+		Name:   "eth-node-http",
+		Desc:   "Specify HTTP endpoint for an Ethereum node.",
+		EnvVar: "PEGGO_ETH_RPC",
+		Value:  "http://localhost:1317",
+	})
+
+	cfg.ethNodeAlchemyWS = cmd.String(cli.StringOpt{
+		Name:   "eth-node-alchemy-ws",
+		Desc:   "Specify websocket url for an Alchemy ethereum node.",
+		EnvVar: "PEGGO_ETH_ALCHEMY_WS",
+		Value:  "",
+	})
+
+	cfg.ethGasPriceAdjustment = cmd.Float64(cli.Float64Opt{
+		Name:   "eth_gas_price_adjustment",
+		Desc:   "gas price adjustment for Ethereum transactions",
+		EnvVar: "PEGGO_ETH_GAS_PRICE_ADJUSTMENT",
+		Value:  float64(1.3),
+	})
+
+	cfg.ethMaxGasPrice = cmd.String(cli.StringOpt{
+		Name:   "eth-max-gas-price",
+		Desc:   "Specify Max gas price for Ethereum Transactions in GWei",
+		EnvVar: "PEGGO_ETH_MAX_GAS_PRICE",
+		Value:  "500gwei",
+	})
+
+	cfg.ethKeystoreDir = cmd.String(cli.StringOpt{
+		Name:   "eth-keystore-dir",
+		Desc:   "Specify Ethereum keystore dir (Geth-format) prefix.",
+		EnvVar: "PEGGO_ETH_KEYSTORE_DIR",
+	})
+
+	cfg.ethKeyFrom = cmd.String(cli.StringOpt{
+		Name:   "eth-from",
+		Desc:   "Specify the from address. If specified, must exist in keystore, ledger or match the privkey.",
+		EnvVar: "PEGGO_ETH_FROM",
+	})
+
+	cfg.ethPassphrase = cmd.String(cli.StringOpt{
+		Name:   "eth-passphrase",
+		Desc:   "Passphrase to unlock the private key from armor, if empty then stdin is used.",
+		EnvVar: "PEGGO_ETH_PASSPHRASE",
+	})
+
+	cfg.ethPrivKey = cmd.String(cli.StringOpt{
+		Name:   "eth-pk",
+		Desc:   "Provide a raw Ethereum private key of the validator in hex. USE FOR TESTING ONLY!",
+		EnvVar: "PEGGO_ETH_PK",
+	})
+
+	cfg.ethUseLedger = cmd.Bool(cli.BoolOpt{
+		Name:   "eth-use-ledger",
+		Desc:   "Use the Ethereum app on hardware ledger to sign transactions.",
+		EnvVar: "PEGGO_ETH_USE_LEDGER",
+		Value:  false,
+	})
+
+	/** Relayer **/
+
+	cfg.relayValsets = cmd.Bool(cli.BoolOpt{
 		Name:   "relay_valsets",
 		Desc:   "If enabled, relayer will relay valsets to ethereum",
 		EnvVar: "PEGGO_RELAY_VALSETS",
 		Value:  false,
 	})
 
-	*relayValsetOffsetDur = cmd.String(cli.StringOpt{
+	cfg.relayValsetOffsetDur = cmd.String(cli.StringOpt{
 		Name:   "relay_valset_offset_dur",
 		Desc:   "If set, relayer will broadcast valsetUpdate only after relayValsetOffsetDur has passed from time of valsetUpdate creation",
 		EnvVar: "PEGGO_RELAY_VALSET_OFFSET_DUR",
 		Value:  "5m",
 	})
 
-	*relayBatches = cmd.Bool(cli.BoolOpt{
+	cfg.relayBatches = cmd.Bool(cli.BoolOpt{
 		Name:   "relay_batches",
 		Desc:   "If enabled, relayer will relay batches to ethereum",
 		EnvVar: "PEGGO_RELAY_BATCHES",
 		Value:  false,
 	})
 
-	*relayBatchOffsetDur = cmd.String(cli.StringOpt{
+	cfg.relayBatchOffsetDur = cmd.String(cli.StringOpt{
 		Name:   "relay_batch_offset_dur",
 		Desc:   "If set, relayer will broadcast batches only after relayBatchOffsetDur has passed from time of batch creation",
 		EnvVar: "PEGGO_RELAY_BATCH_OFFSET_DUR",
 		Value:  "5m",
 	})
 
-	*pendingTxWaitDuration = cmd.String(cli.StringOpt{
+	cfg.pendingTxWaitDuration = cmd.String(cli.StringOpt{
 		Name:   "relay_pending_tx_wait_duration",
 		Desc:   "If set, relayer will broadcast pending batches/valsetupdate only after pendingTxWaitDuration has passed",
 		EnvVar: "PEGGO_RELAY_PENDING_TX_WAIT_DURATION",
 		Value:  "20m",
 	})
-}
 
-// initBatchRequesterOptions sets options for batch requester.
-func initBatchRequesterOptions(
-	cmd *cli.Cmd,
-	minBatchFeeUSD **float64,
-) {
-	*minBatchFeeUSD = cmd.Float64(cli.Float64Opt{
+	/** Batch Requester **/
+
+	cfg.minBatchFeeUSD = cmd.Float64(cli.Float64Opt{
 		Name:   "min_batch_fee_usd",
 		Desc:   "If set, batch request will create batches only if fee threshold exceeds",
 		EnvVar: "PEGGO_MIN_BATCH_FEE_USD",
 		Value:  float64(23.3),
 	})
-}
 
-// initCoingeckoOptions sets options for coingecko.
-func initCoingeckoOptions(
-	cmd *cli.Cmd,
-	baseUrl **string,
-) {
-	*baseUrl = cmd.String(cli.StringOpt{
+	/** Coingecko **/
+
+	cfg.coingeckoApi = cmd.String(cli.StringOpt{
 		Name:   "coingecko_api",
-		Desc:   "Specify HTTP endpoint for coingecko api.",
+		Desc:   "Specify HTTP endpoint for pricefeed api.",
 		EnvVar: "PEGGO_COINGECKO_API",
 		Value:  "https://api.coingecko.com/api/v3",
 	})
+
+	return cfg
 }

@@ -51,6 +51,8 @@ contract Peggy is
     bytes32 public state_peggyId;
     uint256 public state_powerThreshold;
 
+    mapping(address => bool) public isInjectiveNativeToken;
+
     // TransactionBatchExecutedEvent and SendToInjectiveEvent both include the field _eventNonce.
     // This is incremented every time one of these events is emitted. It is checked by the
     // Cosmos module to ensure that all events are received in order, and that none are lost.
@@ -146,11 +148,9 @@ contract Peggy is
         );
     }
 
-    function lastBatchNonce(address _erc20Address)
-        public
-        view
-        returns (uint256)
-    {
+    function lastBatchNonce(
+        address _erc20Address
+    ) public view returns (uint256) {
         return state_lastBatchNonces[_erc20Address];
     }
 
@@ -176,11 +176,10 @@ contract Peggy is
     // Where h is the keccak256 hash function.
     // The validator powers must be decreasing or equal. This is important for checking the signatures on the
     // next valset, since it allows the caller to stop verifying signatures once a quorum of signatures have been verified.
-    function makeCheckpoint(ValsetArgs memory _valsetArgs, bytes32 _peggyId)
-        private
-        pure
-        returns (bytes32)
-    {
+    function makeCheckpoint(
+        ValsetArgs memory _valsetArgs,
+        bytes32 _peggyId
+    ) private pure returns (bytes32) {
         // bytes32 encoding of the string "checkpoint"
         bytes32 methodName = 0x636865636b706f696e7400000000000000000000000000000000000000000000;
 
@@ -426,10 +425,18 @@ contract Peggy is
                 // Send transaction amounts to destinations
                 uint256 totalFee;
                 for (uint256 i = 0; i < _amounts.length; i++) {
-                    IERC20(_tokenContract).safeTransfer(
-                        _destinations[i],
-                        _amounts[i]
-                    );
+                    if (isInjectiveNativeToken[_tokenContract]) {
+                        CosmosERC20(_tokenContract).mint(
+                            _destinations[i],
+                            _amounts[i]
+                        );
+                    } else {
+                        IERC20(_tokenContract).safeTransfer(
+                            _destinations[i],
+                            _amounts[i]
+                        );
+                    }
+
                     totalFee = totalFee + _fees[i];
                 }
 
@@ -457,17 +464,36 @@ contract Peggy is
         uint256 _amount,
         string calldata _data
     ) external whenNotPaused nonReentrant {
-        IERC20(_tokenContract).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _amount
-        );
+        uint256 transferAmount;
+
+        if (isInjectiveNativeToken[_tokenContract]) {
+            CosmosERC20(_tokenContract).burn(msg.sender, _amount);
+
+            transferAmount = _amount;
+        } else {
+            uint256 balanceBeforeTransfer = IERC20(_tokenContract).balanceOf(
+                address(this)
+            );
+
+            IERC20(_tokenContract).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _amount
+            );
+
+            uint256 balanceAfterTransfer = IERC20(_tokenContract).balanceOf(
+                address(this)
+            );
+            transferAmount = balanceAfterTransfer - balanceBeforeTransfer;
+        }
+
         state_lastEventNonce = state_lastEventNonce + 1;
+
         emit SendToInjectiveEvent(
             _tokenContract,
             msg.sender,
             _destination,
-            _amount,
+            transferAmount,
             state_lastEventNonce,
             _data
         );
@@ -479,13 +505,8 @@ contract Peggy is
         string calldata _symbol,
         uint8 _decimals
     ) external {
-        // Deploy an ERC20 with entire supply granted to Peggy.sol
-        CosmosERC20 erc20 = new CosmosERC20(
-            address(this),
-            _name,
-            _symbol,
-            _decimals
-        );
+        CosmosERC20 erc20 = new CosmosERC20(_name, _symbol, _decimals);
+        isInjectiveNativeToken[address(erc20)] = true;
 
         // Fire an event to let the Cosmos module know
         state_lastEventNonce = state_lastEventNonce + 1;

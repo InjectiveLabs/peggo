@@ -24,9 +24,10 @@ func (s *peggyContract) SendTransactionBatch(
 
 	log.WithFields(log.Fields{
 		"token_contract": batch.TokenContract,
-		"new_nonce":      batch.BatchNonce,
-	}).Infoln("Checking signatures and submitting TransactionBatch to Ethereum")
-	log.Debugf("Batch %#v", batch)
+		"batch_nonce":    batch.BatchNonce,
+		"txs":            len(batch.Transactions),
+		"confirmations":  len(confirms),
+	}).Infoln("checking signatures and submitting batch")
 
 	validators, powers, sigV, sigR, sigS, err := checkBatchSigsAndRepack(currentValset, confirms)
 	if err != nil {
@@ -92,11 +93,8 @@ func (s *peggyContract) SendTransactionBatch(
 	txHash, err := s.SendTx(ctx, s.peggyAddress, txData)
 	if err != nil {
 		metrics.ReportFuncError(s.svcTags)
-		log.WithError(err).WithField("tx_hash", txHash.Hex()).Errorln("Failed to sign and submit (Peggy submitBatch) to EVM")
 		return nil, err
 	}
-
-	log.Infoln("Sent Tx (Peggy submitBatch):", txHash.Hex())
 
 	//     let before_nonce = get_tx_batch_nonce(
 	//         peggy_contract_address,

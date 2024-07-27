@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,6 +14,7 @@ import (
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
+
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
 	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/util"
 )
@@ -114,6 +117,22 @@ func (e *ethCommitter) SendTx(
 		return common.Hash{}, errors.Errorf("Suggested gas price %v is greater than max gas price %v", opts.GasPrice.Int64(), maxGasPrice.Int64())
 	}
 
+	// estimate gas limit
+	msg := ethereum.CallMsg{
+		From:     opts.From,
+		To:       &recipient,
+		GasPrice: gasPrice,
+		Value:    new(big.Int),
+		Data:     txData,
+	}
+
+	gasLimit, err := e.evmProvider.EstimateGas(opts.Context, msg)
+	if err != nil {
+		return common.Hash{}, errors.Wrap(err, "failed to estimate gas")
+	}
+
+	opts.GasLimit = gasLimit
+
 	resyncNonces := func(from common.Address) {
 		e.nonceCache.Sync(from, func() (uint64, error) {
 			nonce, err := e.evmProvider.PendingNonceAt(context.TODO(), from)
@@ -150,9 +169,8 @@ func (e *ethCommitter) SendTx(
 				return nil
 			} else {
 				log.WithFields(log.Fields{
-					"txHash":    txHash.Hex(),
-					"txHashRet": txHashRet.Hex(),
-				}).WithError(err).Warningln("SendTransaction failed with error")
+					"tx_hash": txHash.Hex(),
+				}).WithError(err).Warningln("failed to send tx")
 			}
 
 			switch {
@@ -198,6 +216,8 @@ func (e *ethCommitter) SendTx(
 		}
 	}); err != nil {
 		metrics.ReportFuncError(e.svcTags)
+
+		log.WithError(err).Errorln("SendTx serialize failed")
 
 		return common.Hash{}, err
 	}

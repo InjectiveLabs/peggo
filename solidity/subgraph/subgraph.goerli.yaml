@@ -1,4 +1,4 @@
-specVersion: 0.0.4
+specVersion: 0.0.2
 description: InjectiveLabs Peggo
 repository: https://github.com/InjectiveLabs/peggo
 schema:
@@ -6,14 +6,14 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Peggy
-    network: "mainnet"
+    network: "goerli"
     source:
-      address: "0xF955C57f9EA9Dc8781965FEaE0b6A2acE2BAD6f3"
-      startBlock: 12705133
+      address: "0xd2C6753F6B1783EF0a3857275e16e79D91b539a3"
+      startBlock: 1306599
       abi: Peggy
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.6
+      apiVersion: 0.0.4
       language: wasm/assemblyscript
       entities:
         - Test

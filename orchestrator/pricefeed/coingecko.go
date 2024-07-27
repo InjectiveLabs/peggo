@@ -1,10 +1,9 @@
-package coingecko
+package pricefeed
 
 import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-
 	"net/http"
 	"net/url"
 	"path"
@@ -27,6 +26,10 @@ const (
 
 var zeroPrice = float64(0)
 
+type Config struct {
+	BaseURL string
+}
+
 type CoingeckoPriceFeed struct {
 	client *http.Client
 	config *Config
@@ -37,8 +40,28 @@ type CoingeckoPriceFeed struct {
 	svcTags metrics.Tags
 }
 
-type Config struct {
-	BaseURL string
+// NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
+// from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
+func NewCoingeckoPriceFeed(interval time.Duration, endpointConfig *Config) *CoingeckoPriceFeed {
+	return &CoingeckoPriceFeed{
+		client: &http.Client{
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: maxRespHeadersTime,
+			},
+			Timeout: maxRespTime,
+		},
+		config: checkCoingeckoConfig(endpointConfig),
+
+		interval: interval,
+
+		logger: log.WithFields(log.Fields{
+			"svc":      "oracle",
+			"provider": "coingeckgo",
+		}),
+		svcTags: metrics.Tags{
+			"provider": string("coingeckgo"),
+		},
+	}
 }
 
 func urlJoin(baseURL string, segments ...string) string {
@@ -78,52 +101,44 @@ func (cp *CoingeckoPriceFeed) QueryUSDPrice(erc20Contract common.Address) (float
 	resp, err := cp.client.Do(req)
 	if err != nil {
 		metrics.ReportFuncError(cp.svcTags)
-		err = errors.Wrapf(err, "failed to fetch price from %s", reqURL)
-		return zeroPrice, err
+		return zeroPrice, errors.Wrapf(err, "failed to fetch price from %s", reqURL)
 	}
 
 	respBody, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		_ = resp.Body.Close()
 		metrics.ReportFuncError(cp.svcTags)
-		err = errors.Wrapf(err, "failed to read response body from %s", reqURL)
-		return zeroPrice, err
+		return zeroPrice, errors.Wrapf(err, "failed to read response body from %s", reqURL)
 	}
+
 	_ = resp.Body.Close()
 
 	var f interface{}
-	err = json.Unmarshal(respBody, &f)
-	m := f.(map[string]interface{})
+	if err := json.Unmarshal(respBody, &f); err != nil {
+		metrics.ReportFuncError(cp.svcTags)
+		return zeroPrice, err
+	}
+
+	m, ok := f.(map[string]interface{})
+	if !ok {
+		metrics.ReportFuncError(cp.svcTags)
+		return zeroPrice, errors.Errorf("failed to cast response type: map[string]interface{}")
+	}
 
 	v := m[strings.ToLower(erc20Contract.String())]
-	n := v.(map[string]interface{})
+	if v == nil {
+		metrics.ReportFuncError(cp.svcTags)
+		return zeroPrice, errors.Errorf("failed to get contract address")
+	}
+
+	n, ok := v.(map[string]interface{})
+	if !ok {
+		metrics.ReportFuncError(cp.svcTags)
+		return zeroPrice, errors.Errorf("failed to cast value type: map[string]interface{}")
+	}
 
 	tokenPriceInUSD := n["usd"].(float64)
 	return tokenPriceInUSD, nil
-}
-
-// NewCoingeckoPriceFeed returns price puller for given symbol. The price will be pulled
-// from endpoint and divided by scaleFactor. Symbol name (if reported by endpoint) must match.
-func NewCoingeckoPriceFeed(interval time.Duration, endpointConfig *Config) *CoingeckoPriceFeed {
-	return &CoingeckoPriceFeed{
-		client: &http.Client{
-			Transport: &http.Transport{
-				ResponseHeaderTimeout: maxRespHeadersTime,
-			},
-			Timeout: maxRespTime,
-		},
-		config: checkCoingeckoConfig(endpointConfig),
-
-		interval: interval,
-
-		logger: log.WithFields(log.Fields{
-			"svc":      "oracle",
-			"provider": "coingeckgo",
-		}),
-		svcTags: metrics.Tags{
-			"provider": string("coingeckgo"),
-		},
-	}
 }
 
 func checkCoingeckoConfig(cfg *Config) *Config {

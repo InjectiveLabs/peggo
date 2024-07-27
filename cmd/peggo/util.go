@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -14,7 +13,6 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 // readEnv is a special utility that reads `.env` file into actual environment variables
@@ -131,29 +129,9 @@ func hexToBytes(str string) ([]byte, error) {
 	return data, nil
 }
 
-// waitForService awaits an active ClientConn to a GRPC service.
-func waitForService(ctx context.Context, clientconn *grpc.ClientConn) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Fatalln("GRPC service wait timed out")
-		default:
-			state := clientconn.GetState()
-
-			if state != connectivity.Ready {
-				log.WithField("state", state.String()).Warningln("state of GRPC connection not ready")
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			return
-		}
-	}
-}
-
 // orShutdown fatals the app if there was an error.
 func orShutdown(err error) {
 	if err != nil && err != grpc.ErrServerStopped {
-		log.WithError(err).Fatalln("unable to start peggo orchestrator")
+		log.WithError(err).Fatalln("unable to start peggo")
 	}
 }

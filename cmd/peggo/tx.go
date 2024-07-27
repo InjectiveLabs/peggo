@@ -2,17 +2,14 @@ package main
 
 import (
 	"context"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"time"
 
 	cli "github.com/jawher/mow.cli"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/xlab/closer"
 	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
-	"github.com/InjectiveLabs/sdk-go/chain/peggy/types"
-	chainclient "github.com/InjectiveLabs/sdk-go/client/chain"
-	"github.com/InjectiveLabs/sdk-go/client/common"
 )
 
 // txCmdSubset contains actions that can sign and send messages to Cosmos module
@@ -97,18 +94,18 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			log.Warningln("beware: you cannot really use Ledger for orchestrator, so make sure the Ethereum key is accessible outside of it")
 		}
 
-		valAddress, cosmosKeyring, err := initCosmosKeyring(
-			cosmosKeyringDir,
-			cosmosKeyringAppName,
-			cosmosKeyringBackend,
-			cosmosKeyFrom,
-			cosmosKeyPassphrase,
-			cosmosPrivKey,
-			cosmosUseLedger,
-		)
-		if err != nil {
-			log.WithError(err).Fatalln("failed to init Cosmos keyring")
+		keyringCfg := cosmos.KeyringConfig{
+			KeyringDir:     *cosmosKeyringDir,
+			KeyringAppName: *cosmosKeyringAppName,
+			KeyringBackend: *cosmosKeyringBackend,
+			KeyFrom:        *cosmosKeyFrom,
+			KeyPassphrase:  *cosmosKeyPassphrase,
+			PrivateKey:     *cosmosPrivKey,
+			UseLedger:      *cosmosUseLedger,
 		}
+
+		keyring, err := cosmos.NewKeyring(keyringCfg)
+		orShutdown(err)
 
 		ethKeyFromAddress, _, personalSignFn, err := initEthereumAccountsManager(
 			0,
@@ -122,7 +119,7 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			log.WithError(err).Fatalln("failed to init Ethereum account")
 		}
 
-		log.Infoln("Using Cosmos ValAddress", valAddress.String())
+		log.Infoln("Using Cosmos ValAddress", keyring.Addr.String())
 		log.Infoln("Using Ethereum address", ethKeyFromAddress.String())
 
 		actionConfirmed := *alwaysAutoConfirm || stdinConfirm("Confirm UpdatePeggyOrchestratorAddresses transaction? [y/N]: ")
@@ -130,50 +127,28 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			return
 		}
 
-		clientCtx, err := chainclient.NewClientContext(*cosmosChainID, valAddress.String(), cosmosKeyring)
+		net, err := cosmos.NewNetwork(keyring, personalSignFn, cosmos.NetworkConfig{
+			ChainID:          *cosmosChainID,
+			ValidatorAddress: keyring.Addr.String(),
+			CosmosGRPC:       *cosmosGRPC,
+			TendermintRPC:    *cosmosGasPrices,
+			GasPrice:         *tendermintRPC,
+		})
+
 		if err != nil {
-			log.WithError(err).Fatalln("failed to initialize cosmos client context")
+			log.Fatalln("failed to connect to Injective network")
 		}
-		clientCtx = clientCtx.WithNodeURI(*tendermintRPC)
-
-		tmRPC, err := rpchttp.New(*tendermintRPC, "/websocket")
-		if err != nil {
-			log.WithError(err)
-		}
-
-		clientCtx = clientCtx.WithClient(tmRPC)
-		daemonClient, err := chainclient.NewChainClient(clientCtx, *cosmosGRPC, common.OptionGasPrices(*cosmosGasPrices))
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"endpoint": *cosmosGRPC,
-			}).Fatalln("failed to connect to Cosmos daemon")
-		}
-
-		log.Infoln("Waiting for injectived GRPC")
-		time.Sleep(1 * time.Second)
-
-		daemonWaitCtx, cancelWait := context.WithTimeout(context.Background(), time.Minute)
-		grpcConn := daemonClient.QueryClient()
-		waitForService(daemonWaitCtx, grpcConn)
-		peggyQuerier := types.NewQueryClient(grpcConn)
-		peggyBroadcaster := cosmos.NewPeggyBroadcastClient(
-			peggyQuerier,
-			daemonClient,
-			nil,
-			personalSignFn,
-		)
-		cancelWait()
 
 		broadcastCtx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancelFn()
 
-		if err = peggyBroadcaster.UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, valAddress); err != nil {
+		if err = peggy.BroadcastClient(net).UpdatePeggyOrchestratorAddresses(broadcastCtx, ethKeyFromAddress, keyring.Addr); err != nil {
 			log.WithError(err).Errorln("failed to broadcast Tx")
 			time.Sleep(time.Second)
 			return
 		}
 
 		log.Infof("Registered Ethereum address %s for validator address %s",
-			ethKeyFromAddress, valAddress.String())
+			ethKeyFromAddress, keyring.Addr.String())
 	}
 }

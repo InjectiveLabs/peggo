@@ -2,78 +2,139 @@ package orchestrator
 
 import (
 	"context"
+	"time"
 
-	ethcmn "github.com/ethereum/go-ethereum/common"
-
-	"github.com/InjectiveLabs/peggo/orchestrator/coingecko"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/tmclient"
+	"github.com/avast/retry-go"
+	cosmostypes "github.com/cosmos/cosmos-sdk/types"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	log "github.com/xlab/suplog"
 
 	"github.com/InjectiveLabs/metrics"
-	sidechain "github.com/InjectiveLabs/peggo/orchestrator/cosmos"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/keystore"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/peggy"
-	"github.com/InjectiveLabs/peggo/orchestrator/ethereum/provider"
-	"github.com/InjectiveLabs/peggo/orchestrator/relayer"
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos"
+	"github.com/InjectiveLabs/peggo/orchestrator/ethereum"
+	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-type PeggyOrchestrator interface {
-	Start(ctx context.Context, validatorMode bool) error
+const (
+	defaultLoopDur = 60 * time.Second
+)
 
-	CheckForEvents(ctx context.Context, startingBlock uint64) (currentBlock uint64, err error)
-	GetLastCheckedBlock(ctx context.Context) (uint64, error)
-
-	EthOracleMainLoop(ctx context.Context) error
-	EthSignerMainLoop(ctx context.Context) error
-	BatchRequesterLoop(ctx context.Context) error
-	RelayerMainLoop(ctx context.Context) error
+// PriceFeed provides token price for a given contract address
+type PriceFeed interface {
+	QueryUSDPrice(address gethcommon.Address) (float64, error)
 }
 
-type peggyOrchestrator struct {
-	svcTags metrics.Tags
-
-	tmClient             tmclient.TendermintClient
-	cosmosQueryClient    sidechain.PeggyQueryClient
-	peggyBroadcastClient sidechain.PeggyBroadcastClient
-	peggyContract        peggy.PeggyContract
-	ethProvider          provider.EVMProvider
-	ethFrom              ethcmn.Address
-	ethSignerFn          keystore.SignerFn
-	ethPersonalSignFn    keystore.PersonalSignFn
-	erc20ContractMapping map[ethcmn.Address]string
-	relayer              relayer.PeggyRelayer
-	minBatchFeeUSD       float64
-	priceFeeder          *coingecko.CoingeckoPriceFeed
+type Config struct {
+	CosmosAddr           cosmostypes.AccAddress
+	EthereumAddr         gethcommon.Address
+	MinBatchFeeUSD       float64
+	ERC20ContractMapping map[gethcommon.Address]string
+	RelayValsetOffsetDur time.Duration
+	RelayBatchOffsetDur  time.Duration
+	RelayValsets         bool
+	RelayBatches         bool
+	RelayerMode          bool
 }
 
-func NewPeggyOrchestrator(
-	cosmosQueryClient sidechain.PeggyQueryClient,
-	peggyBroadcastClient sidechain.PeggyBroadcastClient,
-	tmClient tmclient.TendermintClient,
-	peggyContract peggy.PeggyContract,
-	ethFrom ethcmn.Address,
-	ethSignerFn keystore.SignerFn,
-	ethPersonalSignFn keystore.PersonalSignFn,
-	erc20ContractMapping map[ethcmn.Address]string,
-	relayer relayer.PeggyRelayer,
-	minBatchFeeUSD float64,
-	priceFeeder *coingecko.CoingeckoPriceFeed,
+type Orchestrator struct {
+	logger      log.Logger
+	svcTags     metrics.Tags
+	cfg         Config
+	maxAttempts uint
 
-) PeggyOrchestrator {
-	return &peggyOrchestrator{
-		tmClient:             tmClient,
-		cosmosQueryClient:    cosmosQueryClient,
-		peggyBroadcastClient: peggyBroadcastClient,
-		peggyContract:        peggyContract,
-		ethProvider:          peggyContract.Provider(),
-		ethFrom:              ethFrom,
-		ethSignerFn:          ethSignerFn,
-		ethPersonalSignFn:    ethPersonalSignFn,
-		erc20ContractMapping: erc20ContractMapping,
-		relayer:              relayer,
-		minBatchFeeUSD:       minBatchFeeUSD,
-		priceFeeder:          priceFeeder,
-		svcTags: metrics.Tags{
-			"svc": "peggy_orchestrator",
-		},
+	injective cosmos.Network
+	ethereum  ethereum.Network
+	priceFeed PriceFeed
+}
+
+func NewOrchestrator(
+	inj cosmos.Network,
+	eth ethereum.Network,
+	priceFeed PriceFeed,
+	cfg Config,
+) (*Orchestrator, error) {
+	o := &Orchestrator{
+		logger:      log.DefaultLogger,
+		svcTags:     metrics.Tags{"svc": "peggy_orchestrator"},
+		injective:   inj,
+		ethereum:    eth,
+		priceFeed:   priceFeed,
+		cfg:         cfg,
+		maxAttempts: 10,
 	}
+
+	return o, nil
+}
+
+// Run starts all major loops required to make
+// up the Orchestrator, all of these are async loops.
+func (s *Orchestrator) Run(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	if s.cfg.RelayerMode {
+		return s.startRelayerMode(ctx, inj, eth)
+	}
+
+	return s.startValidatorMode(ctx, inj, eth)
+}
+
+// startValidatorMode runs all orchestrator processes. This is called
+// when peggo is run alongside a validator injective node.
+func (s *Orchestrator) startValidatorMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	log.Infoln("running orchestrator in validator mode")
+
+	lastObservedEthBlock, _ := s.getLastClaimBlockHeight(ctx, inj)
+	if lastObservedEthBlock == 0 {
+		peggyParams, err := inj.PeggyParams(ctx)
+		if err != nil {
+			s.logger.WithError(err).Fatalln("unable to query peggy module params, is injectived running?")
+		}
+
+		lastObservedEthBlock = peggyParams.BridgeContractStartHeight
+	}
+
+	// get peggy ID from contract
+	peggyContractID, err := eth.GetPeggyID(ctx)
+	if err != nil {
+		s.logger.WithError(err).Fatalln("unable to query peggy ID from contract")
+	}
+
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error { return s.runOracle(ctx, lastObservedEthBlock) })
+	pg.Go(func() error { return s.runSigner(ctx, peggyContractID) })
+	pg.Go(func() error { return s.runBatchCreator(ctx) })
+	pg.Go(func() error { return s.runRelayer(ctx) })
+
+	return pg.Wait()
+}
+
+// startRelayerMode runs orchestrator processes that only relay specific
+// messages that do not require a validator's signature. This mode is run
+// alongside a non-validator injective node
+func (s *Orchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network, eth ethereum.Network) error {
+	log.Infoln("running orchestrator in relayer mode")
+
+	var pg loops.ParanoidGroup
+
+	pg.Go(func() error { return s.runBatchCreator(ctx) })
+	pg.Go(func() error { return s.runRelayer(ctx) })
+
+	return pg.Wait()
+}
+
+func (s *Orchestrator) getLastClaimBlockHeight(ctx context.Context, inj cosmos.Network) (uint64, error) {
+	claim, err := inj.LastClaimEventByAddr(ctx, s.cfg.CosmosAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	return claim.EthereumEventHeight, nil
+}
+
+func (s *Orchestrator) retry(ctx context.Context, fn func() error) error {
+	return retry.Do(fn,
+		retry.Context(ctx),
+		retry.Attempts(s.maxAttempts),
+		retry.OnRetry(func(n uint, err error) {
+			s.logger.WithError(err).Warningf("loop error, retrying... (#%d)", n+1)
+		}))
 }

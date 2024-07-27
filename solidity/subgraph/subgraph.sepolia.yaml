@@ -6,10 +6,10 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Peggy
-    network: "mainnet"
+    network: "sepolia"
     source:
-      address: "0xF955C57f9EA9Dc8781965FEaE0b6A2acE2BAD6f3"
-      startBlock: 12705133
+      address: "0x12e1181a741b70BE6A9D81f85af3E92B6ba41897"
+      startBlock: 5533785
       abi: Peggy
     mapping:
       kind: ethereum/events
