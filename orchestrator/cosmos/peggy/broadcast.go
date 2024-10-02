@@ -307,7 +307,7 @@ func (c broadcastClient) SendWithdrawalClaim(_ context.Context, withdrawal *pegg
 	defer doneFn()
 
 	log.WithFields(log.Fields{
-		"event_height":   withdrawal.EventNonce,
+		"event_nonce":    withdrawal.EventNonce,
 		"batch_nonce":    withdrawal.BatchNonce.String(),
 		"token_contract": withdrawal.Token.Hex(),
 	}).Debugln("observed TransactionBatchExecutedEvent")
