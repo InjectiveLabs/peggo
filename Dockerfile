@@ -1,5 +1,5 @@
 #install packages for build layer
-FROM golang:1.19-alpine as builder
+FROM golang:1.22-alpine as builder
 
 ADD https://github.com/CosmWasm/wasmvm/releases/download/v1.2.3/libwasmvm_muslc.aarch64.a /lib/libwasmvm_muslc.aarch64.a
 ADD https://github.com/CosmWasm/wasmvm/releases/download/v1.2.3/libwasmvm_muslc.x86_64.a /lib/libwasmvm_muslc.x86_64.a

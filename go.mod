@@ -2,7 +2,7 @@ module github.com/InjectiveLabs/peggo
 
 go 1.22.2
 
-toolchain go1.23.2
+toolchain go1.22.4
 
 require (
 	cosmossdk.io/math v1.3.0
