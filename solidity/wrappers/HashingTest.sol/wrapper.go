@@ -63,7 +63,7 @@ func DeployHashingTest(auth *bind.TransactOpts, backend bind.ContractBackend) (c
 type HashingTest struct {
 	HashingTestCaller     // Read-only binding to the contract
 	HashingTestTransactor // Write-only binding to the contract
-	HashingTestFilterer   // Log filterer for contract events
+	HashingTestFilterer   // log filterer for contract events
 }
 
 // HashingTestCaller is an auto generated read-only Go binding around an Ethereum contract.
