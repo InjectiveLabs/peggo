@@ -6,6 +6,7 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
 
+	"github.com/InjectiveLabs/metrics"
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 	peggytypes "github.com/InjectiveLabs/sdk-go/chain/peggy/types"
 )
@@ -36,6 +37,10 @@ func (l *signer) Log() log.Logger {
 }
 
 func (l *signer) sign(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
+
 	if err := l.signValidatorSets(ctx); err != nil {
 		return err
 	}

@@ -122,10 +122,6 @@ func (s *Orchestrator) startRelayerMode(ctx context.Context, inj cosmos.Network,
 }
 
 func (s *Orchestrator) getLastClaimBlockHeight(ctx context.Context, inj cosmos.Network) (uint64, error) {
-	metrics.ReportFuncCall(s.svcTags)
-	doneFn := metrics.ReportFuncTiming(s.svcTags)
-	defer doneFn()
-
 	claim, err := inj.LastClaimEventByAddr(ctx, s.cfg.CosmosAddr)
 	if err != nil {
 		return 0, err

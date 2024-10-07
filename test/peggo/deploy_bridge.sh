@@ -33,11 +33,22 @@ peggy_block_number=$(curl http://localhost:8545 \
                 -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' 2>/dev/null \
                 | python3 -c "import sys, json; print(int(json.load(sys.stdin)['result']['number'], 0))")
 
+echo "Deploying Peggy contract ..."
 peggy_impl_address=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" deploy)
+
+echo "Initializing Peggy contract ..."
 peggy_init_data=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" tx --bytecode "$peggy_impl_address" initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+
+echo "Deploying ProxyAdmin contract ..."
 proxy_admin_address=$(etherman --name ProxyAdmin -P "$deployer_pk" --source "$admin_proxy_contract_path" deploy)
+
+echo "Deploying TransparentUpgradeableProxy contract ..."
 peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy --source "$upgradeable_proxy_contract_path" -P "$deployer_pk" deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
-coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$cosmos_coin_contract_path" deploy "$peggy_proxy_address" "Injective" "inj" 18)
+
+echo "Deploying Injective (CosmosERC20) token ..."
+coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$cosmos_coin_contract_path" deploy "Injective" "inj" 18)
+
+echo "Done!"
 
 echo "Peggy.sol: $peggy_impl_address"
 echo "ProxyAdmin.sol: $proxy_admin_address"

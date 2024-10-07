@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 	"time"
+
+	"github.com/InjectiveLabs/peggo/orchestrator/cosmos/peggy"
 
 	cli "github.com/jawher/mow.cli"
 	"github.com/xlab/closer"
@@ -131,8 +132,8 @@ func registerEthKeyCmd(cmd *cli.Cmd) {
 			ChainID:          *cosmosChainID,
 			ValidatorAddress: keyring.Addr.String(),
 			CosmosGRPC:       *cosmosGRPC,
-			TendermintRPC:    *cosmosGasPrices,
-			GasPrice:         *tendermintRPC,
+			TendermintRPC:    *tendermintRPC,
+			GasPrice:         *cosmosGasPrices,
 		})
 
 		if err != nil {

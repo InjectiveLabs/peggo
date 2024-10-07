@@ -44,6 +44,10 @@ func (l *relayer) Log() log.Logger {
 }
 
 func (l *relayer) relay(ctx context.Context) error {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
+
 	ethValset, err := l.getLatestEthValset(ctx)
 	if err != nil {
 		return err
@@ -78,6 +82,10 @@ func (l *relayer) relay(ctx context.Context) error {
 }
 
 func (l *relayer) getLatestEthValset(ctx context.Context) (*peggytypes.Valset, error) {
+	metrics.ReportFuncCall(l.svcTags)
+	doneFn := metrics.ReportFuncTiming(l.svcTags)
+	defer doneFn()
+
 	var latestEthValset *peggytypes.Valset
 	fn := func() error {
 		vs, err := l.findLatestValsetOnEth(ctx)
