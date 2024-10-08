@@ -242,6 +242,7 @@ require (
 replace (
 	cosmossdk.io/store => github.com/InjectiveLabs/cosmos-sdk/store v0.50.6-inj-0
 	github.com/CosmWasm/wasmd => github.com/InjectiveLabs/wasmd v0.52.0-inj-0
+	github.com/InjectiveLabs/sdk-go v1.52.2 => github.com/InjectiveLabs/sdk-go v1.52.3-0.20241008180517-3125b0035105
 	github.com/bandprotocol/bandchain-packet => github.com/InjectiveLabs/bandchain-packet v0.0.4-0.20230327115226-35199d4659d5
 	github.com/cometbft/cometbft => github.com/InjectiveLabs/cometbft v0.38.11-inj-0
 	github.com/cosmos/cosmos-sdk => github.com/InjectiveLabs/cosmos-sdk v0.50.9-inj-2
