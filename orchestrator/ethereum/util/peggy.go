@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	sdkmath "cosmossdk.io/math"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -62,7 +63,7 @@ func NewERC20Token(amount uint64, contract string) *ERC20Token {
 
 // PeggyCoin returns the peggy representation of the ERC20
 func (e *ERC20Token) PeggyCoin() sdk.Coin {
-	return sdk.NewCoin(fmt.Sprintf("%s/%s", PeggyDenomPrefix, e.Contract), sdk.NewIntFromBigInt(e.Amount))
+	return sdk.NewCoin(fmt.Sprintf("%s/%s", PeggyDenomPrefix, e.Contract), sdkmath.NewIntFromBigInt(e.Amount))
 }
 
 // ValidateBasic permforms stateless validation

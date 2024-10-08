@@ -2,6 +2,7 @@ package peggy
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
 	"fmt"
 
 	cosmostypes "github.com/cosmos/cosmos-sdk/types"
@@ -235,7 +236,7 @@ func (c broadcastClient) SendOldDepositClaim(_ context.Context, deposit *peggyev
 		EventNonce:     deposit.EventNonce.Uint64(),
 		BlockHeight:    deposit.Raw.BlockNumber,
 		TokenContract:  deposit.TokenContract.Hex(),
-		Amount:         cosmostypes.NewIntFromBigInt(deposit.Amount),
+		Amount:         sdkmath.NewIntFromBigInt(deposit.Amount),
 		EthereumSender: deposit.Sender.Hex(),
 		CosmosReceiver: cosmostypes.AccAddress(deposit.Destination[12:32]).String(),
 		Orchestrator:   c.ChainClient.FromAddress().String(),
@@ -279,7 +280,7 @@ func (c broadcastClient) SendDepositClaim(_ context.Context, deposit *peggyevent
 		EventNonce:     deposit.EventNonce.Uint64(),
 		BlockHeight:    deposit.Raw.BlockNumber,
 		TokenContract:  deposit.TokenContract.Hex(),
-		Amount:         cosmostypes.NewIntFromBigInt(deposit.Amount),
+		Amount:         sdkmath.NewIntFromBigInt(deposit.Amount),
 		EthereumSender: deposit.Sender.Hex(),
 		CosmosReceiver: cosmostypes.AccAddress(deposit.Destination[12:32]).String(),
 		Orchestrator:   c.ChainClient.FromAddress().String(),
@@ -361,7 +362,7 @@ func (c broadcastClient) SendValsetClaim(_ context.Context, vs *peggyevents.Pegg
 		EventNonce:   vs.EventNonce.Uint64(),
 		ValsetNonce:  vs.NewValsetNonce.Uint64(),
 		BlockHeight:  vs.Raw.BlockNumber,
-		RewardAmount: cosmostypes.NewIntFromBigInt(vs.RewardAmount),
+		RewardAmount: sdkmath.NewIntFromBigInt(vs.RewardAmount),
 		RewardToken:  vs.RewardToken.Hex(),
 		Members:      members,
 		Orchestrator: c.FromAddress().String(),

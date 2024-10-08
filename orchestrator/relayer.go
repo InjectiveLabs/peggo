@@ -2,10 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	sdkmath "cosmossdk.io/math"
 	"sort"
 	"time"
 
-	cosmostypes "github.com/cosmos/cosmos-sdk/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
@@ -328,7 +328,7 @@ func (l *relayer) findLatestValsetOnEth(ctx context.Context) (*peggytypes.Valset
 		valset := &peggytypes.Valset{
 			Nonce:        event.NewValsetNonce.Uint64(),
 			Members:      make([]*peggytypes.BridgeValidator, 0, len(event.Powers)),
-			RewardAmount: cosmostypes.NewIntFromBigInt(event.RewardAmount),
+			RewardAmount: sdkmath.NewIntFromBigInt(event.RewardAmount),
 			RewardToken:  event.RewardToken.Hex(),
 		}
 

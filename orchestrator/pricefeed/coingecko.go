@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/InjectiveLabs/metrics"
-	cosmtypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -153,7 +153,7 @@ func checkCoingeckoConfig(cfg *Config) *Config {
 	return cfg
 }
 
-func (cp *CoingeckoPriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee cosmtypes.Int, minFeeInUSD float64) bool {
+func (cp *CoingeckoPriceFeed) CheckFeeThreshold(erc20Contract common.Address, totalFee sdkmath.Int, minFeeInUSD float64) bool {
 	metrics.ReportFuncCall(cp.svcTags)
 	doneFn := metrics.ReportFuncTiming(cp.svcTags)
 	defer doneFn()
