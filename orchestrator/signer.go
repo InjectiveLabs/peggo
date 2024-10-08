@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"time"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	log "github.com/xlab/suplog"
@@ -76,6 +77,8 @@ func (l *signer) signValidatorSets(ctx context.Context) error {
 		}
 
 		l.Log().WithFields(log.Fields{"valset_nonce": vs.Nonce, "validators": len(vs.Members)}).Infoln("confirmed valset update on Injective")
+
+		time.Sleep(1200 * time.Millisecond)
 	}
 
 	return nil

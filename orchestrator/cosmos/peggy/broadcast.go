@@ -111,10 +111,13 @@ func (c broadcastClient) SendValsetConfirm(_ context.Context, ethFrom gethcommon
 		Signature:    gethcommon.Bytes2Hex(signature),
 	}
 
-	if err = c.ChainClient.QueueBroadcastMsg(msg); err != nil {
+	resp, err := c.ChainClient.SyncBroadcastMsg(msg)
+	if err != nil {
 		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgValsetConfirm failed")
 	}
+
+	log.Debugln("SendValsetConfirm response", resp.String())
 
 	return nil
 }
