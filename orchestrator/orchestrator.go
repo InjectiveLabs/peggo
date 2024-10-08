@@ -99,7 +99,7 @@ func (s *Orchestrator) startValidatorMode(ctx context.Context, inj cosmos.Networ
 
 	var pg loops.ParanoidGroup
 
-	pg.Go(func() error { return s.runOracle(ctx, lastObservedEthBlock) })
+	//pg.Go(func() error { return s.runOracle(ctx, lastObservedEthBlock) })
 	pg.Go(func() error { return s.runSigner(ctx, peggyContractID) })
 	pg.Go(func() error { return s.runBatchCreator(ctx) })
 	pg.Go(func() error { return s.runRelayer(ctx) })
