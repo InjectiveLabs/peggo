@@ -40,6 +40,8 @@ contract Peggy is
 {
     using SafeERC20 for IERC20;
 
+    uint256 private constant MAX_NONCE_JUMP_LIMIT = 1_000_000;
+
     // These are updated often
     bytes32 public state_lastValsetCheckpoint;
     mapping(address => uint256) public state_lastBatchNonces;
@@ -288,7 +290,8 @@ contract Peggy is
 
         // Prevent insane jumps potentially leaving the contract unable to process further valset updates
         require(
-            _newValset.valsetNonce < _currentValset.valsetNonce + 1000000,
+            _newValset.valsetNonce <
+                _currentValset.valsetNonce + MAX_NONCE_JUMP_LIMIT,
             "New valset nonce must be less than one million greater than the current nonce"
         );
 
@@ -379,7 +382,9 @@ contract Peggy is
 
             // Prevent insane jumps potentially leaving the contract unable to process further batches
             require(
-                _batchNonce < state_lastBatchNonces[_tokenContract] + 1000000,
+                _batchNonce <
+                    state_lastBatchNonces[_tokenContract] +
+                        MAX_NONCE_JUMP_LIMIT,
                 "New batch nonce must be less than one million greater than the current nonce"
             );
 
