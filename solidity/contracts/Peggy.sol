@@ -286,6 +286,12 @@ contract Peggy is
             "Malformed current validator set"
         );
 
+        // Prevent insane jumps potentially leaving the contract unable to process further valset updates
+        require(
+            _newValset.valsetNonce < _currentValset.valsetNonce + 1000000,
+            "New valset nonce must be less than one million greater than the current nonce"
+        );
+
         // Check that the supplied current validator set matches the saved checkpoint
         require(
             makeCheckpoint(_currentValset, state_peggyId) ==
@@ -369,6 +375,12 @@ contract Peggy is
             require(
                 state_lastBatchNonces[_tokenContract] < _batchNonce,
                 "New batch nonce must be greater than the current nonce"
+            );
+
+            // Prevent insane jumps potentially leaving the contract unable to process further batches
+            require(
+                _batchNonce < state_lastBatchNonces[_tokenContract] + 1000000,
+                "New batch nonce must be less than one million greater than the current nonce"
             );
 
             // Check that the block height is less than the timeout height
