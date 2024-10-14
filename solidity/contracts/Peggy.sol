@@ -40,7 +40,7 @@ contract Peggy is
 {
     using SafeERC20 for IERC20;
 
-    uint256 private constant MAX_NONCE_JUMP_LIMIT = 1_000_000;
+    // ⚠️ ONLY APPEND TO STATE VARIABLES AND DON'T CHANGE VARIABLE ORDER/DEFINITIONS INCL NOT MAKING THEM IMMUTABLE ⚠️
 
     // These are updated often
     bytes32 public state_lastValsetCheckpoint;
@@ -54,6 +54,8 @@ contract Peggy is
     uint256 public state_powerThreshold;
 
     mapping(address => bool) public isInjectiveNativeToken;
+
+    uint256 private constant MAX_NONCE_JUMP_LIMIT = 1_000_000;
 
     // TransactionBatchExecutedEvent and SendToInjectiveEvent both include the field _eventNonce.
     // This is incremented every time one of these events is emitted. It is checked by the
