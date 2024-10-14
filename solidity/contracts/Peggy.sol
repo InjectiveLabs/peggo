@@ -77,7 +77,6 @@ contract Peggy is
         string _data
     );
     event ERC20DeployedEvent(
-        // TODO(xlab): _cosmosDenom can be represented as bytes32 to allow indexing
         string _cosmosDenom,
         address indexed _tokenContract,
         string _name,
