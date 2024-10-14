@@ -90,21 +90,12 @@ contract Peggy is
         uint256[] _powers
     );
 
-    function initialize(
-        // A unique identifier for this peggy instance to use in signatures
-        bytes32 _peggyId,
-        // How much voting power is needed to approve operations
-        uint256 _powerThreshold,
-        // The validator set, not in valset args format since many of it's
-        // arguments would never be used in this case
+    function _validateValidatorSet(
         address[] calldata _validators,
-        uint256[] calldata _powers
-    ) external initializer {
-        __Context_init_unchained();
-        __Ownable_init_unchained();
-        // CHECKS
-
-        // Check that validators, powers, and signatures (v,r,s) set is well-formed
+        uint256[] calldata _powers,
+        uint256 _powerThreshold
+    ) private pure {
+        // Check that validators and powers set is well-formed
         require(
             _validators.length == _powers.length,
             "Malformed current validator set"
@@ -124,6 +115,24 @@ contract Peggy is
             cumulativePower > _powerThreshold,
             "Submitted validator set signatures do not have enough power."
         );
+    }
+
+    function initialize(
+        // A unique identifier for this peggy instance to use in signatures
+        bytes32 _peggyId,
+        // How much voting power is needed to approve operations
+        uint256 _powerThreshold,
+        // The validator set, not in valset args format since many of it's
+        // arguments would never be used in this case
+        address[] calldata _validators,
+        uint256[] calldata _powers
+    ) external initializer {
+        __Context_init_unchained();
+        __Ownable_init_unchained();
+
+        // CHECKS
+
+        _validateValidatorSet(_validators, _powers, _powerThreshold);
 
         ValsetArgs memory _valset;
         _valset = ValsetArgs(_validators, _powers, 0, 0, address(0));
@@ -268,12 +277,6 @@ contract Peggy is
             "New valset nonce must be greater than the current nonce"
         );
 
-        // Check that new validators and powers set is well-formed
-        require(
-            _newValset.validators.length == _newValset.powers.length,
-            "Malformed new validator set"
-        );
-
         // Check that current validators, powers, and signatures (v,r,s) set is well-formed
         require(
             _currentValset.validators.length == _currentValset.powers.length &&
@@ -299,6 +302,12 @@ contract Peggy is
             _r,
             _s,
             newCheckpoint,
+            state_powerThreshold
+        );
+
+        _validateValidatorSet(
+            _newValset.validators,
+            _newValset.powers,
             state_powerThreshold
         );
 
