@@ -210,6 +210,18 @@ func (l *relayer) relayTokenBatch(ctx context.Context, latestEthValset *peggytyp
 			continue
 		}
 
+		// hotfix: non-token contract address in batch
+		nonTokenContractAddress := "0x5085202d0A4D8E4724Aa98C42856441c3b97Bc6d"
+		if batch.TokenContract == nonTokenContractAddress {
+			l.logger.WithFields(log.Fields{
+				"batch_nonce":   batch.BatchNonce,
+				"contract_addr": batch.TokenContract,
+				"batch_timeout": batch.BatchTimeout,
+				"block":         batch.Block,
+			}).Infoln("skipping non token batch")
+			continue
+		}
+
 		sigs, err := l.injective.TransactionBatchSignatures(ctx, batch.BatchNonce, gethcommon.HexToAddress(batch.TokenContract))
 		if err != nil {
 			return err
