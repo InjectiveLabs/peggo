@@ -376,17 +376,17 @@ contract Peggy is
     ) external nonReentrant whenNotPaused {
         // CHECKS scoped to reduce stack depth
         {
+            uint256 currentBatchNonce = state_lastBatchNonces[_tokenContract];
+
             // Check that the batch nonce is higher than the last nonce for this token
             require(
-                state_lastBatchNonces[_tokenContract] < _batchNonce,
+                currentBatchNonce < _batchNonce,
                 "New batch nonce must be greater than the current nonce"
             );
 
             // Prevent insane jumps potentially leaving the contract unable to process further batches
             require(
-                _batchNonce <
-                    state_lastBatchNonces[_tokenContract] +
-                        MAX_NONCE_JUMP_LIMIT,
+                _batchNonce < currentBatchNonce + MAX_NONCE_JUMP_LIMIT,
                 "New batch nonce must be less than 10_000_000_000_000 greater than the current nonce"
             );
 
