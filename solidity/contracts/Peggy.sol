@@ -40,6 +40,8 @@ contract Peggy is
 {
     using SafeERC20 for IERC20;
 
+    // ⚠️ ONLY APPEND TO STATE VARIABLES AND DON'T CHANGE VARIABLE ORDER/DEFINITIONS INCL NOT MAKING THEM IMMUTABLE ⚠️
+
     // These are updated often
     bytes32 public state_lastValsetCheckpoint;
     mapping(address => uint256) public state_lastBatchNonces;
@@ -52,6 +54,8 @@ contract Peggy is
     uint256 public state_powerThreshold;
 
     mapping(address => bool) public isInjectiveNativeToken;
+
+    uint256 private constant MAX_NONCE_JUMP_LIMIT = 10_000_000_000_000;
 
     // TransactionBatchExecutedEvent and SendToInjectiveEvent both include the field _eventNonce.
     // This is incremented every time one of these events is emitted. It is checked by the
@@ -73,7 +77,6 @@ contract Peggy is
         string _data
     );
     event ERC20DeployedEvent(
-        // TODO(xlab): _cosmosDenom can be represented as bytes32 to allow indexing
         string _cosmosDenom,
         address indexed _tokenContract,
         string _name,
@@ -145,6 +148,7 @@ contract Peggy is
         state_powerThreshold = _powerThreshold;
         state_lastValsetCheckpoint = newCheckpoint;
         state_lastEventNonce = state_lastEventNonce + 1;
+
         // LOGS
 
         emit ValsetUpdatedEvent(
@@ -286,6 +290,13 @@ contract Peggy is
             "Malformed current validator set"
         );
 
+        // Prevent insane jumps potentially leaving the contract unable to process further valset updates
+        require(
+            _newValset.valsetNonce <
+                _currentValset.valsetNonce + MAX_NONCE_JUMP_LIMIT,
+            "New valset nonce must be less than 10_000_000_000_000 greater than the current nonce"
+        );
+
         // Check that the supplied current validator set matches the saved checkpoint
         require(
             makeCheckpoint(_currentValset, state_peggyId) ==
@@ -369,6 +380,14 @@ contract Peggy is
             require(
                 state_lastBatchNonces[_tokenContract] < _batchNonce,
                 "New batch nonce must be greater than the current nonce"
+            );
+
+            // Prevent insane jumps potentially leaving the contract unable to process further batches
+            require(
+                _batchNonce <
+                    state_lastBatchNonces[_tokenContract] +
+                        MAX_NONCE_JUMP_LIMIT,
+                "New batch nonce must be less than 10_000_000_000_000 greater than the current nonce"
             );
 
             // Check that the block height is less than the timeout height
