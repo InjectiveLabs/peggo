@@ -55,7 +55,7 @@ contract Peggy is
 
     mapping(address => bool) public isInjectiveNativeToken;
 
-    uint256 private constant MAX_NONCE_JUMP_LIMIT = 1_000_000;
+    uint256 private constant MAX_NONCE_JUMP_LIMIT = 10_000_000_000_000;
 
     // TransactionBatchExecutedEvent and SendToInjectiveEvent both include the field _eventNonce.
     // This is incremented every time one of these events is emitted. It is checked by the
@@ -148,6 +148,7 @@ contract Peggy is
         state_powerThreshold = _powerThreshold;
         state_lastValsetCheckpoint = newCheckpoint;
         state_lastEventNonce = state_lastEventNonce + 1;
+
         // LOGS
 
         emit ValsetUpdatedEvent(
@@ -293,7 +294,7 @@ contract Peggy is
         require(
             _newValset.valsetNonce <
                 _currentValset.valsetNonce + MAX_NONCE_JUMP_LIMIT,
-            "New valset nonce must be less than one million greater than the current nonce"
+            "New valset nonce must be less than 10_000_000_000_000 greater than the current nonce"
         );
 
         // Check that the supplied current validator set matches the saved checkpoint
@@ -386,7 +387,7 @@ contract Peggy is
                 _batchNonce <
                     state_lastBatchNonces[_tokenContract] +
                         MAX_NONCE_JUMP_LIMIT,
-                "New batch nonce must be less than one million greater than the current nonce"
+                "New batch nonce must be less than 10_000_000_000_000 greater than the current nonce"
             );
 
             // Check that the block height is less than the timeout height
