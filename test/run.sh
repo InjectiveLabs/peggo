@@ -4,6 +4,8 @@ set -e
 
 cd "${0%/*}" # cd in the script dir
 
+killall injectived geth &>/dev/null || true
+
 cwd=$(pwd)
 cosmos_dir="$cwd/cosmos"
 eth_dir="$cwd/ethereum"

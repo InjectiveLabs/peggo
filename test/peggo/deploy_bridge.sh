@@ -4,28 +4,42 @@ set -e
 
 cd "${0%/*}" # cd in the script dir
 
-# bytes32 encoding of "injective-peggyid". See peggy_params.json
-PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}"
-POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
-VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
-VALIDATOR_POWERS="${VALIDATOR_POWERS:-1431655765,1431655765,1431655765}"
-DEPLOYER_ADDR=0xbbdf3283d1cf510c17b4ffa1b900f444be4a4a4e
-
-echo "*** Deploying Peggy contract suite ***"
-echo "  PEGGY_ID=$PEGGY_ID"
-echo "  POWER_THRESHOLD=$POWER_THRESHOLD"
-echo "  VALIDATOR_ADDRESSES=$VALIDATOR_ADDRESSES"
-echo "  VALIDATOR_POWERS=$VALIDATOR_POWERS"
 echo -e "\n"
+echo "*** Peggy Contract Suite deployment ***"
 
+# Initial Validator Set on Injective
+PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d70656767796964000000000000000000000000000000}" # bytes32 encoding of "injective-peggyid"
+POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}" # how to get: 2/3 of total validator power on Injective
 
-deployer_pk=$(cat ../ethereum/geth/clique_signer.key)
+VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-\
+0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,\
+0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,\
+0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
 
-peggy_contract_path="../../solidity/contracts/Peggy.sol"
-admin_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol"
-upgradeable_proxy_contract_path="../../solidity/contracts/@openzeppelin/contracts/TransparentUpgradeableProxy.sol"
-cosmos_coin_contract_path="../../solidity/contracts/CosmosToken.sol"
+VALIDATOR_POWERS="${VALIDATOR_POWERS:-\
+1431655765,\
+1431655765,\
+1431655765}"
 
+PEGGY_INIT_ARGS="$PEGGY_ID $POWER_THRESHOLD $VALIDATOR_ADDRESSES $VALIDATOR_POWERS"
+
+# Peggy contracts
+PEGGY_CONTRACT_PATH="../../solidity/contracts/Peggy.sol"
+PROXY_ADMIN_CONTRACT_PATH="../../solidity/contracts/@openzeppelin/contracts/ProxyAdmin.sol"
+PROXY_CONTRACT_PATH="../../solidity/contracts/@openzeppelin/contracts/TransparentUpgradeableProxy.sol"
+COSMOS_TOKEN_CONTRACT_PATH="../../solidity/contracts/CosmosToken.sol"
+COSMOS_TOKEN_DEPLOY_ARGS="Injective inj 18"
+COSMOS_TOKEN_MAX_AMOUNT=100000000000000000000000000 # 100 million tokens that will be minted straight to Peggy proxy
+
+# Ethereum
+DEPLOYER_PK=$(cat ../ethereum/geth/clique_signer.key)
+ETH_ENDPOINT="http://localhost:8545"
+
+TX_OPTS="-P $DEPLOYER_PK --endpoint $ETH_ENDPOINT"
+COSMOS_TOKEN_OPTS="$TX_OPTS --name CosmosERC20 --source $COSMOS_TOKEN_CONTRACT_PATH"
+PEGGY_OPTS="$TX_OPTS --name Peggy --source $PEGGY_CONTRACT_PATH"
+PROXY_ADMIN_OPTS="$TX_OPTS --name ProxyAdmin --source $PROXY_ADMIN_CONTRACT_PATH"
+PEGGY_PROXY_OPTS="$TX_OPTS --name TransparentUpgradeableProxy --source $PROXY_CONTRACT_PATH"
 
 # get the bridge_contract_start_height early so orchestrators can catch the first Valset Updated event from Peggy.sol
 peggy_block_number=$(curl http://localhost:8545 \
@@ -34,32 +48,32 @@ peggy_block_number=$(curl http://localhost:8545 \
                 -d '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' 2>/dev/null \
                 | python3 -c "import sys, json; print(int(json.load(sys.stdin)['result']['number'], 0))")
 
-echo "Deploying Peggy contract ..."
-peggy_impl_address=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" deploy)
 
-echo "Initializing Peggy contract ..."
-peggy_init_data=$(etherman --name Peggy --source $peggy_contract_path -P "$deployer_pk" tx --bytecode "$peggy_impl_address" initialize "$PEGGY_ID" "$POWER_THRESHOLD" "$VALIDATOR_ADDRESSES" "$VALIDATOR_POWERS")
+echo "Deploying Peggy.sol ..."
+peggy_impl_address=$(etherman $PEGGY_OPTS deploy)
 
-echo "Deploying ProxyAdmin contract ..."
-proxy_admin_address=$(etherman --name ProxyAdmin -P "$deployer_pk" --source "$admin_proxy_contract_path" deploy)
+echo "Initializing Peggy.sol ..."
+peggy_init_data=$(etherman $PEGGY_OPTS tx --bytecode "$peggy_impl_address" initialize $PEGGY_INIT_ARGS)
 
-echo "Deploying TransparentUpgradeableProxy contract ..."
-peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy --source "$upgradeable_proxy_contract_path" -P "$deployer_pk" deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
+echo "Deploying ProxyAdmin.sol ..."
+proxy_admin_address=$(etherman $PROXY_ADMIN_OPTS deploy)
 
-echo "Deploying Injective (CosmosERC20) token ..."
-coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$cosmos_coin_contract_path" deploy "Injective" "inj" 18)
+echo "Deploying TransparentUpgradeableProxy.sol ..."
+peggy_proxy_address=$(etherman $PEGGY_PROXY_OPTS deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
 
-echo "Minting 100_000_000 Injective tokens to Peggy proxy ..."
-etherman -P "$deployer_pk" --name CosmosERC20 --source "$cosmos_coin_contract_path" tx  "$coin_contract_address" mint "$peggy_proxy_address" 100000000000000000000000000
+echo "Deploying Injective (CosmosERC20.sol) token ..."
+coin_contract_address=$(etherman $COSMOS_TOKEN_OPTS deploy $COSMOS_TOKEN_DEPLOY_ARGS)
 
+echo "Minting 100_000_000 Injective tokens to Peggy.sol proxy ..."
+etherman $COSMOS_TOKEN_OPTS tx  "$coin_contract_address" mint "$peggy_proxy_address" $COSMOS_TOKEN_MAX_AMOUNT
 
 echo "Done!"
 
-echo "Peggy.sol: $peggy_impl_address"
-echo "ProxyAdmin.sol: $proxy_admin_address"
-echo "TransparentUpgradeableProxy.sol: $peggy_proxy_address"
-echo "Injective token: $coin_contract_address"
-echo "Contract suite deployment done!"
+echo "Contract addresses:"
+echo "  * $peggy_impl_address Peggy.sol"
+echo "  * $proxy_admin_address ProxyAdmin.sol:"
+echo "  * $peggy_proxy_address TransparentUpgradeableProxy.sol"
+echo "  * $coin_contract_address Injective token"
 echo -e "\n"
 
 sleep 2
