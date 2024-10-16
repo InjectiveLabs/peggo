@@ -20,9 +20,9 @@ RUN go mod download
 RUN DOCKER=true make install
 
 #build main container
-#FROM alpine:latest
+FROM alpine:latest
 RUN apk add --update --no-cache ca-certificates curl libgcc
-#COPY --from=builder /go/bin/* /usr/local/bin/
+COPY --from=builder /go/bin/* /usr/local/bin/
 
 #configure container
 VOLUME /apps/data
