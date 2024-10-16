@@ -515,6 +515,8 @@ contract Peggy is
             transferAmount = balanceAfterTransfer - balanceBeforeTransfer;
         }
 
+        require(transferAmount > 0, "Transfer amount must be greater than 0");
+
         state_lastEventNonce = state_lastEventNonce + 1;
 
         emit SendToInjectiveEvent(
