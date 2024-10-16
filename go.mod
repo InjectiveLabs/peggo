@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/math v1.3.0
 	github.com/InjectiveLabs/etherman v1.7.0
 	github.com/InjectiveLabs/metrics v0.0.10
-	github.com/InjectiveLabs/sdk-go v1.52.2
+	github.com/InjectiveLabs/sdk-go v1.53.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/cometbft/cometbft v0.38.10
 	github.com/cosmos/cosmos-sdk v0.50.7

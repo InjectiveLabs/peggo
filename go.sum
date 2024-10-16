@@ -1488,8 +1488,8 @@ github.com/InjectiveLabs/etherman v1.7.0 h1:ryYW87fqpnhRP33x+ykDhy6Lx9215Fl5T5LI
 github.com/InjectiveLabs/etherman v1.7.0/go.mod h1:7unNlA/9UVNZhneEWtNnFWfGDJ5KijkGprkpEF9I1BA=
 github.com/InjectiveLabs/metrics v0.0.10 h1:BoOwXnCtRRIPmq06jcI20pXZYE758eusaCI5jDOoN4U=
 github.com/InjectiveLabs/metrics v0.0.10/go.mod h1:eYu++0DVUjk/jjV9WgvCo8gQU+16Yoyhp1iu+ghKNME=
-github.com/InjectiveLabs/sdk-go v1.52.2 h1:MhOO32Kb+ZyQ6GycATv4mA8YtIn+mQ1zBGFDlDCx1Zw=
-github.com/InjectiveLabs/sdk-go v1.52.2/go.mod h1:M1Y5IS49spwFq9Wb36XX7dnVFbonT0/q1fZfQlboIAc=
+github.com/InjectiveLabs/sdk-go v1.53.0 h1:Skp45wb1GQinQeDRU7vmeKWFST3dRmQRQ/e7G41WleM=
+github.com/InjectiveLabs/sdk-go v1.53.0/go.mod h1:M1Y5IS49spwFq9Wb36XX7dnVFbonT0/q1fZfQlboIAc=
 github.com/InjectiveLabs/suplog v1.3.3 h1:ARIR3lWD9BxcrmqTwgcGBt8t7e10gwOqllUAXa/MfxI=
 github.com/InjectiveLabs/suplog v1.3.3/go.mod h1:+I9WRgUhzmo1V/n7IkW24kFBFB9ZTPAiXXXCogWxmTM=
 github.com/InjectiveLabs/wasmd v0.52.0-inj-0 h1:2sJftrI2+kc27wfBP9TZuoqszZx7YU8WNkFO/vMeZqQ=
