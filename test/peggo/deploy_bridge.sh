@@ -9,6 +9,7 @@ PEGGY_ID="${PEGGY_ID:-0x696e6a6563746976652d706567677969640000000000000000000000
 POWER_THRESHOLD="${POWER_THRESHOLD:-1431655765}"
 VALIDATOR_ADDRESSES="${VALIDATOR_ADDRESSES:-0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4,0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c,0x8B094eD440900CEB75B83A22eD8A2C7582B442C2}"
 VALIDATOR_POWERS="${VALIDATOR_POWERS:-1431655765,1431655765,1431655765}"
+DEPLOYER_ADDR=0xbbdf3283d1cf510c17b4ffa1b900f444be4a4a4e
 
 echo "*** Deploying Peggy contract suite ***"
 echo "  PEGGY_ID=$PEGGY_ID"
@@ -47,6 +48,10 @@ peggy_proxy_address=$(etherman --name TransparentUpgradeableProxy --source "$upg
 
 echo "Deploying Injective (CosmosERC20) token ..."
 coin_contract_address=$(etherman --name CosmosERC20 -P "$deployer_pk" --source "$cosmos_coin_contract_path" deploy "Injective" "inj" 18)
+
+echo "Minting 100_000_000 Injective tokens to Peggy proxy ..."
+etherman -P "$deployer_pk" --name CosmosERC20 --source "$cosmos_coin_contract_path" tx  "$coin_contract_address" mint "$peggy_proxy_address" 100000000000000000000000000
+
 
 echo "Done!"
 
