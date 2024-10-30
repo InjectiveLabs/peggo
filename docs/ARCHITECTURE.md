@@ -153,7 +153,7 @@ The BatchCreator runs as a loop with a default duration (60 seconds) checking fo
 ### Fee validation
 
 * Converts token amounts using proper decimals
-* Multiplies by current token USD price
+* Multiplies by current token USD price (CoinGecko)
 * Compares against minimum configured batch fee threshold
 * Only processes batches that meet minimum fee requirements
 
