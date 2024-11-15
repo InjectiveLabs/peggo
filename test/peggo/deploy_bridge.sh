@@ -52,20 +52,32 @@ peggy_block_number=$(curl http://localhost:8545 \
 echo "Deploying Peggy.sol ..."
 peggy_impl_address=$(etherman $PEGGY_OPTS deploy)
 
+sleep 1
+
 echo "Initializing Peggy.sol ..."
 peggy_init_data=$(etherman $PEGGY_OPTS tx --bytecode "$peggy_impl_address" initialize $PEGGY_INIT_ARGS)
+
+sleep 1
 
 echo "Deploying ProxyAdmin.sol ..."
 proxy_admin_address=$(etherman $PROXY_ADMIN_OPTS deploy)
 
+sleep 1
+
 echo "Deploying TransparentUpgradeableProxy.sol ..."
 peggy_proxy_address=$(etherman $PEGGY_PROXY_OPTS deploy "$peggy_impl_address" "$proxy_admin_address" "$peggy_init_data")
+
+sleep 1
 
 echo "Deploying Injective (CosmosERC20.sol) token ..."
 coin_contract_address=$(etherman $COSMOS_TOKEN_OPTS deploy $COSMOS_TOKEN_DEPLOY_ARGS)
 
+sleep 1
+
 echo "Minting 100_000_000 Injective tokens to Peggy.sol proxy ..."
 etherman $COSMOS_TOKEN_OPTS tx  "$coin_contract_address" mint "$peggy_proxy_address" $COSMOS_TOKEN_MAX_AMOUNT
+
+sleep 1
 
 echo "Done!"
 

@@ -27,7 +27,11 @@
         "valset_reward": {
           "denom": "inj",
           "amount": "0"
-        }
+        },
+        "admins": [
+          "inj1wfawuv6fslzjlfa4v7exv27mk6rpfeyvhvxchc"
+        ],
+        "segregated_wallet_address": "inj1x2ck0ql2ngyxqtw8jteyc0tchwnwxv7npaungt"
       }
     }
   ],
