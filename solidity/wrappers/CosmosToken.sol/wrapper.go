@@ -33,7 +33,7 @@ const ContextABI = "[]"
 type Context struct {
 	ContextCaller     // Read-only binding to the contract
 	ContextTransactor // Write-only binding to the contract
-	ContextFilterer   // Log filterer for contract events
+	ContextFilterer   // log filterer for contract events
 }
 
 // ContextCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -210,7 +210,7 @@ func DeployCosmosERC20(auth *bind.TransactOpts, backend bind.ContractBackend, pe
 type CosmosERC20 struct {
 	CosmosERC20Caller     // Read-only binding to the contract
 	CosmosERC20Transactor // Write-only binding to the contract
-	CosmosERC20Filterer   // Log filterer for contract events
+	CosmosERC20Filterer   // log filterer for contract events
 }
 
 // CosmosERC20Caller is an auto generated read-only Go binding around an Ethereum contract.
@@ -646,7 +646,7 @@ type CosmosERC20ApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -800,7 +800,7 @@ type CosmosERC20TransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -986,7 +986,7 @@ func DeployERC20(auth *bind.TransactOpts, backend bind.ContractBackend, name_ st
 type ERC20 struct {
 	ERC20Caller     // Read-only binding to the contract
 	ERC20Transactor // Write-only binding to the contract
-	ERC20Filterer   // Log filterer for contract events
+	ERC20Filterer   // log filterer for contract events
 }
 
 // ERC20Caller is an auto generated read-only Go binding around an Ethereum contract.
@@ -1422,7 +1422,7 @@ type ERC20ApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -1576,7 +1576,7 @@ type ERC20TransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -1740,7 +1740,7 @@ var IERC20FuncSigs = map[string]string{
 type IERC20 struct {
 	IERC20Caller     // Read-only binding to the contract
 	IERC20Transactor // Write-only binding to the contract
-	IERC20Filterer   // Log filterer for contract events
+	IERC20Filterer   // log filterer for contract events
 }
 
 // IERC20Caller is an auto generated read-only Go binding around an Ethereum contract.
@@ -2041,7 +2041,7 @@ type IERC20ApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -2195,7 +2195,7 @@ type IERC20TransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -2362,7 +2362,7 @@ var IERC20MetadataFuncSigs = map[string]string{
 type IERC20Metadata struct {
 	IERC20MetadataCaller     // Read-only binding to the contract
 	IERC20MetadataTransactor // Write-only binding to the contract
-	IERC20MetadataFilterer   // Log filterer for contract events
+	IERC20MetadataFilterer   // log filterer for contract events
 }
 
 // IERC20MetadataCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -2756,7 +2756,7 @@ type IERC20MetadataApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -2910,7 +2910,7 @@ type IERC20MetadataTransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration

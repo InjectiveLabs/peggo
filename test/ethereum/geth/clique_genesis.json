@@ -21,7 +21,7 @@
     "difficulty": "1",
     "alloc": {
         "0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e": {
-            "balance": "0x1"
+            "balance": "0x6bc75e2d63100000"
         },
         "0x5409ED021D9299bf6814279A6A1411A7e866A631": {
             "balance": "0x6bc75e2d63100000"
@@ -51,6 +51,18 @@
             "balance": "0x6bc75e2d63100000"
         },
         "0x91c987bf62D25945dB517BDAa840A6c661374402": {
+            "balance": "0x6bc75e2d63100000"
+        },
+
+        "0x4e9feE2BCdf6F21b17b77BD0ac9faDD6fF16B4d4": {
+            "balance": "0x6bc75e2d63100000"
+        },
+
+        "0xec43B0eA83844Cbe5A20F5371604BD452Cb1012c": {
+            "balance": "0x6bc75e2d63100000"
+        },
+
+        "0x8B094eD440900CEB75B83A22eD8A2C7582B442C2": {
             "balance": "0x6bc75e2d63100000"
         }
     }
