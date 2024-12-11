@@ -36,16 +36,16 @@ geth --datadir "$DATA_DIR" --networkid "$GETH_NETWORK_ID" --nodiscover \
   --mine --miner.gaslimit "$GETH_BLOCK_GAS_LIMIT" > "$DATA_DIR".geth.log 2>&1 &
 
 echo $! > "$DATA_DIR".geth.pid # overwrite previous PID
+PID=$(cat ./data/$GETH_NETWORK_ID.geth.pid)
 
 sleep 1
 
-echo "** USAGE **"
+echo "Geth:"
+echo "  http://localhost:$GETH_PORT"
 echo "Logs:"
 echo "  tail -f ./data/$GETH_NETWORK_ID.geth.log"
-echo 
-echo "Command Line Access:"
-echo "  geth attach http://localhost:8545"
-echo "  geth attach ./data/$GETH_NETWORK_ID/geth.ipc"
-echo 
 echo "Shutdown:"
-echo "  kill \$(cat ./data/$GETH_NETWORK_ID.geth.pid)"
+echo "  kill $PID"
+echo
+echo "Ethereum network setup complete!"
+echo

@@ -51,14 +51,9 @@ fi
 
 NODE_BIN="$1"
 
-echo "Using $CHAIN_ID as Chain ID and $CHAIN_DIR as data prefix."
-echo "Using $DENOM as Cosmos Coin Denom."
-echo "Using $STAKE_DENOM as Cosmos Stake Denom."
-
 if [[ "$CLEANUP" == 1 || "$CLEANUP" == "1" ]]; then
 	echo "Will remove $CHAIN_DIR"
 fi
-echo "Press ^C if you don't agree.."
 
 killall "$NODE_BIN" &>/dev/null || true
 
@@ -99,7 +94,7 @@ cid="--chain-id $CHAIN_ID"
 
 # Check if the data dir has been initialized already
 if [[ ! -d "$hdir" ]]; then
-	echo "Creating 3x $NODE_BIN validators with chain-id=$CHAIN_ID"
+	echo "Creating 3x $NODE_BIN validators and 1 user account..."
 
 	# Build genesis file and create accounts
 	if [[ "$STAKE_DENOM" != "$DENOM" ]]; then
@@ -108,8 +103,6 @@ if [[ ! -d "$hdir" ]]; then
 		coins="1000000$SCALE_FACTOR$DENOM"
 	fi
 	coins_user="1000000$SCALE_FACTOR$DENOM"
-
-	echo "initializing node homes..."
 
 	# Initialize the home directories of each node
 	$NODE_BIN $home0 $cid init n0 &>/dev/null
@@ -261,7 +254,7 @@ if [[ ! -d "$hdir" ]]; then
 fi # data dir check
 
 # Start the instances
-echo "Starting injectived nodes..."
+echo "Starting validator nodes..."
 
 echo $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090"
 $NODE_BIN $home0 start --grpc.address "0.0.0.0:9090" > $hdir.n0.log 2>&1 &
@@ -272,24 +265,15 @@ $NODE_BIN $home1 start --grpc.address "0.0.0.0:9091" > $hdir.n1.log 2>&1 &
 echo $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092"
 $NODE_BIN $home2 start --grpc.address "0.0.0.0:9092" > $hdir.n2.log 2>&1 &
 
-
-
 # Wait for chains to start
-echo "Waiting for chain to start..."
 sleep 5
 
 echo
 echo "Logs:"
-echo "  * tail -f ./data/$CHAIN_ID.n0.log"
-echo "  * tail -f ./data/$CHAIN_ID.n1.log"
-echo "  * tail -f ./data/$CHAIN_ID.n2.log"
+echo "  tail -f ./data/$CHAIN_ID.n0.log"
+echo "  tail -f ./data/$CHAIN_ID.n1.log"
+echo "  tail -f ./data/$CHAIN_ID.n2.log"
 echo 
-echo "Env for easy access:"
-echo "export H1='--home ./data/$CHAIN_ID/n0/'"
-echo "export H2='--home ./data/$CHAIN_ID/n1/'"
-echo "export H3='--home ./data/$CHAIN_ID/n2/'"
-echo 
-echo "Command Line Access:"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n0 status"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n1 status"
-echo "  * $NODE_BIN --home ./data/$CHAIN_ID/n2 status"
+echo "Injective network setup complete!"
+echo
+

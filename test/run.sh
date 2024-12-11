@@ -23,5 +23,11 @@ rm -rf "$peggo_dir/build"
 # Start the Cosmos chain
 "$cosmos_dir"/multinode.sh injectived
 
-# Deploy Peggy contract suite and start Peggo orchestrators
-"$peggo_dir"/deploy_bridge.sh
+# Deploy Peggy contracts suite
+"$peggo_dir"/deploy_peggy_contract_suite.sh
+
+# Update Peggy module and register orchestrators
+"$peggo_dir"/update_peggy_module.sh
+
+# Start the orchestrators
+"$peggo_dir"/start_orchestrators.sh
