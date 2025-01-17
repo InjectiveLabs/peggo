@@ -22,13 +22,6 @@ const (
 	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
 	// when there are more than ~50 events to claim in a single run.
 	defaultBlocksToSearch uint64 = 2000
-
-	// Auto re-sync to catch up the validator's last observed event nonce. Reasons why event nonce fall behind:
-	// 1. It takes some time for events to be indexed on Ethereum. So if peggo queried events immediately as block produced, there is a chance the event is missed.
-	//  We need to re-scan this block to ensure events are not missed due to indexing delay.
-	// 2. if validator was in UnBonding state, the claims broadcasted in last iteration are failed.
-	// 3. if infura call failed while filtering events, the peggo missed to broadcast claim events occured in last iteration.
-	resyncInterval = 24 * time.Hour
 )
 
 // runOracle is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -138,12 +131,6 @@ func (l *oracle) observeEthEvents(ctx context.Context) error {
 	l.Log().WithFields(log.Fields{"claims": len(newEvents), "eth_block_start": l.lastObservedEthHeight, "eth_block_end": latestHeight}).Infoln("sent new event claims to Injective")
 	l.lastObservedEthHeight = latestHeight
 
-	if time.Since(l.lastResyncWithInjective) >= resyncInterval {
-		if err := l.autoResync(ctx); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -154,27 +141,27 @@ func (l *oracle) getEthEvents(ctx context.Context, startBlock, endBlock uint64) 
 
 		oldDepositEvents, err := l.ethereum.GetSendToCosmosEvents(startBlock, endBlock)
 		if err != nil {
-			return errors.Wrap(err, "failed to get SendToCosmos events")
+			return err
 		}
 
 		depositEvents, err := l.ethereum.GetSendToInjectiveEvents(startBlock, endBlock)
 		if err != nil {
-			return errors.Wrap(err, "failed to get SendToInjective events")
+			return err
 		}
 
 		withdrawalEvents, err := l.ethereum.GetTransactionBatchExecutedEvents(startBlock, endBlock)
 		if err != nil {
-			return errors.Wrap(err, "failed to get TransactionBatchExecuted events")
+			return err
 		}
 
 		erc20DeploymentEvents, err := l.ethereum.GetPeggyERC20DeployedEvents(startBlock, endBlock)
 		if err != nil {
-			return errors.Wrap(err, "failed to get ERC20Deployed events")
+			return err
 		}
 
 		valsetUpdateEvents, err := l.ethereum.GetValsetUpdatedEvents(startBlock, endBlock)
 		if err != nil {
-			return errors.Wrap(err, "failed to get ValsetUpdated events")
+			return err
 		}
 
 		for _, e := range oldDepositEvents {
@@ -274,25 +261,6 @@ func (l *oracle) sendNewEventClaims(ctx context.Context, events []event) error {
 	if err := l.retry(ctx, sendEventsFn); err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func (l *oracle) autoResync(ctx context.Context) error {
-	var height uint64
-	fn := func() (err error) {
-		height, err = l.getLastClaimBlockHeight(ctx, l.injective)
-		return
-	}
-
-	if err := l.retry(ctx, fn); err != nil {
-		return err
-	}
-
-	l.Log().WithFields(log.Fields{"last_resync": l.lastResyncWithInjective.String(), "last_claimed_eth_height": height}).Infoln("auto resyncing with last claimed event on Injective")
-
-	l.lastObservedEthHeight = height
-	l.lastResyncWithInjective = time.Now()
 
 	return nil
 }
