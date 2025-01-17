@@ -157,7 +157,7 @@ func (n *network) GetSendToCosmosEvents(startBlock, endBlock uint64) ([]*peggyev
 	}, nil, nil, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past SendToCosmos events from Ethereum")
+			return nil, errors.Wrapf(err, "failed to scan past SendToCosmos events from Ethereum (%d - %d)", startBlock, endBlock)
 		} else if iter == nil {
 			return nil, errors.New("no iterator returned")
 		}
@@ -185,7 +185,7 @@ func (n *network) GetSendToInjectiveEvents(startBlock, endBlock uint64) ([]*pegg
 	}, nil, nil, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past SendToCosmos events from Ethereum")
+			return nil, errors.Wrapf(err, "failed to scan past SendToInjectiveEvent events from Ethereum (%d - %d)", startBlock, endBlock)
 		} else if iter == nil {
 			return nil, errors.New("no iterator returned")
 		}
@@ -213,7 +213,7 @@ func (n *network) GetPeggyERC20DeployedEvents(startBlock, endBlock uint64) ([]*p
 	}, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past TransactionBatchExecuted events from Ethereum")
+			return nil, errors.Wrapf(err, "failed to scan past ERC20DeployedEvent events from Ethereum (%d - %d)", startBlock, endBlock)
 		} else if iter == nil {
 			return nil, errors.New("no iterator returned")
 		}
@@ -241,7 +241,7 @@ func (n *network) GetValsetUpdatedEvents(startBlock, endBlock uint64) ([]*peggye
 	}, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past ValsetUpdatedEvent events from Ethereum")
+			return nil, errors.Wrapf(err, "failed to scan past ValsetUpdatedEvent events from Ethereum (%d - %d)", startBlock, endBlock)
 		} else if iter == nil {
 			return nil, errors.New("no iterator returned")
 		}
@@ -269,7 +269,7 @@ func (n *network) GetTransactionBatchExecutedEvents(startBlock, endBlock uint64)
 	}, nil, nil)
 	if err != nil {
 		if !isUnknownBlockErr(err) {
-			return nil, errors.Wrap(err, "failed to scan past TransactionBatchExecuted events from Ethereum")
+			return nil, errors.Wrapf(err, "failed to scan past TransactionBatchExecuted events from Ethereum (%d - %d)", startBlock, endBlock)
 		} else if iter == nil {
 			return nil, errors.New("no iterator returned")
 		}

@@ -113,7 +113,7 @@ func customEndpoints(cfg NetworkConfig) clientcommon.Network {
 	c := clientcommon.LoadNetwork("devnet", "")
 	c.Name = "custom"
 	c.ChainId = cfg.ChainID
-	c.Fee_denom = "inj"
+	c.FeeDenom = "inj"
 	c.TmEndpoint = cfg.TendermintRPC
 	c.ChainGrpcEndpoint = cfg.CosmosGRPC
 	c.ExplorerGrpcEndpoint = ""
