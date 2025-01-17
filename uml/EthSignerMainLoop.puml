@@ -1,0 +1,36 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+participant PeggyOrchestrator as peggo
+participant ethSignerLoop
+participant InjectiveNetwork as injective
+entity PeggyChainModule as peggyModule
+entity InjectiveNode as chainNode
+
+peggo -> peggo ++ : BatchRequesterLoop
+    peggo -> ethSignerLoop **
+    peggo -> ethSignerLoop ++ : Run
+        ethSignerLoop -> ethSignerLoop ++ : signNewValsetUpdates
+            ethSignerLoop -> ethSignerLoop ++ : getUnsignedValsets
+                ethSignerLoop -> injective ++ : OldestUnsignedValsets
+                    injective -> peggyModule : LastPendingValsetRequestByAddr
+                    injective <-- peggyModule : unsigned valsets
+                return unsigned valsets
+            return unsigned valsets
+            loop unsigned valsets
+                ethSignerLoop -> ethSignerLoop ++ : signValset
+                    ethSignerLoop -> injective ++ : SendValsetConfirm
+                        injective -> chainNode : QueueBroadcastMsg(MsgValsetConfirm)
+                    return
+                return
+            end
+        return
+        ethSignerLoop -> ethSignerLoop ++ : signNewBatch
+
+        return
+
+    return
+
+return
+
+@enduml
