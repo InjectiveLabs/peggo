@@ -276,7 +276,7 @@ func (l *relayer) shouldRelayBatch(ctx context.Context, batch *peggytypes.Outgoi
 	return true
 }
 
-// FindLatestValset finds the latest valset on the Peggy contract by looking back through the event
+// findLatestValsetOnEth finds the latest valset on the Peggy contract by looking back through the event
 // history and finding the most recent ValsetUpdatedEvent. Most of the time this will be very fast
 // as the latest update will be in recent blockchain history and the search moves from the present
 // backwards in time. In the case that the validator set has not been updated for a very long time
