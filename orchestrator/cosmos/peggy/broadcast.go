@@ -33,7 +33,7 @@ type BroadcastClient interface {
 	SendERC20DeployedClaim(ctx context.Context, erc20 *peggyevents.PeggyERC20DeployedEvent) error
 }
 
-const broadcastMsgSleepDuration = 800 * time.Millisecond
+const broadcastMsgSleepDuration = 1 * time.Second
 
 type broadcastClient struct {
 	chain.ChainClient
