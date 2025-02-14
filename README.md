@@ -90,6 +90,7 @@ Options:
       --min_batch_fee_usd                If set, batch request will create batches only if fee threshold exceeds (env $PEGGO_MIN_BATCH_FEE_USD) (default 23.3)
       --coingecko_api                    Specify HTTP endpoint for coingecko api. (env $PEGGO_COINGECKO_API) (default "https://api.coingecko.com/api/v3")
       --loop_duration                    Specify the main the loop duration (env $PEGGO_LOOP_DURATION) (default "60s")
+      --blocks_to_serach                 Specify maximum block range for Ethereum event query (env $PEGGO_BLOCKS_TO_SEARCH) (default 2000)
 
 ```
 

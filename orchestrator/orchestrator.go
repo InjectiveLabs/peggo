@@ -31,6 +31,11 @@ type Config struct {
 	RelayBatches         bool
 	RelayerMode          bool
 	LoopDuration         time.Duration
+
+	// Maximum block range for Ethereum event query. If the orchestrator has been offline for a long time,
+	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
+	// when there are more than ~50 events to claim in a single run.
+	NumberOfBlocksToSearch uint64
 }
 
 type Orchestrator struct {

@@ -145,16 +145,17 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		}
 
 		orchestratorCfg := orchestrator.Config{
-			CosmosAddr:           cosmosKeyring.Addr,
-			EthereumAddr:         ethKeyFromAddress,
-			MinBatchFeeUSD:       *cfg.minBatchFeeUSD,
-			ERC20ContractMapping: erc20ContractMapping,
-			RelayValsetOffsetDur: valsetDur,
-			RelayBatchOffsetDur:  batchDur,
-			RelayValsets:         *cfg.relayValsets,
-			RelayBatches:         *cfg.relayBatches,
-			RelayerMode:          !isValidator,
-			LoopDuration:         loopDur,
+			CosmosAddr:             cosmosKeyring.Addr,
+			EthereumAddr:           ethKeyFromAddress,
+			MinBatchFeeUSD:         *cfg.minBatchFeeUSD,
+			ERC20ContractMapping:   erc20ContractMapping,
+			RelayValsetOffsetDur:   valsetDur,
+			RelayBatchOffsetDur:    batchDur,
+			RelayValsets:           *cfg.relayValsets,
+			RelayBatches:           *cfg.relayBatches,
+			RelayerMode:            !isValidator,
+			LoopDuration:           loopDur,
+			NumberOfBlocksToSearch: *cfg.numberOfBlocksToSearch,
 		}
 
 		// Create peggo and run it

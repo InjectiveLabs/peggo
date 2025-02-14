@@ -273,7 +273,8 @@ type Config struct {
 
 	coingeckoApi *string
 
-	loopDuration *string
+	loopDuration           *string
+	numberOfBlocksToSearch *uint64
 }
 
 func initConfig(cmd *cli.Cmd) Config {
@@ -484,6 +485,20 @@ func initConfig(cmd *cli.Cmd) Config {
 		EnvVar: "PEGGO_LOOP_DURATION",
 		Value:  "60s",
 	})
+
+	/** Default block to serach **/
+	numberOfBlocksToSearch := uint64(*cmd.Int(cli.IntOpt{
+		Name:   "number_of_blocks_to_serach",
+		Desc:   "Maximum block range for Ethereum event query",
+		EnvVar: "PEGGO_BLOCKS_TO_SEARCH",
+		Value:  2000,
+	}))
+
+	if numberOfBlocksToSearch == 0 {
+		numberOfBlocksToSearch = 2000
+	}
+
+	cfg.numberOfBlocksToSearch = &numberOfBlocksToSearch
 
 	return cfg
 }
