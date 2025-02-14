@@ -494,10 +494,6 @@ func initConfig(cmd *cli.Cmd) Config {
 		Value:  2000,
 	}))
 
-	if numberOfBlocksToSearch == 0 {
-		numberOfBlocksToSearch = 2000
-	}
-
 	cfg.numberOfBlocksToSearch = &numberOfBlocksToSearch
 
 	return cfg
