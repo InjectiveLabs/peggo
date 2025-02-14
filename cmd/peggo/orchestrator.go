@@ -126,6 +126,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		var (
 			valsetDur time.Duration
 			batchDur  time.Duration
+			loopDur   time.Duration
 		)
 
 		if *cfg.relayValsets {
@@ -138,6 +139,11 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			orShutdown(err)
 		}
 
+		loopDur, err = time.ParseDuration(*cfg.loopDuration)
+		if err != nil {
+			loopDur = 60 * time.Second
+		}
+
 		orchestratorCfg := orchestrator.Config{
 			CosmosAddr:           cosmosKeyring.Addr,
 			EthereumAddr:         ethKeyFromAddress,
@@ -148,6 +154,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 			RelayValsets:         *cfg.relayValsets,
 			RelayBatches:         *cfg.relayBatches,
 			RelayerMode:          !isValidator,
+			LoopDuration:         loopDur,
 		}
 
 		// Create peggo and run it

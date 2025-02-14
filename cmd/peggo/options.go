@@ -1,6 +1,8 @@
 package main
 
-import cli "github.com/jawher/mow.cli"
+import (
+	cli "github.com/jawher/mow.cli"
+)
 
 // initGlobalOptions defines some global CLI options, that are useful for most parts of the app.
 // Before adding option to there, consider moving it into the actual Cmd.
@@ -270,6 +272,8 @@ type Config struct {
 	minBatchFeeUSD *float64
 
 	coingeckoApi *string
+
+	loopDuration *string
 }
 
 func initConfig(cmd *cli.Cmd) Config {
@@ -471,6 +475,14 @@ func initConfig(cmd *cli.Cmd) Config {
 		Desc:   "Specify HTTP endpoint for pricefeed api.",
 		EnvVar: "PEGGO_COINGECKO_API",
 		Value:  "https://api.coingecko.com/api/v3",
+	})
+
+	/** Loop Duration **/
+	cfg.loopDuration = cmd.String(cli.StringOpt{
+		Name:   "loop_duration",
+		Desc:   "Specify the duration of the loop",
+		EnvVar: "PEGGO_LOOP_DURATION",
+		Value:  "60s",
 	})
 
 	return cfg

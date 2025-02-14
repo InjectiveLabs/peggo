@@ -33,9 +33,9 @@ func (s *Orchestrator) runOracle(ctx context.Context, lastObservedBlock uint64) 
 		lastResyncWithInjective: time.Now(),
 	}
 
-	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Oracle...")
+	s.logger.WithField("loop_duration", s.cfg.LoopDuration.String()).Debugln("starting Oracle...")
 
-	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+	return loops.RunLoop(ctx, s.cfg.LoopDuration, func() error {
 		return oracle.observeEthEvents(ctx)
 	})
 }

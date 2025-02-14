@@ -15,10 +15,6 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-const (
-	defaultLoopDur = 60 * time.Second
-)
-
 // PriceFeed provides token price for a given contract address
 type PriceFeed interface {
 	QueryUSDPrice(address gethcommon.Address) (float64, error)
@@ -34,6 +30,7 @@ type Config struct {
 	RelayValsets         bool
 	RelayBatches         bool
 	RelayerMode          bool
+	LoopDuration         time.Duration
 }
 
 type Orchestrator struct {

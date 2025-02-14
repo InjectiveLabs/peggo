@@ -8,8 +8,8 @@ Peggo is a Go implementation of the Peggy Orchestrator for the Injective Chain.
 
 Important Commands:
 
-* `peggo orchestrator` starts the orchestrator main loop.
-* `peggo tx register-eth-key` is a special command to submit an Ethereum key that will be used to sign messages on behalf of your Validator
+- `peggo orchestrator` starts the orchestrator main loop.
+- `peggo tx register-eth-key` is a special command to submit an Ethereum key that will be used to sign messages on behalf of your Validator
 
 ## Installation
 
@@ -47,7 +47,7 @@ Commands:
   tx                       Transactions for Peggy governance and maintenance.
   version                  Print the version information and exit.
 
-Run 'peggo COMMAND --help' for more information on a command.      
+Run 'peggo COMMAND --help' for more information on a command.
 ```
 
 ## Commands
@@ -89,6 +89,7 @@ Options:
       --relay_pending_tx_wait_duration   If set, relayer will broadcast pending batches/valsetupdate only after pendingTxWaitDuration has passed (env $PEGGO_RELAY_PENDING_TX_WAIT_DURATION) (default "20m")
       --min_batch_fee_usd                If set, batch request will create batches only if fee threshold exceeds (env $PEGGO_MIN_BATCH_FEE_USD) (default 23.3)
       --coingecko_api                    Specify HTTP endpoint for coingecko api. (env $PEGGO_COINGECKO_API) (default "https://api.coingecko.com/api/v3")
+      --loop_duration                    Specify the main the loop duration (env $PEGGO_LOOP_DURATION) (default "60s")
 
 ```
 
