@@ -488,7 +488,7 @@ func initConfig(cmd *cli.Cmd) Config {
 
 	/** Default block to serach **/
 	numberOfBlocksToSearch := uint64(*cmd.Int(cli.IntOpt{
-		Name:   "number_of_blocks_to_serach",
+		Name:   "number_of_blocks_to_search",
 		Desc:   "Maximum block range for Ethereum event query",
 		EnvVar: "PEGGO_BLOCKS_TO_SEARCH",
 		Value:  2000,
