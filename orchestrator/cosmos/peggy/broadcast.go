@@ -33,7 +33,7 @@ type BroadcastClient interface {
 	SendERC20DeployedClaim(ctx context.Context, erc20 *peggyevents.PeggyERC20DeployedEvent) error
 }
 
-const broadcastMsgSleepDuration = 1 * time.Second
+const broadcastMsgSleepDuration = 1200 * time.Millisecond // 1.2s
 
 type broadcastClient struct {
 	chain.ChainClient
@@ -80,6 +80,8 @@ func (c *broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, et
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgSetOrchestratorAddresses")
@@ -88,8 +90,6 @@ func (c *broadcastClient) UpdatePeggyOrchestratorAddresses(_ context.Context, et
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgSetOrchestratorAddresses: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	return nil
 }
@@ -131,6 +131,8 @@ func (c *broadcastClient) SendValsetConfirm(_ context.Context, ethFrom gethcommo
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgValsetConfirm")
@@ -139,8 +141,6 @@ func (c *broadcastClient) SendValsetConfirm(_ context.Context, ethFrom gethcommo
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgValsetConfirm: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	return nil
 }
@@ -176,6 +176,8 @@ func (c *broadcastClient) SendBatchConfirm(_ context.Context, ethFrom gethcommon
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgConfirmBatch")
@@ -184,8 +186,6 @@ func (c *broadcastClient) SendBatchConfirm(_ context.Context, ethFrom gethcommon
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgConfirmBatch: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	return nil
 }
@@ -218,12 +218,12 @@ func (c *broadcastClient) SendToEth(ctx context.Context, destination gethcommon.
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	if err := c.ChainClient.QueueBroadcastMsg(msg); err != nil {
 		metrics.ReportFuncError(c.svcTags)
 		return errors.Wrap(err, "broadcasting MsgSendToEth failed")
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	return nil
 }
@@ -250,6 +250,8 @@ func (c *broadcastClient) SendRequestBatch(ctx context.Context, denom string) er
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgRequestBatch")
@@ -258,8 +260,6 @@ func (c *broadcastClient) SendRequestBatch(ctx context.Context, denom string) er
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgRequestBatch: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	return nil
 }
@@ -295,6 +295,8 @@ func (c *broadcastClient) SendOldDepositClaim(_ context.Context, deposit *peggye
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgDepositClaim")
@@ -303,8 +305,6 @@ func (c *broadcastClient) SendOldDepositClaim(_ context.Context, deposit *peggye
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgDepositClaim: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	log.WithFields(log.Fields{
 		"event_height": msg.BlockHeight,
@@ -347,6 +347,8 @@ func (c *broadcastClient) SendDepositClaim(_ context.Context, deposit *peggyeven
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgDepositClaim")
@@ -355,8 +357,6 @@ func (c *broadcastClient) SendDepositClaim(_ context.Context, deposit *peggyeven
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgDepositClaim: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	log.WithFields(log.Fields{
 		"event_nonce":  msg.EventNonce,
@@ -390,6 +390,8 @@ func (c *broadcastClient) SendWithdrawalClaim(_ context.Context, withdrawal *peg
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgWithdrawClaim")
@@ -398,8 +400,6 @@ func (c *broadcastClient) SendWithdrawalClaim(_ context.Context, withdrawal *peg
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgWithdrawClaim: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	log.WithFields(log.Fields{
 		"event_height": msg.BlockHeight,
@@ -444,6 +444,8 @@ func (c *broadcastClient) SendValsetClaim(_ context.Context, vs *peggyevents.Peg
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgValsetUpdatedClaim")
@@ -452,8 +454,6 @@ func (c *broadcastClient) SendValsetClaim(_ context.Context, vs *peggyevents.Peg
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgValsetUpdatedClaim: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	log.WithFields(log.Fields{
 		"event_nonce":  msg.EventNonce,
@@ -491,6 +491,8 @@ func (c *broadcastClient) SendERC20DeployedClaim(_ context.Context, erc20 *peggy
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	defer time.Sleep(broadcastMsgSleepDuration)
+
 	_, resp, err := c.ChainClient.BroadcastMsg(cosmostx.BroadcastMode_BROADCAST_MODE_SYNC, msg)
 	if err != nil {
 		return errors.Wrap(err, "failed to broadcast MsgERC20DeployedClaim")
@@ -499,8 +501,6 @@ func (c *broadcastClient) SendERC20DeployedClaim(_ context.Context, erc20 *peggy
 	if resp.TxResponse.Code != 0 {
 		return errors.Errorf("failed to broadcast MsgERC20DeployedClaim: %s", resp.TxResponse.RawLog)
 	}
-
-	time.Sleep(broadcastMsgSleepDuration)
 
 	log.WithFields(log.Fields{
 		"event_nonce":  msg.EventNonce,
