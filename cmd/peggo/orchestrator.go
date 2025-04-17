@@ -154,7 +154,7 @@ func orchestratorCmd(cmd *cli.Cmd) {
 		peggo, err := orchestrator.NewOrchestrator(
 			cosmosNetwork,
 			ethNetwork,
-			pricefeed.NewCoingeckoPriceFeed(100, &pricefeed.Config{BaseURL: *cfg.coingeckoApi}),
+			pricefeed.NewDummyCoingeckoFeed(),
 			orchestratorCfg,
 		)
 		orShutdown(err)
