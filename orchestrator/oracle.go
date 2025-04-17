@@ -17,11 +17,6 @@ import (
 const (
 	// Minimum number of confirmations for an Ethereum block to be considered valid
 	ethBlockConfirmationDelay uint64 = 12
-
-	// Maximum block range for Ethereum event query. If the orchestrator has been offline for a long time,
-	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
-	// when there are more than ~50 events to claim in a single run.
-	defaultBlocksToSearch uint64 = 2000
 )
 
 // runOracle is responsible for making sure that Ethereum events are retrieved from the Ethereum blockchain
@@ -33,9 +28,9 @@ func (s *Orchestrator) runOracle(ctx context.Context, lastObservedBlock uint64) 
 		lastResyncWithInjective: time.Now(),
 	}
 
-	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Oracle...")
+	s.logger.WithField("loop_duration", s.cfg.LoopDuration.String()).Debugln("starting Oracle...")
 
-	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+	return loops.RunLoop(ctx, s.cfg.LoopDuration, func() error {
 		return oracle.observeEthEvents(ctx)
 	})
 }
@@ -93,8 +88,8 @@ func (l *oracle) observeEthEvents(ctx context.Context) error {
 	}
 
 	// ensure the block range is within defaultBlocksToSearch
-	if latestHeight > l.lastObservedEthHeight+defaultBlocksToSearch {
-		latestHeight = l.lastObservedEthHeight + defaultBlocksToSearch
+	if latestHeight > l.lastObservedEthHeight+l.cfg.NumberOfBlocksToSearch {
+		latestHeight = l.lastObservedEthHeight + l.cfg.NumberOfBlocksToSearch
 	}
 
 	events, err := l.getEthEvents(ctx, l.lastObservedEthHeight, latestHeight)

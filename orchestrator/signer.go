@@ -20,9 +20,9 @@ func (s *Orchestrator) runSigner(ctx context.Context, peggyID gethcommon.Hash) e
 		peggyID:      peggyID,
 	}
 
-	s.logger.WithField("loop_duration", defaultLoopDur.String()).Debugln("starting Signer...")
+	s.logger.WithField("loop_duration", s.cfg.LoopDuration.String()).Debugln("starting Signer...")
 
-	return loops.RunLoop(ctx, defaultLoopDur, func() error {
+	return loops.RunLoop(ctx, s.cfg.LoopDuration, func() error {
 		return signer.sign(ctx)
 	})
 }
