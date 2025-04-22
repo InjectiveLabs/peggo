@@ -15,10 +15,6 @@ import (
 	"github.com/InjectiveLabs/peggo/orchestrator/loops"
 )
 
-const (
-	defaultLoopDur = 60 * time.Second
-)
-
 // PriceFeed provides token price for a given contract address
 type PriceFeed interface {
 	QueryUSDPrice(address gethcommon.Address) (float64, error)
@@ -34,6 +30,12 @@ type Config struct {
 	RelayValsets         bool
 	RelayBatches         bool
 	RelayerMode          bool
+	LoopDuration         time.Duration
+
+	// Maximum block range for Ethereum event query. If the orchestrator has been offline for a long time,
+	// the oracle loop can potentially run longer than defaultLoopDur due to a surge of events. This usually happens
+	// when there are more than ~50 events to claim in a single run.
+	NumberOfBlocksToSearch uint64
 }
 
 type Orchestrator struct {
