@@ -2,51 +2,50 @@
 
 set -e
 
+cd "${0%/*}" # cd to current script dir
+
 CWD=$(pwd)
 
 # These options can be overridden by env
 GETH_PORT="${GETH_PORT:-8545}"
 GETH_NETWORK_ID="${GETH_NETWORK_ID:-50}"
-GETH_ALGO="${GETH_ALGO:-ethash}"
+GETH_ALGO="${GETH_ALGO:-clique}"
 GETH_BLOCK_GAS_LIMIT="${GETH_BLOCK_GAS_LIMIT:-60000000}"
 CHAIN_DIR="${CHAIN_DIR:-$CWD/data}"
+MINER_ADDR="0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e"
 
-hdir="$CHAIN_DIR/$GETH_NETWORK_ID"
-mkdir -p $hdir
+DATA_DIR="$CHAIN_DIR/$GETH_NETWORK_ID"
 
-# killall geth
-kill $(cat $hdir.geth.pid) &>/dev/null && rm $hdir.geth.pid || true
+if [[ $GETH_ALGO != "clique" ]]; then
+  echo "Unsupported geth algo: $GETH_ALGO. Must use clique"
+  exit 1
+fi
 
-sleep 1
-
-cd "${0%/*}" # cd to current script dir
-
-if [[ $GETH_ALGO == "ethash" ]]; then
-	geth --datadir $hdir --networkid $GETH_NETWORK_ID --nodiscover \
-		--http --http.port $GETH_PORT --http.api personal,eth,net,web3 \
-		--miner.threads=1 --etherbase=0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e \
-		--mine --targetgaslimit $GETH_BLOCK_GAS_LIMIT > $hdir.geth.log 2>&1 &
-	echo $! > $hdir.geth.pid
-elif [[ $GETH_ALGO == "clique" ]]; then
-	geth --datadir $hdir --networkid $GETH_NETWORK_ID --nodiscover \
-		--http --http.port $GETH_PORT --http.api personal,eth,net,web3 --allow-insecure-unlock \
-		--unlock 0xBbDf3283d1Cf510c17B4FfA1b900F444bE4A4A4e --password ./geth/clique_password.txt \
-		--mine --targetgaslimit $GETH_BLOCK_GAS_LIMIT > $hdir.geth.log 2>&1 &
-	echo $! > $hdir.geth.pid
-else
-	echo "Unsupported Geth algo: $GETH_ALGO, use ethash or clique"
-	exit 1
+# Kill the node if it's already running
+pid="$(cat "$DATA_DIR.geth.pid")"
+if kill "$pid"  &>/dev/null; then
+    rm "$DATA_DIR.geth.pid"
 fi
 
 sleep 1
 
-echo
+# Start the local geth node
+geth --datadir "$DATA_DIR" --networkid "$GETH_NETWORK_ID" --nodiscover \
+  --http --http.port "$GETH_PORT" --http.api personal,eth,net,web3 --allow-insecure-unlock \
+  --miner.etherbase $MINER_ADDR --unlock $MINER_ADDR --password ./geth/clique_password.txt \
+  --mine --miner.gaslimit "$GETH_BLOCK_GAS_LIMIT" > "$DATA_DIR".geth.log 2>&1 &
+
+echo $! > "$DATA_DIR".geth.pid # overwrite previous PID
+PID=$(cat ./data/$GETH_NETWORK_ID.geth.pid)
+
+sleep 1
+
+echo "Geth:"
+echo "  http://localhost:$GETH_PORT"
 echo "Logs:"
 echo "  tail -f ./data/$GETH_NETWORK_ID.geth.log"
-echo 
-echo "Command Line Access:"
-echo "  geth attach http://localhost:8545"
-echo "  geth attach ./data/$GETH_NETWORK_ID/geth.ipc"
-echo 
 echo "Shutdown:"
-echo "  kill \$(cat ./data/$GETH_NETWORK_ID.geth.pid)"
+echo "  kill $PID"
+echo
+echo "Ethereum network setup complete!"
+echo
