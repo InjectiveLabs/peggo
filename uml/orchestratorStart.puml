@@ -1,0 +1,31 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+participant PeggyOrchestrator as peggo
+participant InjectiveNetwork as injective
+
+[-> peggo : Run
+peggo -> peggo : hasRegisteredETHAddress
+
+alt Has ETH address
+    peggo <-- injective : True
+    peggo -> peggo : startValidatorMode
+    activate peggo
+    peggo -> peggo : EthOracleMainLoop
+    peggo -> peggo : BatchRequesterLoop
+    peggo -> peggo : EthSignerMainLoop
+    peggo -> peggo : RelayerMainLoop
+    [<-- peggo : Return
+    deactivate peggo
+
+else No ETH address
+    peggo <-- injective : False
+    peggo -> peggo : startRelayerMode
+    activate peggo
+    peggo -> peggo : BatchRequesterLoop
+    peggo -> peggo : RelayerMainLoop
+    [<-- peggo : Return
+        deactivate peggo
+end
+
+@enduml
