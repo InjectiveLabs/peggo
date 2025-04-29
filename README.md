@@ -63,7 +63,7 @@ Starts the orchestrator main loop.
 
 Options:
       --cosmos-chain-id                  Specify Chain ID of the Cosmos network. (env $PEGGO_COSMOS_CHAIN_ID) (default "888")
-      --cosmos-grpc                      Cosmos GRPC querying endpoint (env $PEGGO_COSMOS_GRPC) (default "tcp://localhost:9900")
+      --cosmos-grpc                      Cosmos GRPC querying endpoint (env $PEGGO_COSMOS_GRPC) (default "tcp://localhost:9090")
       --tendermint-rpc                   Tendermint RPC endpoint (env $PEGGO_TENDERMINT_RPC) (default "http://localhost:26657")
       --cosmos-gas-prices                Specify Cosmos chain transaction fees as DecCoins gas prices (env $PEGGO_COSMOS_GAS_PRICES)
       --cosmos-keyring                   Specify Cosmos keyring backend (os|file|kwallet|pass|test) (env $PEGGO_COSMOS_KEYRING) (default "file")
@@ -103,7 +103,7 @@ Submits an Ethereum key that will be used to sign messages on behalf of your Val
 
 Options:
       --cosmos-chain-id          Specify Chain ID of the Cosmos network. (env $PEGGO_COSMOS_CHAIN_ID) (default "888")
-      --cosmos-grpc              Cosmos GRPC querying endpoint (env $PEGGO_COSMOS_GRPC) (default "tcp://localhost:9900")
+      --cosmos-grpc              Cosmos GRPC querying endpoint (env $PEGGO_COSMOS_GRPC) (default "tcp://localhost:9090")
       --tendermint-rpc           Tendermint RPC endpoint (env $PEGGO_TENDERMINT_RPC) (default "http://localhost:26657")
       --cosmos-gas-prices        Specify Cosmos chain transaction fees as DecCoins gas prices (env $PEGGO_COSMOS_GAS_PRICES)
       --cosmos-keyring           Specify Cosmos keyring backend (os|file|kwallet|pass|test) (env $PEGGO_COSMOS_KEYRING) (default "file")
