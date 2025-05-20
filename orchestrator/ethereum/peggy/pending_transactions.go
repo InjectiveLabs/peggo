@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -69,12 +68,12 @@ func (p PendingTxInputList) IsPendingTxInput(txInput []byte, pendingTxWaitDurati
 
 func (s *peggyContract) SubscribeToPendingTxs(alchemyWebsocketURL string) {
 	args := map[string]interface{}{
-		"address": s.peggyAddress.Hex(),
+		"toAddress": s.peggyAddress.Hex(),
 	}
 
 	wsClient, err := rpc.Dial(alchemyWebsocketURL)
 	if err != nil {
-		log.WithField("Websocket endpoint", alchemyWebsocketURL).WithError(err).Fatalln("Failed to connect to Ethereum Alchemy websocket")
+		log.WithField("Websocket endpoint", alchemyWebsocketURL).WithError(err).Warningln("Failed to connect to Ethereum Alchemy websocket")
 		return
 	}
 
@@ -83,38 +82,35 @@ func (s *peggyContract) SubscribeToPendingTxs(alchemyWebsocketURL string) {
 
 	// Subscribe to Transactions
 	ch := make(chan *RPCTransaction)
-	_, err = wsClient.EthSubscribe(ctx, ch, "alchemy_filteredNewFullPendingTransactions", args)
+	_, err = wsClient.EthSubscribe(ctx, ch, "alchemy_pendingTransactions", args)
 	if err != nil {
-		log.WithField("Subscription error", alchemyWebsocketURL).WithError(err).Fatalln("Failed to subscribe to pending transactions")
+		log.WithField("Subscription error", alchemyWebsocketURL).WithError(err).Warningln("Failed to subscribe to pending transactions")
 		return
 	}
 
 	for {
 		// Check that the transaction was send over the channel
 		pendingTransaction := <-ch
+		log.WithField("hash", pendingTransaction.Hash).Infoln("received pending transaction")
 		s.pendingTxInputList.AddPendingTxInput(pendingTransaction)
 	}
 }
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
-	BlockHash        *common.Hash         `json:"blockHash"`
-	BlockNumber      *hexutil.Big         `json:"blockNumber"`
-	From             common.Address       `json:"from"`
-	Gas              hexutil.Uint64       `json:"gas"`
-	GasPrice         *hexutil.Big         `json:"gasPrice"`
-	GasFeeCap        *hexutil.Big         `json:"maxFeePerGas,omitempty"`
-	GasTipCap        *hexutil.Big         `json:"maxPriorityFeePerGas,omitempty"`
-	Hash             common.Hash          `json:"hash"`
-	Input            hexutil.Bytes        `json:"input"`
-	Nonce            hexutil.Uint64       `json:"nonce"`
-	To               *common.Address      `json:"to"`
-	TransactionIndex *hexutil.Uint64      `json:"transactionIndex"`
-	Value            *hexutil.Big         `json:"value"`
-	Type             hexutil.Uint64       `json:"type"`
-	Accesses         *ethTypes.AccessList `json:"accessList,omitempty"`
-	ChainID          *hexutil.Big         `json:"chainId,omitempty"`
-	V                *hexutil.Big         `json:"v"`
-	R                *hexutil.Big         `json:"r"`
-	S                *hexutil.Big         `json:"s"`
+	BlockHash        *common.Hash    `json:"blockHash"`
+	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	From             common.Address  `json:"from"`
+	Gas              hexutil.Uint64  `json:"gas"`
+	GasPrice         *hexutil.Big    `json:"gasPrice"`
+	Hash             common.Hash     `json:"hash"`
+	Input            hexutil.Bytes   `json:"input"`
+	Nonce            hexutil.Uint64  `json:"nonce"`
+	To               *common.Address `json:"to"`
+	TransactionIndex *hexutil.Uint64 `json:"transactionIndex"`
+	Value            *hexutil.Big    `json:"value"`
+	Type             hexutil.Uint64  `json:"type"`
+	V                *hexutil.Big    `json:"v"`
+	R                *hexutil.Big    `json:"r"`
+	S                *hexutil.Big    `json:"s"`
 }
